@@ -20,6 +20,11 @@ export const config = {
     publicBaseUrl: process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL || '',
   },
   email: {
+    provider: process.env.EMAIL_PROVIDER || 'smtp', // 'smtp' or 'resend'
+    // Resend configuration
+    resendApiKey: process.env.RESEND_API_KEY,
+    resendFrom: process.env.EMAIL_FROM || 'Pryvo <onboarding@resend.dev>',
+    // SMTP configuration (fallback)
     host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
     port: Number.parseInt(process.env.EMAIL_PORT || '465', 10),
     // Auto-detect secure: true for 465, false for 587 (STARTTLS)
