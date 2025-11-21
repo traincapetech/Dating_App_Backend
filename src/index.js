@@ -9,16 +9,22 @@ server.listen(config.port, () => {
   console.log(`API server listening on port ${config.port}`);
   
   // Log email configuration for debugging
-  console.log(`Email config - Host: ${config.email.host}, Port: ${config.email.port}, Secure: ${config.email.secure}`);
-  console.log(`Email config - User: ${config.email.user}, From: ${config.email.from}`);
-  
-  // Verify email connection on startup (non-blocking)
-  if (config.email.password) {
-    verifyEmailConnection().catch((error) => {
-      console.warn('Email service verification failed. The server will continue, but email sending may not work.');
-      console.warn('Error details:', error.message);
-    });
+  console.log(`Email provider: ${config.email.provider}`);
+  if (config.email.provider === 'resend') {
+    console.log(`Resend configured: ${config.email.resendApiKey ? 'Yes' : 'No'}`);
+    console.log(`Resend from: ${config.email.resendFrom}`);
   } else {
-    console.warn('Email service not configured. OTP emails will not be sent.');
+    console.log(`SMTP config - Host: ${config.email.host}, Port: ${config.email.port}, Secure: ${config.email.secure}`);
+    console.log(`SMTP config - User: ${config.email.user}, From: ${config.email.from}`);
+    
+    // Verify SMTP connection on startup (non-blocking) - only for SMTP provider
+    if (config.email.password) {
+      verifyEmailConnection().catch((error) => {
+        console.warn('SMTP connection verification failed. The server will continue, but email sending may not work.');
+        console.warn('Error details:', error.message);
+      });
+    } else {
+      console.warn('SMTP password not configured. OTP emails will not be sent via SMTP.');
+    }
   }
 });
