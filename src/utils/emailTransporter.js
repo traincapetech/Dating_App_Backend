@@ -14,6 +14,9 @@ export function getEmailTransporter() {
     );
   }
 
+  // Log email configuration for debugging
+  console.log(`Email configuration: ${config.email.host}:${config.email.port}, secure: ${config.email.secure}, user: ${config.email.user}`);
+
   const transportOptions = {
     host: config.email.host,
     port: config.email.port,
