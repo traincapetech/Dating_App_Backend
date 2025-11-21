@@ -5,12 +5,14 @@ import {verifyEmailConnection} from './utils/emailTransporter.js';
 
 const server = http.createServer(app);
 
-server.listen(config.port, async () => {
+server.listen(config.port, () => {
   console.log(`API server listening on port ${config.port}`);
   
-  // Verify email connection on startup
+  // Verify email connection on startup (non-blocking)
   if (config.email.password) {
-    await verifyEmailConnection();
+    verifyEmailConnection().catch(() => {
+      console.warn('Email service verification failed. The server will continue, but email sending may not work.');
+    });
   } else {
     console.warn('Email service not configured. OTP emails will not be sent.');
   }
