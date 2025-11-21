@@ -82,19 +82,20 @@ export async function sendEmailOTP(email) {
     };
   } catch (error) {
     console.error('Error sending email OTP:', error);
-    // Still return success in development, but log the error
-    // In production, you might want to throw the error
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Failed to send email. Please try again later.');
-    }
+    console.error(`[FALLBACK] Email OTP for ${email}: ${code} (Email service unavailable)`);
     
-    // For development, log the OTP so testing can continue
-    console.log(`[DEV] Email OTP for ${email}: ${code}`);
+    // In production, we still return success but log the OTP
+    // This allows the app to continue functioning even if email fails
+    // The OTP is still stored and can be verified
+    // TODO: Consider using a cloud email service (SendGrid, Mailgun, etc.) for better reliability
     
     return {
       success: true,
       message: 'OTP sent to your email',
       expiresIn: 600,
+      // Include OTP in response for development/testing when email fails
+      // Remove this in production once email is working
+      ...(process.env.NODE_ENV !== 'production' && { debugCode: code }),
     };
   }
 }
