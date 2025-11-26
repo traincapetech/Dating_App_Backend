@@ -2,6 +2,7 @@ import {randomInt} from 'crypto';
 import {createOTP, verifyOTP as verifyOTPModel} from '../models/otpModel.js';
 import {getEmailTransporter} from '../utils/emailTransporter.js';
 import {sendEmailWithResend} from '../utils/resendTransporter.js';
+import {sendEmailWithEmailJS} from '../utils/emailjsTransporter.js';
 import {config} from '../config/env.js';
 
 // Generate 6-digit OTP
@@ -61,8 +62,17 @@ export async function sendEmailOTP(email) {
   `;
 
   try {
-    // Use Resend if configured, otherwise fall back to SMTP
-    if (config.email.provider === 'resend' && config.email.resendApiKey) {
+    // Priority: EmailJS > Resend > SMTP
+    if (config.email.provider === 'emailjs' && config.email.emailjsServiceId) {
+      await sendEmailWithEmailJS({
+        to: email,
+        subject: 'Verify your email - Pryvo',
+        html: emailHtml,
+        text: emailText,
+        otpCode: code,
+      });
+      console.log(`Email OTP sent successfully via EmailJS to ${email}`);
+    } else if (config.email.provider === 'resend' && config.email.resendApiKey) {
       await sendEmailWithResend({
         to: email,
         subject: 'Verify your email - Pryvo',
