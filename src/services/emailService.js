@@ -63,7 +63,10 @@ export async function sendEmailOTP(email) {
 
   try {
     // Priority: EmailJS > Resend > SMTP
-    if (config.email.provider === 'emailjs' && config.email.emailjsServiceId) {
+    if (config.email.provider === 'emailjs') {
+      if (!config.email.emailjsServiceId) {
+        throw new Error('EmailJS Service ID is not configured. Please set EMAILJS_SERVICE_ID in environment variables.');
+      }
       await sendEmailWithEmailJS({
         to: email,
         subject: 'Verify your email - Pryvo',
@@ -109,6 +112,21 @@ export async function sendEmailOTP(email) {
   } catch (error) {
     console.error('Error sending email OTP:', error.message);
     console.error(`[FALLBACK] Email service unavailable. OTP for ${email}: ${code}`);
+    
+    // Log configuration status for debugging
+    if (config.email.provider === 'emailjs') {
+      console.error('[DEBUG] EmailJS configuration check:');
+      console.error(`  - Provider: ${config.email.provider}`);
+      console.error(`  - Service ID: ${config.email.emailjsServiceId ? 'Set' : 'NOT SET'}`);
+      console.error(`  - Template ID: ${config.email.emailjsTemplateId ? 'Set' : 'NOT SET'}`);
+      console.error(`  - Public Key: ${config.email.emailjsPublicKey ? 'Set' : 'NOT SET'}`);
+      console.error(`  - Private Key: ${config.email.emailjsPrivateKey ? 'Set' : 'NOT SET'}`);
+      console.error('[ACTION REQUIRED] Add EmailJS credentials to Render environment variables:');
+      console.error('  - EMAILJS_SERVICE_ID');
+      console.error('  - EMAILJS_TEMPLATE_ID');
+      console.error('  - EMAILJS_PUBLIC_KEY');
+      console.error('  - EMAILJS_PRIVATE_KEY');
+    }
     
     // Don't throw error - allow the app to continue functioning
     // The OTP is still created and stored, it just wasn't emailed
