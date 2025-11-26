@@ -10,7 +10,11 @@ server.listen(config.port, () => {
   
   // Log email configuration for debugging
   console.log(`Email provider: ${config.email.provider}`);
-  if (config.email.provider === 'resend') {
+  if (config.email.provider === 'emailjs') {
+    console.log(`EmailJS configured: ${config.email.emailjsServiceId ? 'Yes' : 'No'}`);
+    console.log(`EmailJS Service ID: ${config.email.emailjsServiceId || 'Not set'}`);
+    console.log(`EmailJS Template ID: ${config.email.emailjsTemplateId || 'Not set'}`);
+  } else if (config.email.provider === 'resend') {
     console.log(`Resend configured: ${config.email.resendApiKey ? 'Yes' : 'No'}`);
     console.log(`Resend from: ${config.email.resendFrom}`);
   } else {
