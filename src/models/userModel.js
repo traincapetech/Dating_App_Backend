@@ -18,3 +18,15 @@ export async function createUser(user) {
   return user;
 }
 
+export async function findUserById(userId) {
+  const users = await getUsers();
+  return users.find(user => user.id === userId);
+}
+
+export async function deleteUser(userId) {
+  const users = await getUsers();
+  const filtered = users.filter(user => user.id !== userId);
+  await storage.writeJson(USERS_PATH, filtered);
+  return true;
+}
+
