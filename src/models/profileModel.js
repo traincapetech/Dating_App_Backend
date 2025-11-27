@@ -48,3 +48,10 @@ export async function upsertProfile(userId, profileData) {
   return createProfile({...profileData, userId});
 }
 
+export async function deleteProfile(userId) {
+  const profiles = await getProfiles();
+  const filtered = profiles.filter(profile => profile.userId !== userId);
+  await storage.writeJson(PROFILES_PATH, filtered);
+  return true;
+}
+

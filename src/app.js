@@ -16,6 +16,17 @@ app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Pryvo API Server',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+    },
+  });
+});
+
 app.use(errorHandler);
 
 export default app;
