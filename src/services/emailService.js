@@ -62,20 +62,9 @@ export async function sendEmailOTP(email) {
   `;
 
   try {
-    // Priority: EmailJS > Resend > SMTP
-    if (config.email.provider === 'emailjs') {
-      if (!config.email.emailjsServiceId) {
-        throw new Error('EmailJS Service ID is not configured. Please set EMAILJS_SERVICE_ID in environment variables.');
-      }
-      await sendEmailWithEmailJS({
-        to: email,
-        subject: 'Verify your email - Pryvo',
-        html: emailHtml,
-        text: emailText,
-        otpCode: code,
-      });
-      console.log(`Email OTP sent successfully via EmailJS to ${email}`);
-    } else if (config.email.provider === 'resend' && config.email.resendApiKey) {
+    // Priority: Resend > EmailJS > SMTP
+    // Resend is more reliable for server-side applications
+    if (config.email.provider === 'resend' && config.email.resendApiKey) {
       await sendEmailWithResend({
         to: email,
         subject: 'Verify your email - Pryvo',
@@ -83,6 +72,34 @@ export async function sendEmailOTP(email) {
         text: emailText,
       });
       console.log(`Email OTP sent successfully via Resend to ${email}`);
+    } else if (config.email.provider === 'emailjs') {
+      if (!config.email.emailjsServiceId) {
+        throw new Error('EmailJS Service ID is not configured. Please set EMAILJS_SERVICE_ID in environment variables.');
+      }
+      try {
+        await sendEmailWithEmailJS({
+          to: email,
+          subject: 'Verify your email - Pryvo',
+          html: emailHtml,
+          text: emailText,
+          otpCode: code,
+        });
+        console.log(`Email OTP sent successfully via EmailJS to ${email}`);
+      } catch (emailjsError) {
+        // EmailJS often blocks server-side calls, fall back to Resend if available
+        if (config.email.resendApiKey) {
+          console.warn(`[EmailJS failed, falling back to Resend] ${emailjsError.message}`);
+          await sendEmailWithResend({
+            to: email,
+            subject: 'Verify your email - Pryvo',
+            html: emailHtml,
+            text: emailText,
+          });
+          console.log(`Email OTP sent successfully via Resend (fallback) to ${email}`);
+        } else {
+          throw emailjsError;
+        }
+      }
     } else {
       // Fall back to SMTP
       const transporter = getEmailTransporter();
