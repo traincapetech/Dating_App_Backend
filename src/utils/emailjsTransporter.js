@@ -1,4 +1,3 @@
-import emailjs from '@emailjs/nodejs';
 import {config} from '../config/env.js';
 
 export async function sendEmailWithEmailJS({to, subject, html, text, otpCode}) {
@@ -27,28 +26,44 @@ export async function sendEmailWithEmailJS({to, subject, html, text, otpCode}) {
     console.log(`[EmailJS] Sending email to ${to} using service ${config.email.emailjsServiceId}, template ${config.email.emailjsTemplateId}`);
     console.log(`[EmailJS] Template params:`, JSON.stringify(templateParams, null, 2));
 
-    const response = await emailjs.send(
-      config.email.emailjsServiceId,
-      config.email.emailjsTemplateId,
-      templateParams,
-      {
-        publicKey: config.email.emailjsPublicKey,
-        privateKey: config.email.emailjsPrivateKey,
-      }
-    );
+    // Use EmailJS REST API directly instead of Node.js SDK
+    // According to EmailJS docs, accessToken should be in query params or header
+    const apiUrl = `https://api.emailjs.com/api/v1.0/email/send`;
+    
+    const requestBody = {
+      service_id: config.email.emailjsServiceId,
+      template_id: config.email.emailjsTemplateId,
+      user_id: config.email.emailjsPublicKey,
+      template_params: templateParams,
+    };
 
-    console.log(`[EmailJS] Response:`, JSON.stringify(response, null, 2));
-    return response;
+    // Try with accessToken as query parameter first
+    const urlWithToken = `${apiUrl}?accessToken=${encodeURIComponent(config.email.emailjsPrivateKey)}`;
+    
+    const response = await fetch(urlWithToken, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`EmailJS API error: ${responseData.message || response.statusText} (Status: ${response.status})`);
+    }
+
+    console.log(`[EmailJS] Response:`, JSON.stringify(responseData, null, 2));
+    return responseData;
   } catch (error) {
     // Log full error details for debugging
     console.error('[EmailJS] Full error:', error);
     console.error('[EmailJS] Error message:', error.message);
-    console.error('[EmailJS] Error status:', error.status);
-    console.error('[EmailJS] Error text:', error.text);
     
     // Provide more detailed error message
-    const errorMessage = error.text || error.message || 'Failed to send email';
-    throw new Error(`EmailJS error: ${errorMessage} (Status: ${error.status || 'unknown'})`);
+    const errorMessage = error.message || 'Failed to send email';
+    throw new Error(`EmailJS error: ${errorMessage}`);
   }
 }
 
