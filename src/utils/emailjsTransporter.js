@@ -48,10 +48,20 @@ export async function sendEmailWithEmailJS({to, subject, html, text, otpCode}) {
       body: JSON.stringify(requestBody),
     });
 
-    const responseData = await response.json();
+    // Get response text first to handle both JSON and plain text responses
+    const responseText = await response.text();
+    
+    // Try to parse as JSON, but handle plain text errors
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      // If it's not JSON, it's likely an error message
+      throw new Error(`EmailJS API error: ${responseText} (Status: ${response.status})`);
+    }
 
     if (!response.ok) {
-      throw new Error(`EmailJS API error: ${responseData.message || response.statusText} (Status: ${response.status})`);
+      throw new Error(`EmailJS API error: ${responseData.message || responseText || response.statusText} (Status: ${response.status})`);
     }
 
     console.log(`[EmailJS] Response:`, JSON.stringify(responseData, null, 2));
