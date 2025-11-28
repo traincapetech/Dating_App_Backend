@@ -60,10 +60,32 @@ export async function sendEmailOTP(email) {
   `;
 
   try {
-    // Use SMTP to send email
+    // Use SMTP to send email via Hostinger
     const transporter = getEmailTransporter();
+    
+    // Format sender - if EMAIL_FROM contains <email>, parse it, otherwise use just the name
+    let fromAddress = config.email.user; // Default to SMTP user
+    let fromName = 'Pryvo';
+    
+    if (config.email.from) {
+      // Check if it's in format "Name <email>" or just "Name"
+      const fromMatch = config.email.from.match(/^(.+?)\s*<(.+?)>$/);
+      if (fromMatch) {
+        fromName = fromMatch[1].trim();
+        fromAddress = fromMatch[2].trim();
+      } else {
+        // Just a name, use SMTP user email
+        fromName = config.email.from.trim();
+        fromAddress = config.email.user;
+      }
+    }
+    
     const mailOptions = {
-      from: config.email.from,
+      from: {
+        name: fromName,
+        address: fromAddress,
+      },
+      // Don't set replyTo - users shouldn't reply to OTP emails
       to: email,
       subject: 'Verify your email - Pryvo',
       html: emailHtml,

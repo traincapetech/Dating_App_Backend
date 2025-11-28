@@ -30,7 +30,9 @@ export const config = {
       : Number.parseInt(process.env.EMAIL_PORT || '465', 10) === 465,
     user: process.env.EMAIL_USER || 'sales@traincapetech.in',
     password: process.env.EMAIL_PASSWORD || 'Canada@1212',
-    from: process.env.EMAIL_FROM || 'Pryvo <sales@traincapetech.in>',
+    // Format: "Display Name <email@domain.com>" or just "Display Name"
+    // If EMAIL_FROM is not set, it will use just "Pryvo" without showing email
+    from: process.env.EMAIL_FROM || 'Pryvo',
   },
 };
 
