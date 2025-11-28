@@ -95,16 +95,37 @@ async function writeFile(relativePath, buffer, options = {}) {
 
   const {contentType, cacheControl, metadata} = options;
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: config.r2.bucket,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-      CacheControl: cacheControl,
-      Metadata: metadata,
-    }),
-  );
+  console.log('[R2 Driver] Writing file:', {
+    relativePath,
+    resolvedKey: key,
+    bucket: config.r2.bucket,
+    contentType,
+    bufferSize: buffer?.length || 0,
+    prefix: config.r2.prefix || '(none)',
+  });
+
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: config.r2.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        CacheControl: cacheControl,
+        Metadata: metadata,
+      }),
+    );
+    console.log('[R2 Driver] File uploaded successfully to R2:', key);
+  } catch (error) {
+    console.error('[R2 Driver] Error uploading to R2:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      key,
+      bucket: config.r2.bucket,
+    });
+    throw error;
+  }
 }
 
 async function deleteObject(relativePath) {

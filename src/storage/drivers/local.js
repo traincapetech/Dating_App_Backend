@@ -59,8 +59,15 @@ async function readFile(relativePath) {
 async function writeFile(relativePath, buffer, options = {}) {
   const {encoding} = options;
   const fullPath = resolvePath(relativePath);
+  console.log('[Local Driver] Writing file:', {
+    relativePath,
+    fullPath,
+    bufferSize: buffer?.length || 0,
+    encoding: encoding || 'binary',
+  });
   await ensureDirectory(fullPath);
-  return fs.writeFile(fullPath, buffer, encoding);
+  await fs.writeFile(fullPath, buffer, encoding);
+  console.log('[Local Driver] File saved successfully to:', fullPath);
 }
 
 async function deleteObject(relativePath) {

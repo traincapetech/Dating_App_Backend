@@ -91,12 +91,14 @@ export async function updateProfileData(userId, updates) {
   return upsertProfile(userId, profileData);
 }
 
-export async function getAllProfiles(excludeUserId = null) {
+export async function getAllProfiles(excludeUserId = null, options = {}) {
+  const {useMatching = false, minScore = 0, maxDistance = null, sortBy = 'score', limit = null} = options;
+  
   const profiles = await getProfiles();
   const users = await getUsers();
   
   // Combine profile data with user data
-  const enrichedProfiles = profiles
+  let enrichedProfiles = profiles
     .filter(profile => !excludeUserId || profile.userId !== excludeUserId)
     .map(profile => {
       const user = users.find(u => u.id === profile.userId);
@@ -112,11 +114,30 @@ export async function getAllProfiles(excludeUserId = null) {
         bio: profile.profilePrompts?.bio || profile.basicInfo?.bio || '',
         // Get interests from lifestyle
         interests: profile.lifestyle?.interests || [],
-        // Calculate distance (mock for now, can be enhanced with location)
-        distance: Math.floor(Math.random() * 10) + 1,
+        // Calculate distance (will be calculated in matching if location data exists)
+        distance: null, // Will be set by matching service if location data is available
       };
     })
     .filter(profile => profile.photos.length > 0); // Only show profiles with photos
+  
+  // If matching is enabled and we have a user ID, use matching algorithm
+  if (useMatching && excludeUserId) {
+    try {
+      const {getMatchedProfiles} = await import('./matchingService.js');
+      const matchedProfiles = await getMatchedProfiles(excludeUserId, {
+        minScore,
+        maxDistance,
+        sortBy,
+        limit,
+      });
+      
+      // The matchedProfiles already have all the enriched data, so use them directly
+      enrichedProfiles = matchedProfiles;
+    } catch (error) {
+      console.error('Error applying matching algorithm:', error);
+      // Fall back to non-matched profiles if matching fails
+    }
+  }
   
   return enrichedProfiles;
 }

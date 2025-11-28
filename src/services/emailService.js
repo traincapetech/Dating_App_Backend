@@ -1,8 +1,6 @@
 import {randomInt} from 'crypto';
 import {createOTP, verifyOTP as verifyOTPModel} from '../models/otpModel.js';
 import {getEmailTransporter} from '../utils/emailTransporter.js';
-import {sendEmailWithResend} from '../utils/resendTransporter.js';
-import {sendEmailWithEmailJS} from '../utils/emailjsTransporter.js';
 import {config} from '../config/env.js';
 
 // Generate 6-digit OTP
@@ -10,7 +8,7 @@ function generateOTP() {
   return randomInt(100000, 999999).toString();
 }
 
-// Send email OTP using Resend or SMTP
+// Send email OTP using SMTP
 export async function sendEmailOTP(email) {
   const code = generateOTP();
   const otp = await createOTP(email, code, 'email');
@@ -62,64 +60,24 @@ export async function sendEmailOTP(email) {
   `;
 
   try {
-    // Priority: Resend > EmailJS > SMTP
-    // Resend is more reliable for server-side applications
-    if (config.email.provider === 'resend' && config.email.resendApiKey) {
-      await sendEmailWithResend({
-        to: email,
-        subject: 'Verify your email - Pryvo',
-        html: emailHtml,
-        text: emailText,
-      });
-      console.log(`Email OTP sent successfully via Resend to ${email}`);
-    } else if (config.email.provider === 'emailjs') {
-      if (!config.email.emailjsServiceId) {
-        throw new Error('EmailJS Service ID is not configured. Please set EMAILJS_SERVICE_ID in environment variables.');
-      }
-      try {
-        await sendEmailWithEmailJS({
-          to: email,
-          subject: 'Verify your email - Pryvo',
-          html: emailHtml,
-          text: emailText,
-          otpCode: code,
-        });
-        console.log(`Email OTP sent successfully via EmailJS to ${email}`);
-      } catch (emailjsError) {
-        // EmailJS often blocks server-side calls, fall back to Resend if available
-        if (config.email.resendApiKey) {
-          console.warn(`[EmailJS failed, falling back to Resend] ${emailjsError.message}`);
-          await sendEmailWithResend({
-            to: email,
-            subject: 'Verify your email - Pryvo',
-            html: emailHtml,
-            text: emailText,
-          });
-          console.log(`Email OTP sent successfully via Resend (fallback) to ${email}`);
-        } else {
-          throw emailjsError;
-        }
-      }
-    } else {
-      // Fall back to SMTP
-      const transporter = getEmailTransporter();
-      const mailOptions = {
-        from: config.email.from,
-        to: email,
-        subject: 'Verify your email - Pryvo',
-        html: emailHtml,
-        text: emailText,
-      };
+    // Use SMTP to send email
+    const transporter = getEmailTransporter();
+    const mailOptions = {
+      from: config.email.from,
+      to: email,
+      subject: 'Verify your email - Pryvo',
+      html: emailHtml,
+      text: emailText,
+    };
 
-      // Add timeout to prevent hanging
-      const sendPromise = transporter.sendMail(mailOptions);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email send timeout')), 15000)
-      );
-      
-      await Promise.race([sendPromise, timeoutPromise]);
-      console.log(`Email OTP sent successfully via SMTP to ${email}`);
-    }
+    // Add timeout to prevent hanging
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email send timeout')), 15000)
+    );
+    
+    await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`Email OTP sent successfully via SMTP to ${email}`);
 
     return {
       success: true,
@@ -130,20 +88,14 @@ export async function sendEmailOTP(email) {
     console.error('Error sending email OTP:', error.message);
     console.error(`[FALLBACK] Email service unavailable. OTP for ${email}: ${code}`);
     
-    // Log configuration status for debugging
-    if (config.email.provider === 'emailjs') {
-      console.error('[DEBUG] EmailJS configuration check:');
-      console.error(`  - Provider: ${config.email.provider}`);
-      console.error(`  - Service ID: ${config.email.emailjsServiceId ? 'Set' : 'NOT SET'}`);
-      console.error(`  - Template ID: ${config.email.emailjsTemplateId ? 'Set' : 'NOT SET'}`);
-      console.error(`  - Public Key: ${config.email.emailjsPublicKey ? 'Set' : 'NOT SET'}`);
-      console.error(`  - Private Key: ${config.email.emailjsPrivateKey ? 'Set' : 'NOT SET'}`);
-      console.error('[ACTION REQUIRED] Add EmailJS credentials to Render environment variables:');
-      console.error('  - EMAILJS_SERVICE_ID');
-      console.error('  - EMAILJS_TEMPLATE_ID');
-      console.error('  - EMAILJS_PUBLIC_KEY');
-      console.error('  - EMAILJS_PRIVATE_KEY');
-    }
+    // Log SMTP configuration status for debugging
+    console.error('[DEBUG] SMTP configuration check:');
+    console.error(`  - Provider: ${config.email.provider}`);
+    console.error(`  - Host: ${config.email.host || 'NOT SET'}`);
+    console.error(`  - Port: ${config.email.port || 'NOT SET'}`);
+    console.error(`  - User: ${config.email.user ? 'Set' : 'NOT SET'}`);
+    console.error(`  - Password: ${config.email.password ? 'Set' : 'NOT SET'}`);
+    console.error(`  - From: ${config.email.from || 'NOT SET'}`);
     
     // Don't throw error - allow the app to continue functioning
     // The OTP is still created and stored, it just wasn't emailed

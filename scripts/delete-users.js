@@ -6,7 +6,7 @@ import {config} from '../src/config/env.js';
 
 // User IDs to delete
 const userIdsToDelete = [
-  '65dab33a-47cc-4b0a-85d0-62da15fba731',
+  '91ebd862-1f4d-47ee-996a-259879b50fcb',
 ];
 
 async function deleteUserData(userId) {
