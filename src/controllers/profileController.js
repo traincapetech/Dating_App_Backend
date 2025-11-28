@@ -109,7 +109,23 @@ export const updateProfileController = asyncHandler(async (req, res) => {
 
 export const getAllProfilesController = asyncHandler(async (req, res) => {
   const excludeUserId = req.query.excludeUserId || req.user?.id;
-  const profiles = await getAllProfiles(excludeUserId);
+  
+  // Parse matching options from query parameters
+  const useMatching = req.query.useMatching === 'true' || req.query.useMatching === '1';
+  const minScore = req.query.minScore ? parseInt(req.query.minScore, 10) : 0;
+  const maxDistance = req.query.maxDistance ? parseFloat(req.query.maxDistance) : null;
+  const sortBy = req.query.sortBy || 'score'; // 'score', 'distance', 'recent'
+  const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
+  
+  const options = {
+    useMatching,
+    minScore,
+    maxDistance,
+    sortBy,
+    limit,
+  };
+  
+  const profiles = await getAllProfiles(excludeUserId, options);
   res.status(200).json({profiles});
 });
 
@@ -124,6 +140,17 @@ export const uploadImageController = asyncHandler(async (req, res) => {
   }
 
   try {
+    // Log storage configuration
+    console.log('[Image Upload] Storage driver:', config.storageDriver);
+    console.log('[Image Upload] R2 configured:', {
+      accountId: config.r2.accountId ? 'Set' : 'NOT SET',
+      accessKeyId: config.r2.accessKeyId ? 'Set' : 'NOT SET',
+      secretAccessKey: config.r2.secretAccessKey ? 'Set' : 'NOT SET',
+      bucket: config.r2.bucket || 'NOT SET',
+      prefix: config.r2.prefix || '(none)',
+      publicBaseUrl: config.r2.publicBaseUrl || 'NOT SET',
+    });
+
     let imageBuffer;
     let fileName;
     let contentType;
@@ -141,18 +168,32 @@ export const uploadImageController = asyncHandler(async (req, res) => {
       contentType = req.body.contentType || 'image/jpeg';
     }
 
+    console.log('[Image Upload] Image details:', {
+      fileName,
+      contentType,
+      bufferSize: imageBuffer?.length || 0,
+      userId,
+    });
+
     // Generate unique file path
     const fileExtension = fileName.split('.').pop();
     const filePath = `profiles/${userId}/images/${randomUUID()}.${fileExtension}`;
+
+    console.log('[Image Upload] Uploading to path:', filePath);
+    console.log('[Image Upload] Storage driver being used:', config.storageDriver);
 
     // Upload to storage (R2 or local)
     await storage.writeFile(filePath, imageBuffer, {
       contentType,
     });
 
+    console.log('[Image Upload] File uploaded successfully to:', filePath);
+
     // Get public URL
     const publicUrl = storage.getPublicUrl(filePath) || 
       `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/files/${filePath}`;
+
+    console.log('[Image Upload] Public URL:', publicUrl);
 
     // Update profile with new media
     const existing = await getProfile(userId);
@@ -167,14 +208,27 @@ export const uploadImageController = asyncHandler(async (req, res) => {
       media: [...existingMedia, newMediaItem],
     });
 
+    console.log('[Image Upload] Profile updated with new media item');
+
     res.status(200).json({
       success: true,
       url: publicUrl,
       message: 'Image uploaded successfully',
+      storageDriver: config.storageDriver,
+      filePath,
     });
   } catch (error) {
-    console.error('Image upload error:', error);
-    res.status(500).json({error: 'Failed to upload image', message: error.message});
+    console.error('[Image Upload] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+    });
+    res.status(500).json({
+      error: 'Failed to upload image',
+      message: error.message,
+      storageDriver: config.storageDriver,
+    });
   }
 });
 

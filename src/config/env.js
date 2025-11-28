@@ -20,17 +20,8 @@ export const config = {
     publicBaseUrl: process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL || '',
   },
   email: {
-    provider: process.env.EMAIL_PROVIDER || 'smtp', // 'emailjs', 'resend', or 'smtp'
-    // EmailJS configuration
-    emailjsServiceId: process.env.EMAILJS_SERVICE_ID,
-    emailjsTemplateId: process.env.EMAILJS_TEMPLATE_ID,
-    emailjsPublicKey: process.env.EMAILJS_PUBLIC_KEY,
-    emailjsPrivateKey: process.env.EMAILJS_PRIVATE_KEY,
-    // Resend configuration
-    resendApiKey: process.env.RESEND_API_KEY,
-    // Use sales@traincapetech.in (requires domain verification in Resend)
-    resendFrom: process.env.EMAIL_FROM || 'Pryvo <sales@traincapetech.in>',
-    // SMTP configuration (fallback)
+    provider: process.env.EMAIL_PROVIDER || 'smtp', // 'smtp' (EmailJS doesn't support server-side)
+    // SMTP configuration
     host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
     port: Number.parseInt(process.env.EMAIL_PORT || '465', 10),
     // Auto-detect secure: true for 465, false for 587 (STARTTLS)
