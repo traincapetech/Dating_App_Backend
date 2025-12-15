@@ -1,37 +1,63 @@
-import admin from 'firebase-admin';
 import { findTokenByUserId } from '../models/notificationTokenModel.js';
-import { config } from '../config/env.js';
 
-let firebaseApp = null;
+let admin = null;
+let isInitialized = false;
 
 // Initialize Firebase Admin SDK
-function initFirebase() {
-  if (firebaseApp) return;
+async function initFirebase() {
+  if (isInitialized) return admin;
   
   try {
-    // Check if credentials are provided via environment variable
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.applicationDefault()
-      });
-    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Try to use the existing firebase.js setup
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      const firebaseModule = await import('../../firebase.js');
+      admin = firebaseModule.default;
+      isInitialized = true;
+      console.log("🔥 Firebase Admin SDK initialized (using firebase.js)");
+      return admin;
+    }
+    
+    // Fallback: Try environment variable approaches
+    const firebaseAdmin = await import('firebase-admin');
+    
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       // Parse service account from env variable
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+      firebaseAdmin.default.initializeApp({
+        credential: firebaseAdmin.default.credential.cert(serviceAccount)
       });
-    } else {
-      console.warn("⚠️ Firebase credentials not configured - push notifications disabled");
-      return;
+      admin = firebaseAdmin.default;
+      isInitialized = true;
+      console.log("🔥 Firebase Admin SDK initialized (FIREBASE_SERVICE_ACCOUNT)");
+      return admin;
     }
-    console.log("🔥 Firebase Admin SDK initialized");
+    
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      firebaseAdmin.default.initializeApp({
+        credential: firebaseAdmin.default.credential.applicationDefault()
+      });
+      admin = firebaseAdmin.default;
+      isInitialized = true;
+      console.log("🔥 Firebase Admin SDK initialized (applicationDefault)");
+      return admin;
+    }
+    
+    console.warn("⚠️ Firebase credentials not configured - push notifications disabled");
+    return null;
   } catch (error) {
-    console.error("Failed to initialize Firebase Admin:", error);
+    console.error("Failed to initialize Firebase Admin:", error.message);
+    return null;
   }
 }
 
-// Initialize on module load
-initFirebase();
+// Initialize on first use
+let initPromise = null;
+function getAdmin() {
+  if (!initPromise) {
+    initPromise = initFirebase();
+  }
+  return initPromise;
+}
 
 /**
  * Send push notification to a user
@@ -39,7 +65,9 @@ initFirebase();
  * @param {object} notification - { title, body, data }
  */
 export async function sendPushNotification(userId, notification) {
-  if (!firebaseApp) {
+  const firebaseAdmin = await getAdmin();
+  
+  if (!firebaseAdmin) {
     console.log("Push notifications disabled - Firebase not initialized");
     return { success: false, reason: 'firebase_not_initialized' };
   }
@@ -59,7 +87,9 @@ export async function sendPushNotification(userId, notification) {
         title: notification.title,
         body: notification.body
       },
-      data: notification.data || {},
+      data: notification.data ? Object.fromEntries(
+        Object.entries(notification.data).map(([k, v]) => [k, String(v)])
+      ) : {},
       android: {
         priority: 'high',
         notification: {
@@ -83,12 +113,12 @@ export async function sendPushNotification(userId, notification) {
       }
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await firebaseAdmin.messaging().send(message);
     console.log(`📬 Push notification sent to ${userId}:`, response);
     
     return { success: true, messageId: response };
   } catch (error) {
-    console.error(`Failed to send push to ${userId}:`, error);
+    console.error(`Failed to send push to ${userId}:`, error.message);
     
     // If token is invalid, we could remove it here
     if (error.code === 'messaging/invalid-registration-token' ||
@@ -116,4 +146,3 @@ export async function sendPushToMultiple(userIds, notification) {
     ...result
   }));
 }
-
