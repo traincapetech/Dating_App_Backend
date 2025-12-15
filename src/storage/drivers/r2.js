@@ -105,16 +105,16 @@ async function writeFile(relativePath, buffer, options = {}) {
   });
 
   try {
-    await client.send(
-      new PutObjectCommand({
-        Bucket: config.r2.bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-        CacheControl: cacheControl,
-        Metadata: metadata,
-      }),
-    );
+  await client.send(
+    new PutObjectCommand({
+      Bucket: config.r2.bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      CacheControl: cacheControl,
+      Metadata: metadata,
+    }),
+  );
     console.log('[R2 Driver] File uploaded successfully to R2:', key);
   } catch (error) {
     console.error('[R2 Driver] Error uploading to R2:', {

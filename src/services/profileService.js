@@ -79,7 +79,34 @@ export async function saveMedia(userId, media) {
 }
 
 export async function getProfile(userId) {
-  return findProfileByUserId(userId);
+  const profile = await findProfileByUserId(userId);
+  if (!profile) {
+    return null;
+  }
+  
+  // Enrich profile with user data and formatted fields (similar to getAllProfiles)
+  const users = await getUsers();
+  const user = users.find(u => u.id === profile.userId);
+  
+  // Combine firstName and lastName if fullName is not available
+  const fullName = user?.fullName || 
+    (profile.basicInfo?.firstName && profile.basicInfo?.lastName 
+      ? `${profile.basicInfo.firstName} ${profile.basicInfo.lastName}`.trim()
+      : profile.basicInfo?.firstName || profile.basicInfo?.lastName || 'Unknown');
+  
+  return {
+    ...profile,
+    name: fullName,
+    email: user?.email || '',
+    // Extract age from profile if available
+    age: profile.personalDetails?.age || profile.basicInfo?.age || null,
+    // Get photos from media
+    photos: profile.media?.media?.map(m => m.url).filter(Boolean) || [],
+    // Get bio from profile prompts or basic info
+    bio: profile.profilePrompts?.bio || profile.basicInfo?.bio || '',
+    // Get interests from lifestyle
+    interests: profile.lifestyle?.interests || [],
+  };
 }
 
 export async function updateProfileData(userId, updates) {
@@ -102,9 +129,15 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     .filter(profile => !excludeUserId || profile.userId !== excludeUserId)
     .map(profile => {
       const user = users.find(u => u.id === profile.userId);
+      // Combine firstName and lastName if fullName is not available
+      const fullName = user?.fullName || 
+        (profile.basicInfo?.firstName && profile.basicInfo?.lastName 
+          ? `${profile.basicInfo.firstName} ${profile.basicInfo.lastName}`.trim()
+          : profile.basicInfo?.firstName || profile.basicInfo?.lastName || 'Unknown');
+      
       return {
         ...profile,
-        name: user?.fullName || 'Unknown',
+        name: fullName,
         email: user?.email || '',
         // Extract age from profile if available
         age: profile.personalDetails?.age || profile.basicInfo?.age || null,

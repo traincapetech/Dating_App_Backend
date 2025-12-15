@@ -311,7 +311,10 @@ export async function getMatchedProfiles(userId, options = {}) {
       const user = users.find(u => u.id === profile.userId);
       return {
         ...profile,
-        name: user?.fullName || 'Unknown',
+        name: user?.fullName || 
+          (profile.basicInfo?.firstName && profile.basicInfo?.lastName 
+            ? `${profile.basicInfo.firstName} ${profile.basicInfo.lastName}`.trim()
+            : profile.basicInfo?.firstName || profile.basicInfo?.lastName || 'Unknown'),
         email: user?.email || '',
         age: profile.personalDetails?.age || profile.basicInfo?.age || null,
         photos: profile.media?.media?.map(m => m.url).filter(Boolean) || [],
