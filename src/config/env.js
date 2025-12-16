@@ -21,18 +21,21 @@ export const config = {
     publicBaseUrl: process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL || '',
   },
   email: {
-    provider: process.env.EMAIL_PROVIDER || 'smtp', // 'smtp' (EmailJS doesn't support server-side)
-    // SMTP configuration
+    // Provider: 'emailjs' (recommended), 'gmail', 'outlook', 'smtp' (custom)
+    provider: process.env.EMAIL_PROVIDER || 'emailjs',
+    // EmailJS configuration (used if provider is 'emailjs')
+    emailjsServiceId: process.env.EMAILJS_SERVICE_ID || '',
+    emailjsTemplateId: process.env.EMAILJS_TEMPLATE_ID || '',
+    emailjsPublicKey: process.env.EMAILJS_PUBLIC_KEY || '',
+    emailjsPrivateKey: process.env.EMAILJS_PRIVATE_KEY || '',
+    // SMTP configuration (only used if provider is 'smtp', 'gmail', 'outlook')
     host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
     port: Number.parseInt(process.env.EMAIL_PORT || '465', 10),
-    // Auto-detect secure: true for 465, false for 587 (STARTTLS)
     secure: process.env.EMAIL_SECURE !== undefined 
       ? process.env.EMAIL_SECURE !== 'false'
       : Number.parseInt(process.env.EMAIL_PORT || '465', 10) === 465,
-    user: process.env.EMAIL_USER || 'sales@traincapetech.in',
-    password: process.env.EMAIL_PASSWORD || 'Canada@1212',
-    // Format: "Display Name <email@domain.com>" or just "Display Name"
-    // If EMAIL_FROM is not set, it will use just "Pryvo" without showing email
+    user: process.env.EMAIL_USER || '',
+    password: process.env.EMAIL_PASSWORD || '',
     from: process.env.EMAIL_FROM || 'Pryvo',
   },
 };

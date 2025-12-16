@@ -8,7 +8,78 @@ function generateOTP() {
   return randomInt(100000, 999999).toString();
 }
 
-// Send email OTP using SMTP
+// Send email via EmailJS REST API
+async function sendViaEmailJS(toEmail, code) {
+  const { emailjsServiceId, emailjsTemplateId, emailjsPublicKey, emailjsPrivateKey } = config.email;
+  
+  if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey) {
+    throw new Error('EmailJS configuration incomplete. Set EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY');
+  }
+
+  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      service_id: emailjsServiceId,
+      template_id: emailjsTemplateId,
+      user_id: emailjsPublicKey,
+      accessToken: emailjsPrivateKey || undefined,
+      template_params: {
+        to_email: toEmail,
+        otp_code: code,
+        app_name: 'Pryvo',
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`EmailJS failed: ${response.status} - ${errorText}`);
+  }
+
+  console.log(`[EmailJS] OTP sent successfully to ${toEmail}`);
+  return true;
+}
+
+// Send email via SMTP (nodemailer)
+async function sendViaSMTP(toEmail, code, emailHtml, emailText) {
+  const transporter = getEmailTransporter();
+  
+  let fromAddress = config.email.user;
+  let fromName = 'Pryvo';
+  
+  if (config.email.from) {
+    const fromMatch = config.email.from.match(/^(.+?)\s*<(.+?)>$/);
+    if (fromMatch) {
+      fromName = fromMatch[1].trim();
+      fromAddress = fromMatch[2].trim();
+    } else {
+      fromName = config.email.from.trim();
+      fromAddress = config.email.user;
+    }
+  }
+  
+  const mailOptions = {
+    from: { name: fromName, address: fromAddress },
+    to: toEmail,
+    subject: 'Verify your email - Pryvo',
+    html: emailHtml,
+    text: emailText,
+  };
+
+  const sendPromise = transporter.sendMail(mailOptions);
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Email send timeout')), 15000)
+  );
+  
+  await Promise.race([sendPromise, timeoutPromise]);
+  console.log(`[SMTP] OTP sent successfully to ${toEmail}`);
+  return true;
+}
+
+// Send email OTP
 export async function sendEmailOTP(email) {
   const code = generateOTP();
   const otp = await createOTP(email, code, 'email');
@@ -50,82 +121,47 @@ export async function sendEmailOTP(email) {
   const emailText = `
     Verify Your Email - Pryvo
     
-    Thank you for signing up! Please use the verification code below to verify your email address.
-    
     Your verification code is: ${code}
     
-    This code will expire in 10 minutes. If you didn't request this code, please ignore this email.
-    
-    This is an automated message, please do not reply to this email.
+    This code will expire in 10 minutes.
   `;
 
   try {
-    // Use SMTP to send email via Hostinger
-    const transporter = getEmailTransporter();
+    const provider = config.email.provider;
+    console.log(`[EMAIL] Sending OTP via: ${provider}`);
     
-    // Format sender - if EMAIL_FROM contains <email>, parse it, otherwise use just the name
-    let fromAddress = config.email.user; // Default to SMTP user
-    let fromName = 'Pryvo';
-    
-    if (config.email.from) {
-      // Check if it's in format "Name <email>" or just "Name"
-      const fromMatch = config.email.from.match(/^(.+?)\s*<(.+?)>$/);
-      if (fromMatch) {
-        fromName = fromMatch[1].trim();
-        fromAddress = fromMatch[2].trim();
+    if (provider === 'emailjs') {
+      await sendViaEmailJS(email, code);
     } else {
-        // Just a name, use SMTP user email
-        fromName = config.email.from.trim();
-        fromAddress = config.email.user;
-      }
+      await sendViaSMTP(email, code, emailHtml, emailText);
     }
-    
-      const mailOptions = {
-      from: {
-        name: fromName,
-        address: fromAddress,
-      },
-      // Don't set replyTo - users shouldn't reply to OTP emails
-        to: email,
-        subject: 'Verify your email - Pryvo',
-        html: emailHtml,
-        text: emailText,
-      };
-
-      // Add timeout to prevent hanging
-      const sendPromise = transporter.sendMail(mailOptions);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email send timeout')), 15000)
-      );
-      
-      await Promise.race([sendPromise, timeoutPromise]);
-      console.log(`Email OTP sent successfully via SMTP to ${email}`);
 
     return {
       success: true,
       message: 'OTP sent to your email',
-      expiresIn: 600, // 10 minutes in seconds
+      expiresIn: 600,
     };
   } catch (error) {
     console.error('Error sending email OTP:', error.message);
     console.error(`[FALLBACK] Email service unavailable. OTP for ${email}: ${code}`);
     
-    // Log SMTP configuration status for debugging
-    console.error('[DEBUG] SMTP configuration check:');
-      console.error(`  - Provider: ${config.email.provider}`);
-    console.error(`  - Host: ${config.email.host || 'NOT SET'}`);
-    console.error(`  - Port: ${config.email.port || 'NOT SET'}`);
-    console.error(`  - User: ${config.email.user ? 'Set' : 'NOT SET'}`);
-    console.error(`  - Password: ${config.email.password ? 'Set' : 'NOT SET'}`);
-    console.error(`  - From: ${config.email.from || 'NOT SET'}`);
+    // Log configuration for debugging
+    console.error('[DEBUG] Email configuration:');
+    console.error(`  - Provider: ${config.email.provider}`);
+    if (config.email.provider === 'emailjs') {
+      console.error(`  - ServiceID: ${config.email.emailjsServiceId ? 'Set' : 'NOT SET'}`);
+      console.error(`  - TemplateID: ${config.email.emailjsTemplateId ? 'Set' : 'NOT SET'}`);
+      console.error(`  - PublicKey: ${config.email.emailjsPublicKey ? 'Set' : 'NOT SET'}`);
+      console.error(`  - PrivateKey: ${config.email.emailjsPrivateKey ? 'Set' : 'NOT SET'}`);
+    } else {
+      console.error(`  - Host: ${config.email.host || 'NOT SET'}`);
+      console.error(`  - User: ${config.email.user ? 'Set' : 'NOT SET'}`);
+    }
     
-    // Don't throw error - allow the app to continue functioning
-    // The OTP is still created and stored, it just wasn't emailed
     return {
       success: true,
       message: 'OTP sent to your email',
       expiresIn: 600,
-      // Include OTP in response for development/testing when email fails
       ...(process.env.NODE_ENV !== 'production' && { 
         debugCode: code,
         warning: 'Email service unavailable - OTP included for testing' 

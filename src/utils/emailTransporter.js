@@ -14,38 +14,52 @@ export function getEmailTransporter() {
     );
   }
 
-  // Log email configuration for debugging
-  console.log(`Email configuration: ${config.email.host}:${config.email.port}, secure: ${config.email.secure}, user: ${config.email.user}`);
+  const provider = config.email.provider;
+  console.log(`[EMAIL] Using provider: ${provider}`);
 
-  const transportOptions = {
-    host: config.email.host,
-    port: config.email.port,
-    secure: config.email.secure, // true for 465 (SSL), false for 587 (STARTTLS)
-    auth: {
-      user: config.email.user,
-      pass: config.email.password,
-    },
-    connectionTimeout: 10000, // 10 seconds connection timeout
-    greetingTimeout: 10000, // 10 seconds greeting timeout
-    socketTimeout: 10000, // 10 seconds socket timeout
-    // Retry configuration
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 3,
-  };
+  let transportOptions;
 
-  // For port 587 (STARTTLS), we need different TLS options
-  if (config.email.port === 587) {
-    transportOptions.requireTLS = true; // Require STARTTLS
-    transportOptions.tls = {
-      rejectUnauthorized: false, // Accept self-signed certificates if needed
-      minVersion: 'TLSv1.2',
+  if (provider === 'gmail') {
+    // Gmail SMTP - most reliable free option
+    // Requires App Password: https://myaccount.google.com/apppasswords
+    console.log(`[EMAIL] Gmail: ${config.email.user}`);
+    transportOptions = {
+      service: 'gmail',
+      auth: {
+        user: config.email.user,
+        pass: config.email.password, // Use App Password, NOT regular password
+      },
+    };
+  } else if (provider === 'outlook' || provider === 'hotmail') {
+    // Outlook/Hotmail
+    console.log(`[EMAIL] Outlook: ${config.email.user}`);
+    transportOptions = {
+      service: 'hotmail',
+      auth: {
+        user: config.email.user,
+        pass: config.email.password,
+      },
     };
   } else {
-    // For port 465 (SSL)
-    transportOptions.tls = {
-      rejectUnauthorized: false,
-      ciphers: 'SSLv3',
+    // Generic SMTP (Hostinger, custom, etc.)
+    console.log(`[EMAIL] SMTP: ${config.email.host}:${config.email.port}, user: ${config.email.user}`);
+    transportOptions = {
+      host: config.email.host,
+      port: config.email.port,
+      secure: config.email.secure,
+      auth: {
+        user: config.email.user,
+        pass: config.email.password,
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 15000,
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3,
+      tls: {
+        rejectUnauthorized: false,
+      },
     };
   }
 
