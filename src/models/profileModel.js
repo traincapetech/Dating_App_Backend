@@ -31,13 +31,28 @@ export async function updateProfile(userId, updates) {
   if (index === -1) {
     return null;
   }
-  profiles[index] = {
-    ...profiles[index],
-    ...updates,
+  
+  // updateProfileData already does the deep merge, so updates contains the complete merged data
+  // Just save it directly, but preserve id, userId, createdAt
+  const existing = profiles[index];
+  const updated = {
+    id: existing.id,
+    userId: existing.userId,
+    createdAt: existing.createdAt,
+    ...updates, // This already has all merged nested objects from updateProfileData
     updatedAt: new Date().toISOString(),
   };
+  
+  console.log('[updateProfile] Saving profile with DOB:', updated.basicInfo?.dob, 'Interests:', JSON.stringify(updated.lifestyle?.interests));
+  
+  profiles[index] = updated;
   await storage.writeJson(PROFILES_PATH, profiles);
-  return profiles[index];
+  
+  // Verify what was actually saved
+  const saved = profiles[index];
+  console.log('[updateProfile] VERIFIED SAVED - DOB:', saved.basicInfo?.dob, 'Interests:', JSON.stringify(saved.lifestyle?.interests));
+  
+  return saved;
 }
 
 export async function upsertProfile(userId, profileData) {

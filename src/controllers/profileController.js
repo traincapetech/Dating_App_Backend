@@ -102,8 +102,21 @@ export const updateProfileController = asyncHandler(async (req, res) => {
   if (!userId) {
     return res.status(401).json({error: 'User ID is required'});
   }
-  const parsed = updateProfileSchema.parse(req.body);
+  
+  // Remove userId from body before validation (it's not part of the schema)
+  const {userId: _, ...bodyWithoutUserId} = req.body;
+  
+  console.log('[updateProfileController] Received body:', JSON.stringify(bodyWithoutUserId, null, 2));
+  
+  const parsed = updateProfileSchema.parse(bodyWithoutUserId);
+  
+  console.log('[updateProfileController] Parsed data:', JSON.stringify(parsed, null, 2));
+  
   const profile = await updateProfileData(userId, parsed);
+  
+  console.log('[updateProfileController] Saved profile basicInfo:', JSON.stringify(profile?.basicInfo, null, 2));
+  console.log('[updateProfileController] Saved profile lifestyle:', JSON.stringify(profile?.lifestyle, null, 2));
+  
   res.status(200).json({profile});
 });
 

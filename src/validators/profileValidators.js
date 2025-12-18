@@ -1,8 +1,9 @@
 import {z} from 'zod';
 
 export const basicInfoSchema = z.object({
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
+  firstName: z.string().min(1).max(50).optional(),
+  lastName: z.string().min(1).max(50).optional(),
+  dob: z.string().optional(), // ISO date string YYYY-MM-DD
   email: z.string().email().optional(),
   notificationsEnabled: z.boolean().optional(),
   location: z.string().optional(),
@@ -37,6 +38,7 @@ export const lifestyleSchema = z.object({
   useDrugs: z.string().optional(),
   politicalBeliefs: z.string().optional(),
   religiousBeliefs: z.string().optional(),
+  interests: z.array(z.string()).optional(),
 });
 
 export const profilePromptsSchema = z.object({
