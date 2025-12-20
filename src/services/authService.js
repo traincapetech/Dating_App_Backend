@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {randomUUID} from 'crypto';
 import {config} from '../config/env.js';
-import {createUser, findUserByEmail} from '../models/userModel.js';
+import {createUser, findUserByEmail, findUserById, updateUser} from '../models/userModel.js';
 
 function generateTokens(user) {
   const payload = {sub: user.id, email: user.email};
@@ -77,6 +77,60 @@ export async function authenticateUser({email, password}) {
       phone: user.phone,
     },
     tokens,
+  };
+}
+
+export async function changeEmail({userId, newEmail, password}) {
+  const normalizedNewEmail = newEmail.trim().toLowerCase();
+  const user = await findUserById(userId);
+  if (!user) {
+    const error = new Error('User not found.');
+    error.status = 404;
+    throw error;
+  }
+  const passwordValid = await bcrypt.compare(password, user.password);
+  if (!passwordValid) {
+    const error = new Error('Invalid password.');
+    error.status = 401;
+    throw error;
+  }
+  const existing = await findUserByEmail(normalizedNewEmail);
+  if (existing && existing.id !== userId) {
+    const error = new Error('An account already exists with this email.');
+    error.status = 409;
+    throw error;
+  }
+  const updatedUser = await updateUser(userId, {email: normalizedNewEmail});
+  return {
+    success: true,
+    message: 'Email updated successfully',
+    user: {
+      id: updatedUser.id,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+    },
+  };
+}
+
+export async function changePassword({userId, currentPassword, newPassword}) {
+  const user = await findUserById(userId);
+  if (!user) {
+    const error = new Error('User not found.');
+    error.status = 404;
+    throw error;
+  }
+  const passwordValid = await bcrypt.compare(currentPassword, user.password);
+  if (!passwordValid) {
+    const error = new Error('Current password is incorrect.');
+    error.status = 401;
+    throw error;
+  }
+  const hashedPassword = await bcrypt.hash(newPassword, config.saltRounds);
+  await updateUser(userId, {password: hashedPassword});
+  return {
+    success: true,
+    message: 'Password updated successfully',
   };
 }
 

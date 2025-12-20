@@ -30,3 +30,19 @@ export async function deleteUser(userId) {
   return true;
 }
 
+export async function updateUser(userId, updates) {
+  const users = await getUsers();
+  const index = users.findIndex(user => user.id === userId);
+  if (index === -1) {
+    return null;
+  }
+  const updatedUser = {
+    ...users[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  users[index] = updatedUser;
+  await storage.writeJson(USERS_PATH, users);
+  return updatedUser;
+}
+

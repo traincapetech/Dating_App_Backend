@@ -39,3 +39,32 @@ export const signInSchema = z.object({
     .min(6),
 });
 
+export const changeEmailSchema = z.object({
+  userId: z.string().uuid('Invalid user ID'),
+  newEmail: z
+    .string({
+      required_error: 'New email is required',
+    })
+    .email('Invalid email format'),
+  password: z
+    .string({
+      required_error: 'Password is required',
+    })
+    .min(6),
+});
+
+export const changePasswordSchema = z.object({
+  userId: z.string().uuid('Invalid user ID'),
+  currentPassword: z
+    .string({
+      required_error: 'Current password is required',
+    })
+    .min(6),
+  newPassword: z
+    .string({
+      required_error: 'New password is required',
+    })
+    .min(6)
+    .max(64),
+});
+
