@@ -160,11 +160,82 @@ export async function requestPasswordReset(email) {
     passwordResetExpires: expiresAt,
   });
 
-  // Send reset email via email service
+  // Send reset email with the SAME code we stored
   try {
-    // Reuse email OTP service but with password reset template
-    await sendEmailOTP(normalizedEmail);
-    // Note: In production, you'd want a separate email template for password reset
+    const {getEmailTransporter} = await import('../utils/emailTransporter.js');
+    const emailConfig = config.email;
+    
+    // Send email with the reset code (using the SAME code we stored)
+    if (emailConfig.provider === 'emailjs') {
+      const {emailjsServiceId, emailjsTemplateId, emailjsPublicKey, emailjsPrivateKey} = emailConfig;
+      
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          service_id: emailjsServiceId,
+          template_id: emailjsTemplateId,
+          user_id: emailjsPublicKey,
+          accessToken: emailjsPrivateKey || undefined,
+          template_params: {
+            to_email: normalizedEmail,
+            otp_code: resetCode, // Use the SAME code we stored
+            app_name: 'Pryvo',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`EmailJS failed: ${response.status} - ${errorText}`);
+      }
+      
+      console.log(`[Password Reset] Code ${resetCode} sent to ${normalizedEmail} via EmailJS`);
+    } else {
+      // Use SMTP
+      const transporter = getEmailTransporter();
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Password Reset</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #FE3C72 0%, #E91E63 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Pryvo</h1>
+          </div>
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #0D0D0D; margin-top: 0;">Reset Your Password</h2>
+            <p style="color: #6B7280; font-size: 16px;">
+              You requested to reset your password. Use the code below to reset it.
+            </p>
+            <div style="background: #F8F9FA; border: 2px dashed #FE3C72; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+              <div style="font-size: 36px; font-weight: bold; color: #FE3C72; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                ${resetCode}
+              </div>
+            </div>
+            <p style="color: #6B7280; font-size: 14px; margin-bottom: 0;">
+              This code will expire in <strong>15 minutes</strong>. If you didn't request this, please ignore this email.
+            </p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const emailText = `Reset Your Password - Pryvo\n\nYour reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.`;
+
+      await transporter.sendMail({
+        from: { name: 'Pryvo', address: emailConfig.user },
+        to: normalizedEmail,
+        subject: 'Reset your password - Pryvo',
+        html: emailHtml,
+        text: emailText,
+      });
+      
+      console.log(`[Password Reset] Code ${resetCode} sent to ${normalizedEmail} via SMTP`);
+    }
   } catch (error) {
     console.error('Error sending password reset email:', error);
     // Still return success to prevent email enumeration
