@@ -122,3 +122,34 @@ export const createMatch = async (req, res) => {
     res.status(500).json({ success: false, message: "Error creating match" });
   }
 };
+
+export const unmatch = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { userId } = req.body;
+
+    if (!matchId || !userId) {
+      return res.status(400).json({ success: false, message: "matchId and userId are required" });
+    }
+
+    const match = await Match.findById(matchId);
+    
+    if (!match) {
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
+
+    // Verify user is part of this match
+    if (!match.users.includes(userId)) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    // Disable chat for this match (unmatch)
+    match.chatEnabled = false;
+    await match.save();
+
+    res.json({ success: true, message: "Match unmatched successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error unmatching" });
+  }
+};

@@ -1,5 +1,5 @@
 import express from "express";
-import { getUserMatches, getMatchById, createMatch } from "../controllers/matchController.js";
+import { getUserMatches, getMatchById, createMatch, unmatch } from "../controllers/matchController.js";
 
 const router = express.Router();
 
@@ -11,5 +11,8 @@ router.get("/detail/:matchId", getMatchById);
 
 // Create a new match
 router.post("/", createMatch);
+
+// Unmatch (disable chat)
+router.post("/:matchId/unmatch", unmatch);
 
 export default router;

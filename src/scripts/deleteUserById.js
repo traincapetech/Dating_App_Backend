@@ -11,6 +11,7 @@ if (!userId) {
   console.log('Usage: node src/scripts/deleteUserById.js <userId>');
   process.exit(1);
 }
+//to delete a user by id, run the command: node src/scripts/deleteUserById.js <USER_ID> in the terminal
 
 async function deleteUserData(userId) {
   try {

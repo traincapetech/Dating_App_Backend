@@ -1,6 +1,7 @@
 import Like from "../models/Like.js";   
 import Match from "../models/Match.js";
 import Pass from "../models/Pass.js";
+import DailyLikeCount from "../models/DailyLikeCount.js";
 import { sendPushNotification } from "../services/pushService.js";
 import { storage } from "../storage/index.js";
 
@@ -21,22 +22,93 @@ async function getProfileName(userId) {
 // Set to false to require premium for seeing who liked you
 const LIKES_VISIBLE_FREE = true; // Change to false when you want to monetize
 
+// Daily like limit configuration
+const DAILY_LIKE_LIMIT = 50; // Free tier limit
+const PREMIUM_DAILY_LIKE_LIMIT = 999999; // Effectively unlimited for premium
+
+// Helper to get today's date string (YYYY-MM-DD)
+function getTodayDateString() {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+// Helper to get or create daily like count
+async function getDailyLikeCount(userId, isPremium = false) {
+  const today = getTodayDateString();
+  const limit = isPremium ? PREMIUM_DAILY_LIKE_LIMIT : DAILY_LIKE_LIMIT;
+  
+  let dailyCount = await DailyLikeCount.findOne({ userId, date: today });
+  
+  if (!dailyCount) {
+    // Check if there's an old entry and reset if needed
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    dailyCount = await DailyLikeCount.create({
+      userId,
+      date: today,
+      count: 0,
+      lastResetAt: new Date()
+    });
+  }
+  
+  return {
+    count: dailyCount.count,
+    limit,
+    remaining: Math.max(0, limit - dailyCount.count),
+    isPremium
+  };
+}
+
+// Helper to increment daily like count
+async function incrementDailyLikeCount(userId) {
+  const today = getTodayDateString();
+  
+  const dailyCount = await DailyLikeCount.findOneAndUpdate(
+    { userId, date: today },
+    { $inc: { count: 1 }, lastResetAt: new Date() },
+    { upsert: true, new: true }
+  );
+  
+  return dailyCount.count;
+}
+
 export const likeUser = async (req, res) => {
   try {
-    const { senderId, receiverId } = req.body;
+    const { senderId, receiverId, isPremium = false } = req.body;
 
     if (!senderId || !receiverId) {
       return res.status(400).json({ success: false, message: "senderId and receiverId are required" });
     }
 
+    // Check daily like limit
+    const dailyLikeInfo = await getDailyLikeCount(senderId, isPremium);
+    if (dailyLikeInfo.remaining <= 0) {
+      return res.status(429).json({ 
+        success: false, 
+        message: `You've reached your daily like limit of ${dailyLikeInfo.limit}. Come back tomorrow!`,
+        limitReached: true,
+        dailyLikeInfo
+      });
+    }
+
     // Check if already liked
     const existingLike = await Like.findOne({ senderId, receiverId });
     if (existingLike) {
-      return res.json({ success: true, isMatch: false, alreadyLiked: true });
+      return res.json({ success: true, isMatch: false, alreadyLiked: true, dailyLikeInfo });
     }
 
     // Save like
     await Like.create({ senderId, receiverId });
+    
+    // Increment daily like count
+    const newCount = await incrementDailyLikeCount(senderId);
+    const updatedDailyLikeInfo = {
+      ...dailyLikeInfo,
+      count: newCount,
+      remaining: Math.max(0, dailyLikeInfo.limit - newCount)
+    };
 
     // Check for mutual like
     const reverseLike = await Like.findOne({
@@ -79,7 +151,8 @@ export const likeUser = async (req, res) => {
       return res.json({
         success: true,
         isMatch: true,
-        match
+        match,
+        dailyLikeInfo: updatedDailyLikeInfo
       });
     }
 
@@ -97,7 +170,7 @@ export const likeUser = async (req, res) => {
       }
     }).catch(err => console.error('Push error:', err));
 
-    res.json({ success: true, isMatch: false });
+    res.json({ success: true, isMatch: false, dailyLikeInfo: updatedDailyLikeInfo });
 
   } catch (error) {
     console.error("Error liking user:", error);
@@ -205,5 +278,28 @@ export const getLikesCount = async (req, res) => {
   } catch (error) {
     console.error("Error getting likes count:", error);
     res.status(500).json({ success: false, message: "Error getting likes count", error: error.message });
+  }
+};
+
+// Get daily like count and remaining likes for a user
+export const getDailyLikeInfo = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const isPremium = req.query.isPremium === 'true';
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "userId is required" });
+    }
+
+    const dailyLikeInfo = await getDailyLikeCount(userId, isPremium);
+    
+    res.json({
+      success: true,
+      ...dailyLikeInfo
+    });
+
+  } catch (error) {
+    console.error("Error getting daily like info:", error);
+    res.status(500).json({ success: false, message: "Error getting daily like info", error: error.message });
   }
 };
