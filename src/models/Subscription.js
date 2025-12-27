@@ -8,7 +8,11 @@ export async function getSubscriptions() {
 
 export async function findSubscriptionByUserId(userId) {
   const subscriptions = await getSubscriptions();
-  return subscriptions.find(sub => sub.userId === userId && sub.status === 'active');
+  // Find active, cancelled, or payment_failed subscriptions (not expired/refunded)
+  return subscriptions.find(sub => 
+    sub.userId === userId && 
+    (sub.status === 'active' || sub.status === 'cancelled' || sub.status === 'payment_failed')
+  );
 }
 
 export async function findSubscriptionById(subscriptionId) {
@@ -68,13 +72,32 @@ export async function isUserPremium(userId) {
   const now = new Date();
   const expiresAt = new Date(subscription.expiresAt);
 
+  // Check expiry date first (most important)
   if (expiresAt < now) {
-    // Subscription expired, update status
-    await updateSubscription(subscription.id, {status: 'expired'});
+    // Subscription expired, update status and revoke premium
+    await updateSubscription(subscription.id, {
+      status: 'expired',
+      expiredAt: new Date().toISOString(),
+    });
+    
+    // Update user premium status
+    const {updateUser} = await import('./userModel.js');
+    await updateUser(userId, {
+      isPremium: false,
+      premiumExpiresAt: null,
+    });
+    
     return false;
   }
 
-  return subscription.status === 'active';
+  // Status check: active or cancelled (cancelled keeps premium until expiry)
+  // payment_failed also keeps premium until expiry
+  if (subscription.status === 'active' || subscription.status === 'cancelled' || subscription.status === 'payment_failed') {
+    return true; // Premium granted until expiry
+  }
+
+  // Other statuses (expired, refunded) don't grant premium
+  return false;
 }
 
 import {getPlanDetails as getPlanDetailsFromConfig} from '../config/subscriptionPlans.js';

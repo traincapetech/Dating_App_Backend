@@ -2,6 +2,7 @@ import {asyncHandler} from '../utils/asyncHandler.js';
 import {
   createSubscription,
   findSubscriptionByUserId,
+  findSubscriptionById,
   updateSubscription,
   cancelSubscription,
   getAllUserSubscriptions,
@@ -9,8 +10,13 @@ import {
   getPlanDetails,
 } from '../models/Subscription.js';
 import {updateUser, findUserById} from '../models/userModel.js';
-import {createPaymentOrder, verifyPayment} from '../services/paymentService.js';
+import {createPaymentOrder, verifyPayment, detectPaymentGateway} from '../services/paymentService.js';
 import {setAutoRenewal} from '../services/subscriptionRenewalService.js';
+import {
+  handleSubscriptionCancellation,
+  updateUserPremiumStatus,
+  handleRenewalFailure,
+} from '../services/subscriptionExpiryService.js';
 
 // Get user's subscription status
 export const getSubscriptionStatusController = asyncHandler(async (req, res) => {
@@ -35,7 +41,7 @@ export const getSubscriptionStatusController = asyncHandler(async (req, res) => 
 
 // Create payment order for subscription
 export const createPaymentOrderController = asyncHandler(async (req, res) => {
-  const {userId, planId} = req.body;
+  const {userId, planId, currency, country} = req.body;
 
   if (!userId || !planId) {
     return res.status(400).json({
@@ -52,12 +58,24 @@ export const createPaymentOrderController = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create payment order
+  // Use provided currency or default from plan
+  const paymentCurrency = currency || planDetails.currency || 'USD';
+  
+  // Get price for currency (default to plan price if currency not supported)
+  const price = planDetails.prices?.[paymentCurrency] || planDetails.price || 0;
+  
+  // Convert to smallest currency unit
+  const amount = paymentCurrency === 'INR' 
+    ? price * 100  // Convert to paise
+    : price * 100; // Convert to cents (USD, EUR, etc.)
+
+  // Create payment order (auto-detects gateway)
   const paymentOrder = await createPaymentOrder(
     userId,
     planId,
-    planDetails.price * 100, // Convert to paise
-    planDetails.currency
+    amount,
+    paymentCurrency,
+    country
   );
 
   res.status(200).json({
@@ -69,7 +87,7 @@ export const createPaymentOrderController = asyncHandler(async (req, res) => {
 
 // Verify payment and create subscription
 export const verifyPaymentAndCreateSubscriptionController = asyncHandler(async (req, res) => {
-  const {userId, planId, orderId, paymentId, signature, paymentMethod = 'razorpay', autoRenew = true} = req.body;
+  const {userId, planId, orderId, paymentId, signature, paymentMethod, gateway, currency, autoRenew = true, additionalData = {}} = req.body;
 
   if (!userId || !planId || !orderId || !paymentId) {
     return res.status(400).json({
@@ -78,8 +96,11 @@ export const verifyPaymentAndCreateSubscriptionController = asyncHandler(async (
     });
   }
 
+  // Detect gateway if not provided
+  const paymentGateway = gateway || paymentMethod || detectPaymentGateway(currency || 'USD');
+  
   // Verify payment
-  const verification = await verifyPayment(orderId, paymentId, signature);
+  const verification = await verifyPayment(paymentGateway, orderId, paymentId, signature, additionalData);
   if (!verification.success || !verification.verified) {
     return res.status(400).json({
       success: false,
@@ -115,11 +136,8 @@ export const verifyPaymentAndCreateSubscriptionController = asyncHandler(async (
       autoRenew,
     });
 
-    // Update user's premium status
-    await updateUser(userId, {
-      isPremium: true,
-      premiumExpiresAt: newExpiry.toISOString(),
-    });
+    // Update user's premium status using expiry service
+    await updateUserPremiumStatus(userId);
 
     return res.status(200).json({
       success: true,
@@ -147,11 +165,8 @@ export const verifyPaymentAndCreateSubscriptionController = asyncHandler(async (
     autoRenew,
   });
 
-  // Update user's premium status
-  await updateUser(userId, {
-    isPremium: true,
-    premiumExpiresAt: expiresAt.toISOString(),
-  });
+  // Update user's premium status using expiry service
+  await updateUserPremiumStatus(userId);
 
   res.status(201).json({
     success: true,
@@ -222,11 +237,8 @@ export const createSubscriptionController = asyncHandler(async (req, res) => {
     autoRenew,
   });
 
-  // Update user's premium status
-  await updateUser(userId, {
-    isPremium: true,
-    premiumExpiresAt: expiresAt.toISOString(),
-  });
+  // Update user's premium status using expiry service
+  await updateUserPremiumStatus(userId);
 
   res.status(201).json({
     success: true,
@@ -238,7 +250,7 @@ export const createSubscriptionController = asyncHandler(async (req, res) => {
 // Cancel subscription
 export const cancelSubscriptionController = asyncHandler(async (req, res) => {
   const {subscriptionId} = req.params;
-  const {userId} = req.body;
+  const {userId, reason} = req.body;
 
   if (!subscriptionId || !userId) {
     return res.status(400).json({
@@ -262,21 +274,14 @@ export const cancelSubscriptionController = asyncHandler(async (req, res) => {
     });
   }
 
-  const cancelled = await cancelSubscription(subscriptionId);
-
-  // Update user's premium status if no other active subscriptions
-  const hasActiveSubscription = await isUserPremium(userId);
-  if (!hasActiveSubscription) {
-    await updateUser(userId, {
-      isPremium: false,
-      premiumExpiresAt: null,
-    });
-  }
+  // Use expiry service to handle cancellation properly
+  const result = await handleSubscriptionCancellation(subscriptionId, reason);
 
   res.status(200).json({
     success: true,
-    message: 'Subscription cancelled successfully',
-    subscription: cancelled,
+    message: 'Subscription cancelled successfully. You will retain access until the end of your billing period.',
+    subscription: await findSubscriptionById(subscriptionId),
+    expiresAt: result.expiresAt,
   });
 });
 
@@ -312,20 +317,13 @@ export const verifyPremiumStatusController = asyncHandler(async (req, res) => {
 
   const isPremium = await isUserPremium(userId);
 
-  // Update user's premium status in user model
-  const user = await findUserById(userId);
-  if (user) {
-    await updateUser(userId, {
-      isPremium,
-      premiumExpiresAt: isPremium
-        ? (await findSubscriptionByUserId(userId))?.expiresAt
-        : null,
-    });
-  }
+  // Update user's premium status using expiry service
+  await updateUserPremiumStatus(userId);
+  const isPremiumUpdated = await isUserPremium(userId);
 
   res.status(200).json({
     success: true,
-    isPremium,
+    isPremium: isPremiumUpdated,
   });
 });
 

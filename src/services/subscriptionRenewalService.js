@@ -3,9 +3,10 @@
  * Handles automatic renewal of subscriptions
  */
 
-import {getSubscriptions, updateSubscription, isUserPremium} from '../models/Subscription.js';
+import {getSubscriptions, updateSubscription, isUserPremium, findSubscriptionById} from '../models/Subscription.js';
 import {updateUser} from '../models/userModel.js';
 import {createPaymentOrder, verifyPayment} from './paymentService.js';
+import {handleRenewalFailure, updateUserPremiumStatus} from './subscriptionExpiryService.js';
 
 /**
  * Check and renew expired subscriptions
@@ -76,16 +77,12 @@ async function attemptRenewal(subscription) {
     );
 
     if (!paymentResult.success) {
-      // Payment failed - mark subscription for manual review
-      await updateSubscription(subscription.id, {
-        status: 'payment_failed',
-        lastRenewalAttempt: new Date().toISOString(),
-        renewalFailureReason: 'Payment creation failed',
-      });
+      // Payment failed - handle renewal failure
+      await handleRenewalFailure(subscription.id, 'Payment creation failed');
 
       return {
         success: false,
-        message: 'Payment creation failed',
+        message: 'Payment creation failed. Subscription will expire at the end of current period.',
       };
     }
 
@@ -104,12 +101,8 @@ async function attemptRenewal(subscription) {
       status: 'active',
     });
 
-    // Update user premium status
-    const isPremium = await isUserPremium(subscription.userId);
-    await updateUser(subscription.userId, {
-      isPremium,
-      premiumExpiresAt: newExpiresAt.toISOString(),
-    });
+    // Update user premium status using expiry service
+    await updateUserPremiumStatus(subscription.userId);
 
     return {
       success: true,

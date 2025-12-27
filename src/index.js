@@ -19,7 +19,7 @@ const startServer = async () => {
     console.log("📌 MongoDB Connected Successfully");
 
     // Start API + Socket server after DB connection
-    server.listen(config.port, () => {
+    server.listen(config.port, async () => {
       console.log(`🚀 API & Socket Server running on port ${config.port}`);
 
       // Log storage configuration
@@ -55,6 +55,41 @@ const startServer = async () => {
         });
       } else {
         console.warn("SMTP password missing → OTP email disabled.");
+      }
+
+      // Setup subscription management cron jobs (if node-cron is available)
+      try {
+        const cronModule = await import("node-cron");
+        const cron = cronModule.default;
+
+        // Setup subscription expiry cron (runs daily at midnight)
+        cron.schedule('0 0 * * *', async () => {
+          console.log('[Cron] Running subscription expiry check...');
+          try {
+            const { default: runExpiryCron } = await import("./scripts/subscriptionExpiryCron.js");
+            await runExpiryCron();
+          } catch (error) {
+            console.error('[Cron] Error in subscription expiry:', error);
+          }
+        });
+        console.log('✅ Subscription expiry cron scheduled (daily at midnight)');
+
+        // Setup subscription renewal cron (runs daily at 1 AM)
+        cron.schedule('0 1 * * *', async () => {
+          console.log('[Cron] Running subscription renewal process...');
+          try {
+            const { processSubscriptionRenewals } = await import("./services/subscriptionRenewalService.js");
+            await processSubscriptionRenewals();
+          } catch (error) {
+            console.error('[Cron] Error in subscription renewal:', error);
+          }
+        });
+        console.log('✅ Subscription renewal cron scheduled (daily at 1 AM)');
+      } catch (error) {
+        console.warn('[WARNING] node-cron not installed. Cron jobs disabled.');
+        console.warn('[WARNING] Install node-cron: npm install node-cron');
+        console.warn('[WARNING] Or run manually: node server/src/scripts/subscriptionExpiryCron.js');
+        console.warn('[INFO] Real-time expiry checks still work - premium is revoked on next check even without cron.');
       }
     });
   } catch (error) {
