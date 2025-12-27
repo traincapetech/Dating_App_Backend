@@ -4,6 +4,7 @@ import Pass from "../models/Pass.js";
 import DailyLikeCount from "../models/DailyLikeCount.js";
 import { sendPushNotification } from "../services/pushService.js";
 import { storage } from "../storage/index.js";
+import { isUserPremium } from "../models/Subscription.js";
 
 const PROFILES_PATH = 'data/profiles.json';
 
@@ -76,7 +77,10 @@ async function incrementDailyLikeCount(userId) {
 
 export const likeUser = async (req, res) => {
   try {
-    const { senderId, receiverId, isPremium = false } = req.body;
+    const { senderId, receiverId } = req.body;
+    
+    // Check premium status from subscription model
+    const isPremium = await isUserPremium(senderId);
 
     if (!senderId || !receiverId) {
       return res.status(400).json({ success: false, message: "senderId and receiverId are required" });
@@ -182,11 +186,13 @@ export const likeUser = async (req, res) => {
 export const getLikesReceived = async (req, res) => {
   try {
     const { userId } = req.params;
-    const isPremium = req.query.isPremium === 'true' || LIKES_VISIBLE_FREE;
 
     if (!userId) {
       return res.status(400).json({ success: false, message: "userId is required" });
     }
+
+    // Check premium status from subscription model
+    const isPremium = await isUserPremium(userId) || LIKES_VISIBLE_FREE;
 
     // Get all likes where this user is the receiver
     const likes = await Like.find({ receiverId: userId }).sort({ createdAt: -1 });
@@ -285,12 +291,13 @@ export const getLikesCount = async (req, res) => {
 export const getDailyLikeInfo = async (req, res) => {
   try {
     const { userId } = req.params;
-    const isPremium = req.query.isPremium === 'true';
 
     if (!userId) {
       return res.status(400).json({ success: false, message: "userId is required" });
     }
 
+    // Check premium status from subscription model
+    const isPremium = await isUserPremium(userId);
     const dailyLikeInfo = await getDailyLikeCount(userId, isPremium);
     
     res.json({

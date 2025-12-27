@@ -10,6 +10,8 @@ import chatRoutes from './routes/chatRoutes.js';
 import matchRoutes from './routes/matchRoutes.js';
 import blockRoutes from './routes/blockRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +32,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/match', matchRoutes);
 app.use('/api/users', blockRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});
