@@ -46,13 +46,27 @@ export const uploadChatMedia = async (req, res) => {
       });
     }
 
+    // Image moderation (basic check)
+    const {moderateImage} = await import('../services/moderationService.js');
+    const moderationResult = await moderateImage(image);
+    
+    // If image is not safe, reject upload
+    if (!moderationResult.isSafe) {
+      return res.status(400).json({
+        success: false,
+        message: "Image does not meet community guidelines",
+        reason: moderationResult.categories,
+      });
+    }
+
     // Upload to storage
     const result = await storage.uploadFile(filename, buffer, 'image/jpeg');
 
     res.json({
       success: true,
       mediaUrl: result.url,
-      mediaType: 'image'
+      mediaType: 'image',
+      moderationStatus: moderationResult.isSafe ? 'approved' : 'rejected',
     });
 
   } catch (error) {

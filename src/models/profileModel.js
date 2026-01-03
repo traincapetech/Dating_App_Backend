@@ -22,7 +22,27 @@ export async function createProfile(profileData) {
   };
   profiles.push(newProfile);
   await storage.writeJson(PROFILES_PATH, profiles);
-  return newProfile;
+  
+  // Auto-review new profiles
+  try {
+    const {autoReviewProfile} = await import('../services/moderationService.js');
+    const reviewResult = await autoReviewProfile(newProfile);
+    
+    // Update profile with review status
+    const profileIndex = profiles.length - 1;
+    profiles[profileIndex] = {
+      ...profiles[profileIndex],
+      moderationStatus: reviewResult.status,
+      moderationFlags: reviewResult.flags,
+      moderationRiskScore: reviewResult.riskScore,
+      autoReviewedAt: new Date().toISOString(),
+    };
+    await storage.writeJson(PROFILES_PATH, profiles);
+    return profiles[profileIndex];
+  } catch (error) {
+    console.error('Error in auto-review:', error);
+    return newProfile;
+  }
 }
 
 export async function updateProfile(userId, updates) {
@@ -47,6 +67,26 @@ export async function updateProfile(userId, updates) {
   
   profiles[index] = updated;
   await storage.writeJson(PROFILES_PATH, profiles);
+  
+  // Re-review profile if significant changes (media, bio, prompts)
+  const hasSignificantChanges = updates.media || updates.basicInfo?.bio || updates.profilePrompts;
+  if (hasSignificantChanges) {
+    try {
+      const {autoReviewProfile} = await import('../services/moderationService.js');
+      const reviewResult = await autoReviewProfile(updated);
+      
+      profiles[index] = {
+        ...profiles[index],
+        moderationStatus: reviewResult.status,
+        moderationFlags: reviewResult.flags,
+        moderationRiskScore: reviewResult.riskScore,
+        autoReviewedAt: new Date().toISOString(),
+      };
+      await storage.writeJson(PROFILES_PATH, profiles);
+    } catch (error) {
+      console.error('Error in auto-review on update:', error);
+    }
+  }
   
   // Verify what was actually saved
   const saved = profiles[index];

@@ -91,27 +91,45 @@ async function createRazorpayOrder(userId, planId, amount, currency) {
  */
 async function createStripeOrder(userId, planId, amount, currency) {
   try {
-    // TODO: Integrate Stripe SDK
-    // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    // 
-    // const paymentIntent = await stripe.paymentIntents.create({
-    //   amount: amount, // in cents
-    //   currency: currency.toLowerCase(),
-    //   metadata: { userId, planId },
-    // });
+    // Check if Stripe is configured
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.warn('[Stripe] STRIPE_SECRET_KEY not set, using mock payment');
+      // Fallback to mock for development
+      const orderId = `pi_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const clientSecret = `pi_mock_${orderId}_secret_${Math.random().toString(36).substr(2, 16)}`;
+      
+      return {
+        success: true,
+        gateway: 'stripe',
+        orderId,
+        clientSecret,
+        amount,
+        currency,
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_mock',
+      };
+    }
 
-    // Mock for now
-    const orderId = `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const clientSecret = `pi_${orderId}_secret_${Math.random().toString(36).substr(2, 16)}`;
+    // Use real Stripe SDK
+    const stripe = (await import('stripe')).default;
+    const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
+    
+    const paymentIntent = await stripeClient.paymentIntents.create({
+      amount: amount, // in cents (or smallest currency unit)
+      currency: currency.toLowerCase(),
+      metadata: { userId, planId },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
     
     return {
       success: true,
       gateway: 'stripe',
-      orderId,
-      clientSecret,
+      orderId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
       amount,
       currency,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY, // For frontend
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     };
   } catch (error) {
     console.error('Stripe order creation error:', error);

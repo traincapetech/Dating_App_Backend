@@ -157,18 +157,45 @@ export async function updateProfileData(userId, updates) {
     } : (existing?.profilePrompts || {}),
     // Preserve media if not updated
     media: updates.media || existing?.media,
+    // Handle pause/hide status
+    isPaused: updates.isPaused !== undefined ? updates.isPaused : existing?.isPaused,
+    isHidden: updates.isHidden !== undefined ? updates.isHidden : existing?.isHidden,
   };
   
   console.log('[updateProfileData] Merged profileData:', JSON.stringify({
     basicInfo: profileData.basicInfo,
     lifestyle: profileData.lifestyle,
+    isPaused: profileData.isPaused,
   }, null, 2));
   
   return upsertProfile(userId, profileData);
 }
 
+// Helper function to parse height string to number (cm)
+function parseHeight(heightStr) {
+  if (!heightStr) return null;
+  // Try to extract number from string like "5'10\"", "180 cm", "180cm", etc.
+  const cmMatch = heightStr.match(/(\d+)\s*cm/i);
+  if (cmMatch) {
+    return parseFloat(cmMatch[1]);
+  }
+  const feetInchMatch = heightStr.match(/(\d+)'(\d+)"/);
+  if (feetInchMatch) {
+    const feet = parseFloat(feetInchMatch[1]);
+    const inches = parseFloat(feetInchMatch[2]);
+    return (feet * 30.48) + (inches * 2.54); // Convert to cm
+  }
+  const numberMatch = heightStr.match(/(\d+)/);
+  if (numberMatch) {
+    const num = parseFloat(numberMatch[1]);
+    // If number is less than 10, assume it's feet, otherwise assume cm
+    return num < 10 ? num * 30.48 : num;
+  }
+  return null;
+}
+
 export async function getAllProfiles(excludeUserId = null, options = {}) {
-  const {useMatching = false, minScore = 0, maxDistance = null, sortBy = 'score', limit = null} = options;
+  const {useMatching = false, minScore = 0, maxDistance = null, sortBy = 'score', limit = null, filters = null} = options;
   
   const profiles = await getProfiles();
   const users = await getUsers();
@@ -197,7 +224,13 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
   
   // Combine profile data with user data
   let enrichedProfiles = profiles
-    .filter(profile => !excludeUserId || profile.userId !== excludeUserId)
+    .filter(profile => {
+      // Exclude current user
+      if (excludeUserId && profile.userId === excludeUserId) return false;
+      // Exclude paused/hidden profiles
+      if (profile.isPaused || profile.isHidden) return false;
+      return true;
+    })
     .map(profile => {
       const user = users.find(u => u.id === profile.userId);
       // Combine firstName and lastName if fullName is not available
@@ -240,7 +273,70 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
       }
       return isAllowed;
     })
-    .filter(profile => profile.photos.length > 0); // Only show profiles with photos
+    .filter(profile => profile.photos.length > 0) // Only show profiles with photos
+    // Apply advanced filters (premium feature)
+    .filter(profile => {
+      if (!filters) return true;
+      
+      // Education level filter
+      if (filters.educationLevel) {
+        const profileEducation = profile.personalDetails?.educationLevel;
+        if (profileEducation && profileEducation !== filters.educationLevel) {
+          return false;
+        }
+      }
+      
+      // Height filter
+      if (filters.minHeight || filters.maxHeight) {
+        const profileHeight = parseHeight(profile.personalDetails?.height);
+        if (profileHeight !== null) {
+          if (filters.minHeight && profileHeight < filters.minHeight) {
+            return false;
+          }
+          if (filters.maxHeight && profileHeight > filters.maxHeight) {
+            return false;
+          }
+        }
+      }
+      
+      // Lifestyle filters
+      if (filters.drink) {
+        const profileDrink = profile.lifestyle?.drink;
+        if (profileDrink && profileDrink !== filters.drink) {
+          return false;
+        }
+      }
+      
+      if (filters.smokeTobacco) {
+        const profileSmoke = profile.lifestyle?.smokeTobacco;
+        if (profileSmoke && profileSmoke !== filters.smokeTobacco) {
+          return false;
+        }
+      }
+      
+      if (filters.smokeWeed) {
+        const profileWeed = profile.lifestyle?.smokeWeed;
+        if (profileWeed && profileWeed !== filters.smokeWeed) {
+          return false;
+        }
+      }
+      
+      if (filters.religiousBeliefs) {
+        const profileReligion = profile.lifestyle?.religiousBeliefs;
+        if (profileReligion && profileReligion !== filters.religiousBeliefs) {
+          return false;
+        }
+      }
+      
+      if (filters.politicalBeliefs) {
+        const profilePolitics = profile.lifestyle?.politicalBeliefs;
+        if (profilePolitics && profilePolitics !== filters.politicalBeliefs) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   
   // If matching is enabled and we have a user ID, use matching algorithm
   if (useMatching && excludeUserId) {

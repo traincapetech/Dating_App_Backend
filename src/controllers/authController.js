@@ -45,3 +45,18 @@ export const resetPasswordController = asyncHandler(async (req, res) => {
   res.status(200).json(result);
 });
 
+export const logoutFromAllDevicesController = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+  if (!userId) {
+    return res.status(401).json({error: 'User ID is required'});
+  }
+
+  const {blacklistAllUserTokens} = await import('../models/tokenBlacklist.js');
+  await blacklistAllUserTokens(userId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Logged out from all devices successfully',
+  });
+});
+

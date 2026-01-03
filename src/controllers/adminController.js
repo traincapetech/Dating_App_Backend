@@ -406,3 +406,259 @@ export const getDashboardAnalyticsController = asyncHandler(async (req, res) => 
   });
 });
 
+// ==================== REPORT MANAGEMENT ====================
+
+// Get All Reports
+export const getAllReportsController = asyncHandler(async (req, res) => {
+  const {status, page = 1, limit = 50} = req.query;
+  const Report = (await import('../models/Report.js')).default;
+  
+  let query = {};
+  if (status) {
+    query.status = status;
+  }
+
+  const reports = await Report.find(query)
+    .sort({createdAt: -1})
+    .skip((page - 1) * limit)
+    .limit(parseInt(limit))
+    .lean();
+
+  const total = await Report.countDocuments(query);
+
+  // Enrich with user details
+  const {findUserById} = await import('../models/userModel.js');
+  const {findProfileByUserId} = await import('../models/profileModel.js');
+  
+  const enrichedReports = await Promise.all(
+    reports.map(async report => {
+      const reporter = await findUserById(report.reporterId);
+      const reported = await findUserById(report.reportedId);
+      const reporterProfile = reporter ? await findProfileByUserId(report.reporterId) : null;
+      const reportedProfile = reported ? await findProfileByUserId(report.reportedId) : null;
+
+      return {
+        ...report,
+        id: report._id?.toString() || report.id,
+        reporter: reporter ? {
+          id: reporter.id,
+          email: reporter.email,
+          fullName: reporter.fullName,
+          photo: reporterProfile?.media?.media?.[0]?.url,
+        } : null,
+        reported: reported ? {
+          id: reported.id,
+          email: reported.email,
+          fullName: reported.fullName,
+          photo: reportedProfile?.media?.media?.[0]?.url,
+        } : null,
+      };
+    })
+  );
+
+  res.status(200).json({
+    success: true,
+    reports: enrichedReports,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
+});
+
+// Get Report Details
+export const getReportDetailsController = asyncHandler(async (req, res) => {
+  const {reportId} = req.params;
+  const Report = (await import('../models/Report.js')).default;
+  
+  const report = await Report.findById(reportId).lean();
+  if (!report) {
+    return res.status(404).json({
+      success: false,
+      message: 'Report not found',
+    });
+  }
+
+  const {findUserById} = await import('../models/userModel.js');
+  const {findProfileByUserId} = await import('../models/profileModel.js');
+  
+  const reporter = await findUserById(report.reporterId);
+  const reported = await findUserById(report.reportedId);
+  const reporterProfile = reporter ? await findProfileByUserId(report.reporterId) : null;
+  const reportedProfile = reported ? await findProfileByUserId(report.reportedId) : null;
+
+  res.status(200).json({
+    success: true,
+    report: {
+      ...report,
+      id: report._id?.toString() || report.id,
+      reporter: reporter ? {
+        id: reporter.id,
+        email: reporter.email,
+        fullName: reporter.fullName,
+        photo: reporterProfile?.media?.media?.[0]?.url,
+      } : null,
+      reported: reported ? {
+        id: reported.id,
+        email: reported.email,
+        fullName: reported.fullName,
+        photo: reportedProfile?.media?.media?.[0]?.url,
+      } : null,
+    },
+  });
+});
+
+// Update Report Status
+export const updateReportStatusController = asyncHandler(async (req, res) => {
+  const {reportId} = req.params;
+  const {status, adminNotes} = req.body;
+  const Report = (await import('../models/Report.js')).default;
+
+  if (!['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid status',
+    });
+  }
+
+  const report = await Report.findById(reportId);
+  if (!report) {
+    return res.status(404).json({
+      success: false,
+      message: 'Report not found',
+    });
+  }
+
+  const updateData = {
+    status,
+    resolvedAt: status === 'resolved' ? new Date() : report.resolvedAt,
+    adminNotes: adminNotes || report.adminNotes,
+    reviewedBy: req.adminId,
+    reviewedAt: new Date(),
+  };
+
+  await Report.findByIdAndUpdate(reportId, updateData);
+
+  res.status(200).json({
+    success: true,
+    message: 'Report status updated successfully',
+  });
+});
+
+// ==================== PROFILE MODERATION ====================
+
+// Get Profiles Pending Moderation
+export const getPendingProfilesController = asyncHandler(async (req, res) => {
+  const {page = 1, limit = 50} = req.query;
+  const {getProfiles} = await import('../models/profileModel.js');
+  
+  const profiles = await getProfiles();
+  
+  // Filter profiles that need moderation (new profiles, flagged, etc.)
+  const pendingProfiles = profiles
+    .filter(profile => {
+      // New profiles without moderation status
+      if (!profile.moderationStatus) return true;
+      // Flagged profiles
+      if (profile.moderationStatus === 'flagged') return true;
+      // Pending review
+      if (profile.moderationStatus === 'pending') return true;
+      return false;
+    })
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  // Pagination
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+  const paginated = pendingProfiles.slice(startIndex, endIndex);
+
+  res.status(200).json({
+    success: true,
+    profiles: paginated,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: pendingProfiles.length,
+      totalPages: Math.ceil(pendingProfiles.length / limit),
+    },
+  });
+});
+
+// Moderate Profile (Approve/Reject/Flag)
+export const moderateProfileController = asyncHandler(async (req, res) => {
+  const {profileId} = req.params;
+  const {action, reason, adminNotes} = req.body; // action: 'approve', 'reject', 'flag'
+
+  if (!['approve', 'reject', 'flag'].includes(action)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid action. Must be approve, reject, or flag',
+    });
+  }
+
+  const {findProfileByUserId, updateProfile} = await import('../models/profileModel.js');
+  
+  // Find profile by userId (assuming profileId is userId)
+  const profile = await findProfileByUserId(profileId);
+  if (!profile) {
+    return res.status(404).json({
+      success: false,
+      message: 'Profile not found',
+    });
+  }
+
+  const moderationData = {
+    moderationStatus: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'flagged',
+    moderatedAt: new Date().toISOString(),
+    moderatedBy: req.adminId,
+    moderationReason: reason,
+    adminNotes,
+  };
+
+  await updateProfile(profile.userId, moderationData);
+
+  // If rejected, optionally suspend user
+  if (action === 'reject') {
+    const {updateUser} = await import('../models/userModel.js');
+    await updateUser(profile.userId, {
+      isSuspended: true,
+      suspensionReason: reason || 'Profile rejected by moderator',
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Profile ${action}d successfully`,
+  });
+});
+
+// Get Flagged Profiles
+export const getFlaggedProfilesController = asyncHandler(async (req, res) => {
+  const {page = 1, limit = 50} = req.query;
+  const {getProfiles} = await import('../models/profileModel.js');
+  
+  const profiles = await getProfiles();
+  
+  const flaggedProfiles = profiles
+    .filter(profile => profile.moderationStatus === 'flagged')
+    .sort((a, b) => new Date(b.moderatedAt || 0) - new Date(a.moderatedAt || 0));
+
+  // Pagination
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+  const paginated = flaggedProfiles.slice(startIndex, endIndex);
+
+  res.status(200).json({
+    success: true,
+    profiles: paginated,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: flaggedProfiles.length,
+      totalPages: Math.ceil(flaggedProfiles.length / limit),
+    },
+  });
+});
+

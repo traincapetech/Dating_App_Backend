@@ -99,6 +99,38 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    // Chat abuse detection
+    if (text) {
+      const {detectChatAbuse} = await import('../services/moderationService.js');
+      const abuseCheck = detectChatAbuse(text);
+      
+      if (abuseCheck.isAbusive) {
+        // Log abuse attempt
+        console.warn(`[Chat Abuse] User ${senderId} sent abusive message: ${abuseCheck.reason}`);
+        
+        // Optionally flag user or block message
+        // For now, we'll allow but flag the message
+        // In production, you might want to block or warn the user
+        
+        // Create a report automatically for high severity
+        if (abuseCheck.severity === 'high') {
+          const Report = (await import('../models/Report.js')).default;
+          try {
+            await Report.create({
+              reporterId: receiverId, // Receiver reports the sender
+              reportedId: senderId,
+              matchId,
+              reason: 'harassment',
+              description: `Auto-flagged: ${abuseCheck.reason}`,
+              status: 'pending',
+            });
+          } catch (reportError) {
+            console.error('Error creating auto-report:', reportError);
+          }
+        }
+      }
+    }
+
     // Verify sender has access to this match
     const access = await verifyMatchAccess(matchId, senderId);
     if (access.error) {

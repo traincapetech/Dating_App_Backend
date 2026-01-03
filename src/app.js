@@ -12,6 +12,7 @@ import blockRoutes from './routes/blockRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import boostRoutes from './routes/boostRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,7 @@ app.use('/api/users', blockRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/boost', boostRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});

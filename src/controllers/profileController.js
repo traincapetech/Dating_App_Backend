@@ -120,6 +120,23 @@ export const updateProfileController = asyncHandler(async (req, res) => {
   res.status(200).json({profile});
 });
 
+export const pauseProfileController = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+  if (!userId) {
+    return res.status(401).json({error: 'User ID is required'});
+  }
+
+  const {isPaused} = req.body;
+  const paused = isPaused === true || isPaused === 'true' || isPaused === true;
+  const profile = await updateProfileData(userId, {isPaused: paused});
+  
+  res.status(200).json({
+    success: true,
+    message: paused ? 'Profile paused successfully' : 'Profile resumed successfully',
+    profile,
+  });
+});
+
 export const getAllProfilesController = asyncHandler(async (req, res) => {
   const excludeUserId = req.query.excludeUserId || req.user?.id;
   
@@ -130,12 +147,40 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
   const sortBy = req.query.sortBy || 'score'; // 'score', 'distance', 'recent'
   const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
   
+  // Advanced filters (premium feature)
+  const filters = {};
+  if (req.query.educationLevel) {
+    filters.educationLevel = req.query.educationLevel;
+  }
+  if (req.query.minHeight) {
+    filters.minHeight = parseFloat(req.query.minHeight);
+  }
+  if (req.query.maxHeight) {
+    filters.maxHeight = parseFloat(req.query.maxHeight);
+  }
+  if (req.query.drink) {
+    filters.drink = req.query.drink;
+  }
+  if (req.query.smokeTobacco) {
+    filters.smokeTobacco = req.query.smokeTobacco;
+  }
+  if (req.query.smokeWeed) {
+    filters.smokeWeed = req.query.smokeWeed;
+  }
+  if (req.query.religiousBeliefs) {
+    filters.religiousBeliefs = req.query.religiousBeliefs;
+  }
+  if (req.query.politicalBeliefs) {
+    filters.politicalBeliefs = req.query.politicalBeliefs;
+  }
+  
   const options = {
     useMatching,
     minScore,
     maxDistance,
     sortBy,
     limit,
+    filters: Object.keys(filters).length > 0 ? filters : null,
   };
   
   const profiles = await getAllProfiles(excludeUserId, options);

@@ -1,4 +1,5 @@
 import {getProfile} from './profileService.js';
+import {hasActiveBoost} from './boostService.js';
 
 /**
  * Calculate distance between two coordinates using Haversine formula
@@ -325,15 +326,22 @@ export async function getMatchedProfiles(userId, options = {}) {
     })
     .filter(profile => profile.photos.length > 0);
 
+  // Check which profiles have active boosts (batch check for efficiency)
+  const boostChecks = await Promise.all(
+    allProfiles.map(profile => hasActiveBoost(profile.userId))
+  );
+
   // Calculate compatibility scores
   const matchedProfiles = allProfiles
-    .map(profile => {
+    .map((profile, index) => {
       const matchResult = calculateCompatibilityScore(currentUserProfile, profile);
+      const isBoosted = boostChecks[index];
       return {
         ...profile,
         matchScore: matchResult.score,
         matchPercentage: matchResult.percentage,
         matchDetails: matchResult.details,
+        isBoosted, // Add boost status
       };
     })
     .filter(profile => {
@@ -353,7 +361,11 @@ export async function getMatchedProfiles(userId, options = {}) {
       return profile.matchDetails.passed;
     })
     .sort((a, b) => {
-      // Sort by specified criteria
+      // Prioritize boosted profiles first
+      if (a.isBoosted && !b.isBoosted) return -1;
+      if (!a.isBoosted && b.isBoosted) return 1;
+
+      // Then sort by specified criteria
       switch (sortBy) {
         case 'score':
           return b.matchPercentage - a.matchPercentage;

@@ -6,7 +6,7 @@ const MessageSchema = new mongoose.Schema({
   receiverId: { type: String, required: true },
   text: { type: String },
   mediaUrl: { type: String },
-  mediaType: { type: String, enum: ['image', 'video', null], default: null },
+  mediaType: { type: String, enum: ['image', 'video', 'gif', null], default: null },
   timestamp: { type: Date, default: Date.now },
   status: { 
     type: String, 

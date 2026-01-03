@@ -7,6 +7,12 @@ export const basicInfoSchema = z.object({
   email: z.string().email().optional(),
   notificationsEnabled: z.boolean().optional(),
   location: z.string().optional(),
+  locationDetails: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    source: z.string().optional(),
+    timestamp: z.number().optional(),
+  }).optional(),
   gender: z.enum(['Man', 'Woman', 'Non Binary']).optional(),
   showGenderOnProfile: z.boolean().optional(),
 });
@@ -71,5 +77,7 @@ export const updateProfileSchema = z.object({
   lifestyle: lifestyleSchema.optional(),
   profilePrompts: profilePromptsSchema.optional(),
   media: mediaUploadSchema.optional(),
+  isPaused: z.boolean().optional(),
+  isHidden: z.boolean().optional(),
 });
 

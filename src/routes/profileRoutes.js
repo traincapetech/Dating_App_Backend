@@ -12,6 +12,7 @@ import {
   uploadImageController,
   deleteUserController,
   deleteProfileController,
+  pauseProfileController,
 } from '../controllers/profileController.js';
 
 const router = Router();
@@ -26,6 +27,7 @@ router.post('/upload-image', uploadImageController);
 router.get('/discover', getAllProfilesController);
 router.get('/:userId', getProfileController);
 router.put('/update', updateProfileController);
+router.post('/pause', pauseProfileController);
 router.delete('/:userId', deleteProfileController);
 
 export default router;
