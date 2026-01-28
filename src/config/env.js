@@ -21,8 +21,12 @@ export const config = {
     publicBaseUrl: process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL || '',
   },
   email: {
-    // Provider: 'emailjs' (recommended), 'gmail', 'outlook', 'smtp' (custom)
-    provider: process.env.EMAIL_PROVIDER || 'emailjs',
+    // Provider: 'brevo' (recommended), 'emailjs', 'gmail', 'outlook', 'smtp' (custom)
+    provider: process.env.EMAIL_PROVIDER || 'brevo',
+    // Brevo configuration (used if provider is 'brevo')
+    brevoApiKey: process.env.BREVO_API_KEY || '',
+    brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || 'noreply@pryvo.com',
+    brevoSenderName: process.env.BREVO_SENDER_NAME || 'Pryvo',
     // EmailJS configuration (used if provider is 'emailjs')
     emailjsServiceId: process.env.EMAILJS_SERVICE_ID || '',
     emailjsTemplateId: process.env.EMAILJS_TEMPLATE_ID || '',

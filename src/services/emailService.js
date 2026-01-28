@@ -43,6 +43,42 @@ async function sendViaEmailJS(toEmail, code) {
   return true;
 }
 
+// Send email via Brevo (formerly Sendinblue) REST API
+async function sendViaBrevo(toEmail, code, emailHtml, emailText) {
+  const { brevoApiKey, brevoSenderEmail, brevoSenderName } = config.email;
+  
+  if (!brevoApiKey) {
+    throw new Error('Brevo configuration incomplete. Set BREVO_API_KEY');
+  }
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': brevoApiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: {
+        name: brevoSenderName || 'Pryvo',
+        email: brevoSenderEmail || 'noreply@pryvo.com',
+      },
+      to: [{ email: toEmail }],
+      subject: 'Verify your email - Pryvo',
+      htmlContent: emailHtml,
+      textContent: emailText,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`Brevo failed: ${response.status} - ${errorData.message || 'Unknown error'}`);
+  }
+
+  console.log(`[Brevo] OTP sent successfully to ${toEmail}`);
+  return true;
+}
+
 // Send email via SMTP (nodemailer)
 async function sendViaSMTP(toEmail, code, emailHtml, emailText) {
   const transporter = getEmailTransporter();
@@ -130,7 +166,9 @@ export async function sendEmailOTP(email) {
     const provider = config.email.provider;
     console.log(`[EMAIL] Sending OTP via: ${provider}`);
     
-    if (provider === 'emailjs') {
+    if (provider === 'brevo') {
+      await sendViaBrevo(email, code, emailHtml, emailText);
+    } else if (provider === 'emailjs') {
       await sendViaEmailJS(email, code);
     } else {
       await sendViaSMTP(email, code, emailHtml, emailText);

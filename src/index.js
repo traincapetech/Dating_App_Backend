@@ -85,6 +85,18 @@ const startServer = async () => {
           }
         });
         console.log('✅ Subscription renewal cron scheduled (daily at 1 AM)');
+
+        // Setup GDPR data deletion cron (runs daily at 2 AM)
+        cron.schedule('0 2 * * *', async () => {
+          console.log('[Cron] Running GDPR data deletion process...');
+          try {
+            const { processScheduledDeletions } = await import("./scripts/gdprDeletionCron.js");
+            await processScheduledDeletions();
+          } catch (error) {
+            console.error('[Cron] Error in GDPR deletion:', error);
+          }
+        });
+        console.log('✅ GDPR deletion cron scheduled (daily at 2 AM)');
       } catch (error) {
         console.warn('[WARNING] node-cron not installed. Cron jobs disabled.');
         console.warn('[WARNING] Install node-cron: npm install node-cron');
