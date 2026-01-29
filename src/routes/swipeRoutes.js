@@ -1,12 +1,16 @@
 import express from "express";
 import { likeUser, getLikesReceived, getLikesCount, getDailyLikeInfo } from "../controllers/likeController.js";
-import { passUser } from "../controllers/passController.js";
+import { passUser, undoLastSwipe, getUndoStatus } from "../controllers/passController.js";
 
 const router = express.Router();
 
 // Swipe actions
 router.post("/like", likeUser);
 router.post("/pass", passUser);
+
+// Undo swipe (premium only)
+router.post("/undo", undoLastSwipe);
+router.get("/undo-status/:userId", getUndoStatus);
 
 // Likes received
 router.get("/likes/:userId", getLikesReceived);

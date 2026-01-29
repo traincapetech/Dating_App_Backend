@@ -14,21 +14,24 @@ import {
   deleteProfileController,
   pauseProfileController,
 } from '../controllers/profileController.js';
+import {sanitizeInput} from '../middlewares/sanitizer.js';
+import {authenticate} from '../middlewares/auth.js';
 
 const router = Router();
 
-router.post('/basic-info', saveBasicInfoController);
-router.post('/dating-preferences', saveDatingPreferencesController);
-router.post('/personal-details', savePersonalDetailsController);
-router.post('/lifestyle', saveLifestyleController);
-router.post('/profile-prompts', saveProfilePromptsController);
+// Apply sanitization to all profile update routes
+router.post('/basic-info', sanitizeInput, saveBasicInfoController);
+router.post('/dating-preferences', sanitizeInput, saveDatingPreferencesController);
+router.post('/personal-details', sanitizeInput, savePersonalDetailsController);
+router.post('/lifestyle', sanitizeInput, saveLifestyleController);
+router.post('/profile-prompts', sanitizeInput, saveProfilePromptsController);
 router.post('/media', saveMediaController);
 router.post('/upload-image', uploadImageController);
 router.get('/discover', getAllProfilesController);
 router.get('/:userId', getProfileController);
-router.put('/update', updateProfileController);
+router.put('/update', sanitizeInput, updateProfileController);
 router.post('/pause', pauseProfileController);
-router.delete('/:userId', deleteProfileController);
+router.delete('/:userId', authenticate, deleteProfileController);
 
 export default router;
 

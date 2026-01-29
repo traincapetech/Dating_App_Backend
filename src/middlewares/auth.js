@@ -5,6 +5,7 @@ import {findUserById} from '../models/userModel.js';
 /**
  * Middleware to verify user JWT token
  * Extracts user ID from token and attaches to req.user
+ * SECURITY: Returns 401 for invalid/expired tokens
  */
 export const authenticate = async (req, res, next) => {
   try {
@@ -15,8 +16,8 @@ export const authenticate = async (req, res, next) => {
       : req.headers.token || req.headers['x-access-token'];
 
     if (!token) {
-      // If no token, allow request but req.user will be undefined
-      // Controllers can handle this by checking req.user or falling back to req.body.userId
+      // No token provided - allow request but req.user will be undefined
+      // Protected routes should use requireAuth instead
       return next();
     }
 
@@ -27,18 +28,12 @@ export const authenticate = async (req, res, next) => {
     const userId = decoded.sub || decoded.userId || decoded.id;
     
     if (!userId) {
-      // Invalid token format, but don't block the request
-      return next();
+      // Invalid token format - reject
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token format',
+      });
     }
-
-    // Optionally verify user exists (can be skipped for performance)
-    // const user = await findUserById(userId);
-    // if (!user) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: 'User not found',
-    //   });
-    // }
 
     // Attach user info to request
     req.user = {
@@ -49,16 +44,24 @@ export const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
-      // Invalid token, but allow request to continue
-      // Controllers will handle missing req.user
-      return next();
+      // Invalid token - reject
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid authentication token',
+      });
     }
     if (error.name === 'TokenExpiredError') {
-      // Token expired, but allow request to continue
-      return next();
+      // Token expired - reject
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token expired',
+      });
     }
-    // Other errors, allow request to continue
-    return next();
+    // Other errors
+    return res.status(500).json({
+      success: false,
+      message: 'Authentication error',
+    });
   }
 };
 

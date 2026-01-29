@@ -3,6 +3,7 @@ import Match from "../models/Match.js";
 import Pass from "../models/Pass.js";
 import DailyLikeCount from "../models/DailyLikeCount.js";
 import { sendPushNotification } from "../services/pushService.js";
+import { sendMatchEmail, sendLikeEmail } from "../services/emailNotificationService.js";
 import { storage } from "../storage/index.js";
 import { isUserPremium } from "../models/Subscription.js";
 
@@ -16,6 +17,24 @@ async function getProfileName(userId) {
     return profile?.basicInfo?.firstName || profile?.name || 'Someone';
   } catch (error) {
     return 'Someone';
+  }
+}
+
+// Helper to get profile info for email notifications
+async function getProfileInfo(userId) {
+  try {
+    const profiles = await storage.readJson(PROFILES_PATH, []);
+    const profile = profiles.find(p => p.userId === userId);
+    const users = await storage.readJson('data/users.json', []);
+    const user = users.find(u => u._id === userId || u.id === userId);
+    
+    return {
+      name: profile?.basicInfo?.firstName || profile?.name || 'Someone',
+      photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+      email: user?.email || null,
+    };
+  } catch (error) {
+    return { name: 'Someone', photo: null, email: null };
   }
 }
 
@@ -77,7 +96,7 @@ async function incrementDailyLikeCount(userId) {
 
 export const likeUser = async (req, res) => {
   try {
-    const { senderId, receiverId } = req.body;
+    const { senderId, receiverId, likedContent } = req.body;
     
     // Check premium status from subscription model
     const isPremium = await isUserPremium(senderId);
@@ -103,8 +122,22 @@ export const likeUser = async (req, res) => {
       return res.json({ success: true, isMatch: false, alreadyLiked: true, dailyLikeInfo });
     }
 
+    // Prepare like data with optional likedContent
+    const likeData = { senderId, receiverId };
+    if (likedContent) {
+      likeData.likedContent = {
+        type: likedContent.type || 'profile',
+        photoIndex: likedContent.photoIndex,
+        photoUrl: likedContent.photoUrl,
+        promptId: likedContent.promptId,
+        promptQuestion: likedContent.promptQuestion,
+        promptAnswer: likedContent.promptAnswer,
+        comment: likedContent.comment ? likedContent.comment.slice(0, 200) : undefined,
+      };
+    }
+
     // Save like
-    await Like.create({ senderId, receiverId });
+    await Like.create(likeData);
     
     // Increment daily like count
     const newCount = await incrementDailyLikeCount(senderId);
@@ -126,14 +159,14 @@ export const likeUser = async (req, res) => {
         users: [senderId, receiverId]
       });
 
-      // Send push notification about the match to both users
-      const senderName = await getProfileName(senderId);
-      const receiverName = await getProfileName(receiverId);
+      // Get profile info for both users (for notifications)
+      const senderInfo = await getProfileInfo(senderId);
+      const receiverInfo = await getProfileInfo(receiverId);
 
-      // Notify User A (sender) about the match
+      // Send push notification about the match to both users
       sendPushNotification(senderId, {
         title: "It's a Match! 🎉",
-        body: `You and ${receiverName} liked each other!`,
+        body: `You and ${receiverInfo.name} liked each other!`,
         data: {
           type: 'match',
           matchId: match._id.toString(),
@@ -141,16 +174,25 @@ export const likeUser = async (req, res) => {
         }
       }).catch(err => console.error('Push error:', err));
 
-      // Notify User B (receiver) about the match
       sendPushNotification(receiverId, {
         title: "It's a Match! 🎉",
-        body: `You and ${senderName} liked each other!`,
+        body: `You and ${senderInfo.name} liked each other!`,
         data: {
           type: 'match',
           matchId: match._id.toString(),
           userId: senderId
         }
       }).catch(err => console.error('Push error:', err));
+
+      // Send email notifications for match to both users
+      if (senderInfo.email) {
+        sendMatchEmail(senderInfo.email, receiverInfo.name, receiverInfo.photo)
+          .catch(err => console.error('Match email error:', err));
+      }
+      if (receiverInfo.email) {
+        sendMatchEmail(receiverInfo.email, senderInfo.name, senderInfo.photo)
+          .catch(err => console.error('Match email error:', err));
+      }
 
       return res.json({
         success: true,
@@ -161,18 +203,25 @@ export const likeUser = async (req, res) => {
     }
 
     // Not a match yet - send "someone liked you" notification to receiver
-    const senderName = await getProfileName(senderId);
+    const senderInfo = await getProfileInfo(senderId);
+    const receiverInfo = await getProfileInfo(receiverId);
     
     sendPushNotification(receiverId, {
       title: "Someone likes you! 💕",
       body: LIKES_VISIBLE_FREE 
-        ? `${senderName} liked your profile!` 
+        ? `${senderInfo.name} liked your profile!` 
         : "Someone new liked your profile! Open the app to see who.",
       data: {
         type: 'like',
         senderId: LIKES_VISIBLE_FREE ? senderId : 'hidden'
       }
     }).catch(err => console.error('Push error:', err));
+
+    // Send email notification for like
+    if (receiverInfo.email) {
+      sendLikeEmail(receiverInfo.email, senderInfo.name, senderInfo.photo, LIKES_VISIBLE_FREE)
+        .catch(err => console.error('Like email error:', err));
+    }
 
     res.json({ success: true, isMatch: false, dailyLikeInfo: updatedDailyLikeInfo });
 
