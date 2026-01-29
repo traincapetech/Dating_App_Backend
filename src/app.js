@@ -14,6 +14,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
+import newsletterRoutes from './routes/newsletterRoutes.js';
 import { 
   generalLimiter, 
   swipeLimiter, 
@@ -47,6 +48,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/boost', boostRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});
