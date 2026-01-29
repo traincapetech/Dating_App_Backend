@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import {
   adminLoginController,
+  adminSignupController,
   getAdminProfileController,
   getAllSubscriptionsController,
   getSubscriptionDetailsController,
@@ -25,6 +26,7 @@ const router = Router();
 
 // Public routes
 router.post('/login', adminLoginController);
+router.post('/signup', adminSignupController);
 
 // Protected routes (require admin authentication)
 router.use(verifyAdminToken);

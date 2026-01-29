@@ -46,6 +46,71 @@ export const adminLoginController = asyncHandler(async (req, res) => {
   });
 });
 
+// Admin Signup
+export const adminSignupController = asyncHandler(async (req, res) => {
+  const {email, password, name, role, signupKey} = req.body;
+
+  // Security: Require a secret signup key to create admin accounts
+  const ADMIN_SIGNUP_KEY = process.env.ADMIN_SIGNUP_KEY || 'pryvo-admin-secret-2026';
+  if (signupKey !== ADMIN_SIGNUP_KEY) {
+    return res.status(403).json({
+      success: false,
+      message: 'Invalid signup key. Admin signup requires authorization.',
+    });
+  }
+
+  if (!email || !password || !name) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, password, and name are required',
+    });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 8 characters',
+    });
+  }
+
+  try {
+    const admin = await createAdmin({
+      email,
+      password,
+      name,
+      role: role || 'admin', // Default to 'admin', not 'super_admin'
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {adminId: admin.id, email: admin.email, role: admin.role},
+      process.env.JWT_SECRET || 'change-me',
+      {expiresIn: process.env.JWT_EXPIRES_IN || '24h'}
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Admin account created successfully',
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        permissions: admin.permissions,
+      },
+      token,
+    });
+  } catch (error) {
+    if (error.message.includes('already exists')) {
+      return res.status(409).json({
+        success: false,
+        message: 'Admin with this email already exists',
+      });
+    }
+    throw error;
+  }
+});
+
 // Get Admin Profile
 export const getAdminProfileController = asyncHandler(async (req, res) => {
   const admin = await findAdminById(req.adminId);
