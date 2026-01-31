@@ -6,6 +6,7 @@
 ---
 
 ## Table of Contents
+
 1. [Authentication](#1-authentication)
 2. [Profile Management](#2-profile-management)
 3. [Discovery & Matching](#3-discovery--matching)
@@ -25,17 +26,20 @@
 ## Common Headers
 
 ### User Authentication
+
 ```
 Authorization: Bearer <jwt_token>
 ```
 
 ### Admin Authentication
+
 ```
 Authorization: Bearer <admin_jwt_token>
 x-admin-token: <admin_jwt_token>
 ```
 
 ### Rate Limiting Headers (Returned)
+
 ```
 RateLimit-Limit: 100
 RateLimit-Remaining: 95
@@ -47,11 +51,13 @@ RateLimit-Reset: 1706524800
 ## 1. Authentication
 
 ### POST `/api/auth/signup`
+
 Create a new user account.
 
 **Rate Limit:** 10 requests per 15 minutes
 
 **Request:**
+
 ```json
 {
   "fullName": "string (2-80 chars, required)",
@@ -62,6 +68,7 @@ Create a new user account.
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -77,11 +84,13 @@ Create a new user account.
 ---
 
 ### POST `/api/auth/login`
+
 Authenticate existing user.
 
 **Rate Limit:** 10 requests per 15 minutes
 
 **Request:**
+
 ```json
 {
   "email": "string (required)",
@@ -90,6 +99,7 @@ Authenticate existing user.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -105,11 +115,13 @@ Authenticate existing user.
 ---
 
 ### POST `/api/auth/change-email`
+
 Update user's email address.
 
 **Auth Required:** Yes (JWT)
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -119,6 +131,7 @@ Update user's email address.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -129,11 +142,13 @@ Update user's email address.
 ---
 
 ### POST `/api/auth/change-password`
+
 Update user's password.
 
 **Auth Required:** Yes (JWT)
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -143,6 +158,7 @@ Update user's password.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -153,11 +169,13 @@ Update user's password.
 ---
 
 ### POST `/api/auth/forgot-password`
+
 Request password reset code (sent via email).
 
 **Rate Limit:** 3 requests per hour
 
 **Request:**
+
 ```json
 {
   "email": "string (valid email, required)"
@@ -165,6 +183,7 @@ Request password reset code (sent via email).
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -175,11 +194,13 @@ Request password reset code (sent via email).
 ---
 
 ### POST `/api/auth/reset-password`
+
 Reset password using email code.
 
 **Rate Limit:** 3 requests per hour
 
 **Request:**
+
 ```json
 {
   "email": "string (valid email, required)",
@@ -189,6 +210,7 @@ Reset password using email code.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -199,11 +221,13 @@ Reset password using email code.
 ---
 
 ### POST `/api/auth/logout-all-devices`
+
 Invalidate all JWT tokens for user.
 
 **Auth Required:** Yes (JWT)
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (optional, from token)"
@@ -211,6 +235,7 @@ Invalidate all JWT tokens for user.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -221,11 +246,13 @@ Invalidate all JWT tokens for user.
 ---
 
 ### DELETE `/api/auth/user/:userId`
+
 Delete user account.
 
 **Auth Required:** Yes (JWT)
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -238,9 +265,11 @@ Delete user account.
 ## 2. Profile Management
 
 ### POST `/api/profile/basic-info`
+
 Save/update basic profile info.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -260,18 +289,23 @@ Save/update basic profile info.
 ```
 
 **Response (200):**
+
 ```json
 {
-  "profile": { /* full profile object */ }
+  "profile": {
+    /* full profile object */
+  }
 }
 ```
 
 ---
 
 ### POST `/api/profile/dating-preferences`
+
 Save dating preferences.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -286,9 +320,11 @@ Save dating preferences.
 ---
 
 ### POST `/api/profile/personal-details`
+
 Save personal details.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -307,9 +343,11 @@ Save personal details.
 ---
 
 ### POST `/api/profile/lifestyle`
+
 Save lifestyle preferences.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -319,16 +357,18 @@ Save lifestyle preferences.
   "useDrugs": "string (optional)",
   "politicalBeliefs": "string (optional)",
   "religiousBeliefs": "string (optional)",
-  "interests": ["string"] 
+  "interests": ["string"]
 }
 ```
 
 ---
 
 ### POST `/api/profile/profile-prompts`
+
 Save profile prompts (icebreakers).
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -350,9 +390,11 @@ Save profile prompts (icebreakers).
 ---
 
 ### POST `/api/profile/media`
+
 Save profile photos/videos.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -369,9 +411,11 @@ Save profile photos/videos.
 ---
 
 ### POST `/api/profile/upload-image`
+
 Upload a single image.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -382,6 +426,7 @@ Upload a single image.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -395,20 +440,32 @@ Upload a single image.
 ---
 
 ### GET `/api/profile/:userId`
+
 Get user profile.
 
 **Response (200):**
+
 ```json
 {
   "profile": {
     "userId": "uuid",
-    "basicInfo": { /* BasicInfo object */ },
-    "datingPreferences": { /* DatingPreferences object */ },
-    "personalDetails": { /* PersonalDetails object */ },
-    "lifestyle": { /* Lifestyle object */ },
-    "profilePrompts": { /* ProfilePrompts object */ },
+    "basicInfo": {
+      /* BasicInfo object */
+    },
+    "datingPreferences": {
+      /* DatingPreferences object */
+    },
+    "personalDetails": {
+      /* PersonalDetails object */
+    },
+    "lifestyle": {
+      /* Lifestyle object */
+    },
+    "profilePrompts": {
+      /* ProfilePrompts object */
+    },
     "media": {
-      "media": [{ "type": "photo", "url": "...", "order": 0 }]
+      "media": [{"type": "photo", "url": "...", "order": 0}]
     },
     "isPaused": false,
     "isHidden": false
@@ -419,17 +476,29 @@ Get user profile.
 ---
 
 ### PUT `/api/profile/update`
+
 Update any profile section.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
-  "basicInfo": { /* partial BasicInfo */ },
-  "datingPreferences": { /* partial */ },
-  "personalDetails": { /* partial */ },
-  "lifestyle": { /* partial */ },
-  "profilePrompts": { /* partial */ },
+  "basicInfo": {
+    /* partial BasicInfo */
+  },
+  "datingPreferences": {
+    /* partial */
+  },
+  "personalDetails": {
+    /* partial */
+  },
+  "lifestyle": {
+    /* partial */
+  },
+  "profilePrompts": {
+    /* partial */
+  },
   "isPaused": "boolean",
   "isHidden": "boolean"
 }
@@ -438,9 +507,11 @@ Update any profile section.
 ---
 
 ### POST `/api/profile/pause`
+
 Pause/unpause profile visibility.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -451,6 +522,7 @@ Pause/unpause profile visibility.
 ---
 
 ### GET `/api/profile/discover`
+
 Get discovery feed profiles.
 
 **Query Parameters:**
@@ -467,13 +539,18 @@ Get discovery feed profiles.
 | `maxHeight` | number | Filter by max height |
 
 **Response (200):**
+
 ```json
 {
   "profiles": [
     {
       "userId": "uuid",
-      "basicInfo": { /* ... */ },
-      "media": { /* ... */ },
+      "basicInfo": {
+        /* ... */
+      },
+      "media": {
+        /* ... */
+      },
       "matchScore": 85,
       "distance": 5.2
     }
@@ -484,6 +561,7 @@ Get discovery feed profiles.
 ---
 
 ### DELETE `/api/profile/:userId`
+
 Delete user profile (keeps account).
 
 **Auth Required:** Yes (JWT)
@@ -493,11 +571,13 @@ Delete user profile (keeps account).
 ## 3. Discovery & Matching
 
 ### POST `/api/swipe/like`
+
 Like a user.
 
 **Rate Limit:** 100 per hour
 
 **Request:**
+
 ```json
 {
   "senderId": "uuid (required)",
@@ -516,6 +596,7 @@ Like a user.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -530,6 +611,7 @@ Like a user.
 ```
 
 **Response (Match Created):**
+
 ```json
 {
   "success": true,
@@ -539,16 +621,20 @@ Like a user.
     "users": ["userId1", "userId2"],
     "createdAt": "2026-01-29T10:00:00Z"
   },
-  "dailyLikeInfo": { /* ... */ }
+  "dailyLikeInfo": {
+    /* ... */
+  }
 }
 ```
 
 ---
 
 ### POST `/api/swipe/pass`
+
 Pass on a user.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -559,9 +645,11 @@ Pass on a user.
 ---
 
 ### POST `/api/swipe/undo`
+
 Undo last swipe (premium only).
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)"
@@ -569,6 +657,7 @@ Undo last swipe (premium only).
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -579,6 +668,7 @@ Undo last swipe (premium only).
 ```
 
 **Response (403 - Not Premium):**
+
 ```json
 {
   "success": false,
@@ -590,9 +680,11 @@ Undo last swipe (premium only).
 ---
 
 ### GET `/api/swipe/undo-status/:userId`
+
 Check if user can undo.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -607,9 +699,11 @@ Check if user can undo.
 ---
 
 ### GET `/api/swipe/likes/:userId`
+
 Get users who liked you.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -630,9 +724,11 @@ Get users who liked you.
 ---
 
 ### GET `/api/swipe/likes-count/:userId`
+
 Get count of pending likes.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -643,9 +739,11 @@ Get count of pending likes.
 ---
 
 ### GET `/api/swipe/daily-likes/:userId`
+
 Get daily like usage info.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -659,9 +757,11 @@ Get daily like usage info.
 ---
 
 ### GET `/api/match/:userId`
+
 Get all matches for user.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -670,7 +770,9 @@ Get all matches for user.
       "_id": "matchId",
       "users": ["userId1", "userId2"],
       "createdAt": "timestamp",
-      "lastMessage": { /* ... */ },
+      "lastMessage": {
+        /* ... */
+      },
       "otherUser": {
         "name": "Jane",
         "photo": "url"
@@ -683,14 +785,17 @@ Get all matches for user.
 ---
 
 ### GET `/api/match/detail/:matchId`
+
 Get match details.
 
 ---
 
 ### POST `/api/match/:matchId/unmatch`
+
 Unmatch a user.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)"
@@ -702,6 +807,7 @@ Unmatch a user.
 ## 4. Chat & Messaging
 
 ### GET `/api/chat/:matchId`
+
 Get messages for a match.
 
 **Query Parameters:**
@@ -712,6 +818,7 @@ Get messages for a match.
 | `before` | string | Cursor for pagination |
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -733,11 +840,13 @@ Get messages for a match.
 ---
 
 ### POST `/api/chat`
+
 Send a message.
 
 **Rate Limit:** 50 per minute
 
 **Request:**
+
 ```json
 {
   "matchId": "uuid (required)",
@@ -751,9 +860,11 @@ Send a message.
 ---
 
 ### POST `/api/chat/:matchId/seen`
+
 Mark messages as seen.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)"
@@ -763,9 +874,11 @@ Mark messages as seen.
 ---
 
 ### POST `/api/chat/last-messages`
+
 Get last message for multiple matches (batch).
 
 **Request:**
+
 ```json
 {
   "matchIds": ["matchId1", "matchId2"]
@@ -775,11 +888,13 @@ Get last message for multiple matches (batch).
 ---
 
 ### POST `/api/media/chat`
+
 Upload chat media.
 
 **Rate Limit:** 10 per 10 minutes
 
 **Request:**
+
 ```json
 {
   "imageUri": "string (base64)",
@@ -792,9 +907,11 @@ Upload chat media.
 ## 5. Subscriptions & Payments
 
 ### GET `/api/subscription/plans`
+
 Get available subscription plans.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -814,9 +931,11 @@ Get available subscription plans.
 ---
 
 ### GET `/api/subscription/status/:userId`
+
 Get user's subscription status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -835,9 +954,11 @@ Get user's subscription status.
 ---
 
 ### POST `/api/subscription/payment/order`
+
 Create Stripe payment order.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid",
@@ -848,9 +969,11 @@ Create Stripe payment order.
 ---
 
 ### POST `/api/subscription/payment/verify`
+
 Verify payment and activate subscription.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid",
@@ -862,14 +985,17 @@ Verify payment and activate subscription.
 ---
 
 ### POST `/api/subscription/cancel/:subscriptionId`
+
 Cancel subscription.
 
 ---
 
 ### POST `/api/subscription/auto-renew/:subscriptionId`
+
 Toggle auto-renewal.
 
 **Request:**
+
 ```json
 {
   "enabled": "boolean"
@@ -881,9 +1007,11 @@ Toggle auto-renewal.
 ## 6. Notifications
 
 ### POST `/api/notifications/register`
+
 Register FCM token.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (required)",
@@ -895,9 +1023,11 @@ Register FCM token.
 ---
 
 ### POST `/api/notifications/unregister`
+
 Remove FCM token.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid",
@@ -908,9 +1038,11 @@ Remove FCM token.
 ---
 
 ### GET `/api/notifications/preferences/:userId`
+
 Get notification preferences.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -926,9 +1058,11 @@ Get notification preferences.
 ---
 
 ### PUT `/api/notifications/preferences/:userId`
+
 Update preferences.
 
 **Request:**
+
 ```json
 {
   "newMatches": true,
@@ -942,11 +1076,13 @@ Update preferences.
 ## 9. Newsletter
 
 ### POST `/api/newsletter/subscribe`
+
 Subscribe an email to the newsletter.
 
 **Rate Limit:** 10 requests per 15 minutes
 
 **Request:**
+
 ```json
 {
   "email": "string (valid email, required)",
@@ -955,6 +1091,7 @@ Subscribe an email to the newsletter.
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -965,11 +1102,13 @@ Subscribe an email to the newsletter.
 ---
 
 ### GET `/api/newsletter`
+
 Get list of all subscribers.
 
 **Auth Required:** Yes (Admin JWT)
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -987,11 +1126,13 @@ Get list of all subscribers.
 ---
 
 ### POST `/api/newsletter/send`
+
 Send a broadcast newsletter to all active subscribers.
 
 **Auth Required:** Yes (Admin JWT)
 
 **Request:**
+
 ```json
 {
   "subject": "string (required)",
@@ -1001,6 +1142,7 @@ Send a broadcast newsletter to all active subscribers.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1018,9 +1160,11 @@ Send a broadcast newsletter to all active subscribers.
 ## 10. Admin Panel
 
 ### POST `/api/admin/login`
+
 Admin login.
 
 **Request:**
+
 ```json
 {
   "email": "admin@pryvo.com",
@@ -1029,10 +1173,11 @@ Admin login.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
-  "admin": { "id": "...", "email": "...", "role": "super_admin" },
+  "admin": {"id": "...", "email": "...", "role": "super_admin"},
   "token": "admin_jwt_token"
 }
 ```
@@ -1041,34 +1186,36 @@ Admin login.
 
 ### Admin Endpoints (Require Admin Auth)
 
-| Endpoint | Method | Permission | Description |
-|----------|--------|------------|-------------|
-| `/api/admin/profile` | GET | - | Get admin profile |
-| `/api/admin/dashboard/analytics` | GET | view_analytics | Dashboard stats |
-| `/api/admin/subscriptions` | GET | view_subscriptions | List subscriptions |
-| `/api/admin/subscriptions/:id` | GET | view_subscriptions | Subscription details |
-| `/api/admin/subscriptions/:id/refund` | POST | process_refunds | Process refund |
-| `/api/admin/subscriptions/:id/cancel` | POST | manage_subscriptions | Cancel sub |
-| `/api/admin/payments/stats` | GET | view_subscriptions | Payment stats |
-| `/api/admin/users` | GET | view_users | List users |
-| `/api/admin/users/:id` | GET | view_users | User details |
-| `/api/admin/users/:id/suspend` | POST | manage_users | Suspend user |
-| `/api/admin/users/:id` | DELETE | manage_users | Delete user |
-| `/api/admin/reports` | GET | view_reports | List reports |
-| `/api/admin/reports/:id` | GET | view_reports | Report details |
-| `/api/admin/reports/:id/status` | PUT | view_reports | Update status |
-| `/api/admin/profiles/pending` | GET | moderate_content | Pending profiles |
-| `/api/admin/profiles/flagged` | GET | moderate_content | Flagged profiles |
-| `/api/admin/profiles/:id/moderate` | POST | moderate_content | Moderate profile |
+| Endpoint                              | Method | Permission           | Description          |
+| ------------------------------------- | ------ | -------------------- | -------------------- |
+| `/api/admin/profile`                  | GET    | -                    | Get admin profile    |
+| `/api/admin/dashboard/analytics`      | GET    | view_analytics       | Dashboard stats      |
+| `/api/admin/subscriptions`            | GET    | view_subscriptions   | List subscriptions   |
+| `/api/admin/subscriptions/:id`        | GET    | view_subscriptions   | Subscription details |
+| `/api/admin/subscriptions/:id/refund` | POST   | process_refunds      | Process refund       |
+| `/api/admin/subscriptions/:id/cancel` | POST   | manage_subscriptions | Cancel sub           |
+| `/api/admin/payments/stats`           | GET    | view_subscriptions   | Payment stats        |
+| `/api/admin/users`                    | GET    | view_users           | List users           |
+| `/api/admin/users/:id`                | GET    | view_users           | User details         |
+| `/api/admin/users/:id/suspend`        | POST   | manage_users         | Suspend user         |
+| `/api/admin/users/:id`                | DELETE | manage_users         | Delete user          |
+| `/api/admin/reports`                  | GET    | view_reports         | List reports         |
+| `/api/admin/reports/:id`              | GET    | view_reports         | Report details       |
+| `/api/admin/reports/:id/status`       | PUT    | view_reports         | Update status        |
+| `/api/admin/profiles/pending`         | GET    | moderate_content     | Pending profiles     |
+| `/api/admin/profiles/flagged`         | GET    | moderate_content     | Flagged profiles     |
+| `/api/admin/profiles/:id/moderate`    | POST   | moderate_content     | Moderate profile     |
 
 ---
 
 ## 11. User Safety
 
 ### POST `/api/users/block`
+
 Block a user.
 
 **Request:**
+
 ```json
 {
   "userId": "uuid (blocker)",
@@ -1079,24 +1226,29 @@ Block a user.
 ---
 
 ### POST `/api/users/unblock`
+
 Unblock a user.
 
 ---
 
 ### GET `/api/users/blocked/:userId`
+
 Get blocked users list.
 
 ---
 
 ### GET `/api/users/check/:userId/:otherUserId`
+
 Check if blocked.
 
 ---
 
 ### POST `/api/users/report`
+
 Report a user.
 
 **Request:**
+
 ```json
 {
   "reporterId": "uuid",
@@ -1109,6 +1261,7 @@ Report a user.
 ---
 
 ### POST `/api/users/block-and-report`
+
 Block and report in one action.
 
 ---
@@ -1116,6 +1269,7 @@ Block and report in one action.
 ## 12. GDPR & Privacy
 
 ### GET `/api/gdpr/export`
+
 Export all user data.
 
 **Auth Required:** Yes (JWT)
@@ -1125,11 +1279,13 @@ Export all user data.
 ---
 
 ### POST `/api/gdpr/delete-request`
+
 Request account deletion (30-day grace period).
 
 **Auth Required:** Yes (JWT)
 
 **Request:**
+
 ```json
 {
   "userId": "uuid"
@@ -1139,18 +1295,53 @@ Request account deletion (30-day grace period).
 ---
 
 ### POST `/api/gdpr/cancel-deletion`
+
 Cancel scheduled deletion.
 
 ---
 
 ### DELETE `/api/gdpr/delete-immediate/:userId`
+
 Immediate deletion (admin only).
 
 ---
 
-## 13. Error Handling
+---
+
+## 13. Support & Feedback
+
+### POST `/api/support/report-problem`
+
+Report an app issue or provide feedback.
+
+**Request:**
+
+```json
+{
+  "userId": "uuid (optional)",
+  "userName": "string (optional)",
+  "userEmail": "string (optional)",
+  "category": "Profile Issue | Matching Problem | Messages / Chat | Safety / Harassment | Subscription / Payments | Other",
+  "details": "string (required, max 2000 chars)",
+  "imageUri": "string (base64 data or image URL, optional)"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Report sent successfully. Our support team has been notified."
+}
+```
+
+---
+
+## 14. Error Handling
 
 ### Standard Error Response
+
 ```json
 {
   "success": false,
@@ -1165,18 +1356,20 @@ Immediate deletion (admin only).
 ```
 
 ### HTTP Status Codes
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request / Validation Error |
-| 401 | Unauthorized (invalid/missing token) |
-| 403 | Forbidden (insufficient permissions) |
-| 404 | Not Found |
-| 429 | Rate Limit Exceeded |
-| 500 | Internal Server Error |
+
+| Code | Description                          |
+| ---- | ------------------------------------ |
+| 200  | Success                              |
+| 201  | Created                              |
+| 400  | Bad Request / Validation Error       |
+| 401  | Unauthorized (invalid/missing token) |
+| 403  | Forbidden (insufficient permissions) |
+| 404  | Not Found                            |
+| 429  | Rate Limit Exceeded                  |
+| 500  | Internal Server Error                |
 
 ### Rate Limit Response (429)
+
 ```json
 {
   "success": false,
@@ -1186,12 +1379,13 @@ Immediate deletion (admin only).
 ```
 
 ### Validation Error (400)
+
 ```json
 {
   "message": "Validation failed",
   "errors": [
-    { "path": "email", "message": "Invalid email format" },
-    { "path": "password", "message": "Password must be at least 6 characters" }
+    {"path": "email", "message": "Invalid email format"},
+    {"path": "password", "message": "Password must be at least 6 characters"}
   ]
 }
 ```
@@ -1200,42 +1394,45 @@ Immediate deletion (admin only).
 
 ## Rate Limits Summary
 
-| Endpoint Group | Limit | Window |
-|----------------|-------|--------|
-| General API | 100 | 15 min |
-| Auth (login/signup) | 10 | 15 min |
-| OTP | 5 | 10 min |
-| Password Reset | 3 | 1 hour |
-| Swipes | 100 | 1 hour |
-| Messages | 50 | 1 min |
-| Media Uploads | 10 | 10 min |
+| Endpoint Group      | Limit | Window |
+| ------------------- | ----- | ------ |
+| General API         | 100   | 15 min |
+| Auth (login/signup) | 10    | 15 min |
+| OTP                 | 5     | 10 min |
+| Password Reset      | 3     | 1 hour |
+| Swipes              | 100   | 1 hour |
+| Messages            | 50    | 1 min  |
+| Media Uploads       | 10    | 10 min |
 
 ---
 
 ## WebSocket Events (Socket.IO)
 
 ### Connection
+
 ```javascript
 socket.connect('http://localhost:3000', {
-  query: { userId: 'user-uuid' }
+  query: {userId: 'user-uuid'},
 });
 ```
 
 ### Events
-| Event | Direction | Payload |
-|-------|-----------|---------|
-| `new_message` | Server → Client | `{ matchId, message }` |
-| `typing` | Client → Server | `{ matchId, userId, isTyping }` |
+
+| Event           | Direction       | Payload                         |
+| --------------- | --------------- | ------------------------------- |
+| `new_message`   | Server → Client | `{ matchId, message }`          |
+| `typing`        | Client → Server | `{ matchId, userId, isTyping }` |
 | `typing_status` | Server → Client | `{ matchId, userId, isTyping }` |
-| `message_seen` | Server → Client | `{ matchId, messageId }` |
-| `new_match` | Server → Client | `{ match, otherUser }` |
-| `online_status` | Server → Client | `{ userId, isOnline }` |
+| `message_seen`  | Server → Client | `{ matchId, messageId }`        |
+| `new_match`     | Server → Client | `{ match, otherUser }`          |
+| `online_status` | Server → Client | `{ userId, isOnline }`          |
 
 ---
 
 ## JWT Token Structure
 
 ### User Token
+
 ```json
 {
   "sub": "user-uuid",
@@ -1246,6 +1443,7 @@ socket.connect('http://localhost:3000', {
 ```
 
 ### Admin Token
+
 ```json
 {
   "adminId": "admin-uuid",
@@ -1259,6 +1457,7 @@ socket.connect('http://localhost:3000', {
 ---
 
 ## Admin Permissions
+
 - `view_users` - View user list and details
 - `manage_users` - Suspend/delete users
 - `view_subscriptions` - View subscription data
@@ -1270,4 +1469,4 @@ socket.connect('http://localhost:3000', {
 
 ---
 
-*Generated by Pryvo Backend Analysis - Version 1.0*
+_Generated by Pryvo Backend Analysis - Version 1.0_

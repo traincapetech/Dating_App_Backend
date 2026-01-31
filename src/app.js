@@ -2,7 +2,7 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 import apiRouter from './routes/index.js';
 import {errorHandler} from './middlewares/errorHandler.js';
 import swipeRoutes from './routes/swipeRoutes.js';
@@ -15,11 +15,12 @@ import adminRoutes from './routes/adminRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
-import { 
-  generalLimiter, 
-  swipeLimiter, 
-  messageLimiter, 
-  uploadLimiter 
+import supportRoutes from './routes/supportRoutes.js';
+import {
+  generalLimiter,
+  swipeLimiter,
+  messageLimiter,
+  uploadLimiter,
 } from './middlewares/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +50,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/boost', boostRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/support', supportRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});
