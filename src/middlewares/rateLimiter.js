@@ -5,10 +5,10 @@ import rateLimit from 'express-rate-limit';
  * Protects API from abuse, brute force attacks, and DoS attempts
  */
 
-// General API rate limiter - 100 requests per 15 minutes
+// General API rate limiter - 2000 requests per 15 minutes (10000 in dev)
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+  max: process.env.NODE_ENV === 'development' ? 10000 : 2000, // 10000 per 15 mins (2000 in prod)
   message: {
     success: false,
     message: 'Too many requests, please try again later.',
@@ -18,13 +18,14 @@ export const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Auth rate limiter - stricter for login/signup (10 attempts per 15 minutes)
+// Auth rate limiter - looser for testing (100 attempts per 15 minutes in dev)
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 auth attempts per window
+  max: process.env.NODE_ENV === 'development' ? 100 : 20, // Limit each IP to 20 auth attempts per window (100 in dev)
   message: {
     success: false,
-    message: 'Too many authentication attempts, please try again in 15 minutes.',
+    message:
+      'Too many authentication attempts, please try again in 15 minutes.',
     retryAfter: 15 * 60,
   },
   standardHeaders: true,
@@ -32,10 +33,10 @@ export const authLimiter = rateLimit({
   skipSuccessfulRequests: false, // Count all requests
 });
 
-// OTP rate limiter - very strict (5 attempts per 10 minutes)
+// OTP rate limiter - (20 attempts per 10 minutes in dev)
 export const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // Limit each IP to 5 OTP requests per window
+  max: process.env.NODE_ENV === 'development' ? 20 : 5, // Limit each IP to 5 OTP requests per window (20 in dev)
   message: {
     success: false,
     message: 'Too many OTP requests, please try again in 10 minutes.',
@@ -45,10 +46,10 @@ export const otpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Password reset limiter - strict (3 attempts per hour)
+// Password reset limiter - (10 attempts per hour in dev)
 export const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // Limit each IP to 3 password reset attempts per hour
+  max: process.env.NODE_ENV === 'development' ? 10 : 3, // Limit each IP to 3 password reset attempts per hour (10 in dev)
   message: {
     success: false,
     message: 'Too many password reset attempts, please try again in an hour.',
@@ -58,23 +59,24 @@ export const passwordResetLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Like/swipe limiter - prevent spam swiping (100 swipes per hour for free users)
+// Like/swipe limiter - (5000 swipes per hour in dev)
 export const swipeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100, // 100 swipes per hour
+  max: process.env.NODE_ENV === 'development' ? 5000 : 1000, // 1000 per hr (5000 in dev)
   message: {
     success: false,
-    message: 'Swipe limit reached, please try again later or upgrade to premium.',
+    message:
+      'Swipe limit reached, please try again later or upgrade to premium.',
     retryAfter: 60 * 60,
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Message limiter - prevent spam messaging (50 messages per minute)
+// Message limiter - (500 messages per minute in dev)
 export const messageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 50, // 50 messages per minute
+  max: process.env.NODE_ENV === 'development' ? 500 : 100, // 100 messages per minute (500 in dev)
   message: {
     success: false,
     message: 'Message rate limit reached, please slow down.',
@@ -84,10 +86,10 @@ export const messageLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Media upload limiter - prevent abuse (10 uploads per 10 minutes)
+// Media upload limiter - (50 uploads per 10 minutes in dev)
 export const uploadLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 10, // 10 uploads per 10 minutes
+  max: process.env.NODE_ENV === 'development' ? 50 : 20, // 20 uploads per 10 minutes (50 in dev)
   message: {
     success: false,
     message: 'Upload limit reached, please try again later.',

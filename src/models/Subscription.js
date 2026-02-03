@@ -7,12 +7,35 @@ export async function getSubscriptions() {
 }
 
 export async function findSubscriptionByUserId(userId) {
+  if (!userId) return null;
   const subscriptions = await getSubscriptions();
-  // Find active, cancelled, or payment_failed subscriptions (not expired/refunded)
-  return subscriptions.find(sub => 
-    sub.userId === userId && 
-    (sub.status === 'active' || sub.status === 'cancelled' || sub.status === 'payment_failed')
+  const searchId = String(userId);
+
+  console.log(
+    `[SubscriptionModel] Finding sub for ${searchId}. Total subs: ${subscriptions.length}`,
   );
+
+  // Find active, cancelled, or payment_failed subscriptions (not expired/refunded)
+  // Sort by updatedAt desc to find the most recent one first
+  const userSubs = subscriptions
+    .filter(sub => String(sub.userId) === searchId)
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+  const activeSub = userSubs.find(
+    sub =>
+      sub.status === 'active' ||
+      sub.status === 'cancelled' ||
+      sub.status === 'payment_failed',
+  );
+
+  if (activeSub) {
+    console.log(
+      `[SubscriptionModel] Found active sub: ${activeSub.id}, status: ${activeSub.status}, plan: ${activeSub.planId}`,
+    );
+  } else {
+    console.log(`[SubscriptionModel] No active sub found for ${searchId}`);
+  }
+  return activeSub;
 }
 
 export async function findSubscriptionById(subscriptionId) {
@@ -79,20 +102,24 @@ export async function isUserPremium(userId) {
       status: 'expired',
       expiredAt: new Date().toISOString(),
     });
-    
+
     // Update user premium status
     const {updateUser} = await import('./userModel.js');
     await updateUser(userId, {
       isPremium: false,
       premiumExpiresAt: null,
     });
-    
+
     return false;
   }
 
   // Status check: active or cancelled (cancelled keeps premium until expiry)
   // payment_failed also keeps premium until expiry
-  if (subscription.status === 'active' || subscription.status === 'cancelled' || subscription.status === 'payment_failed') {
+  if (
+    subscription.status === 'active' ||
+    subscription.status === 'cancelled' ||
+    subscription.status === 'payment_failed'
+  ) {
     return true; // Premium granted until expiry
   }
 
@@ -106,4 +133,3 @@ import {getPlanDetails as getPlanDetailsFromConfig} from '../config/subscription
 export function getPlanDetails(planId) {
   return getPlanDetailsFromConfig(planId);
 }
-

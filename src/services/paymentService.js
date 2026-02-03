@@ -10,12 +10,8 @@ const PAYMENT_GATEWAY = process.env.PAYMENT_GATEWAY || 'stripe'; // 'stripe', 'r
  * Detect user's payment gateway based on currency/location
  */
 export function detectPaymentGateway(currency = 'USD', country = null) {
-  // India: Use Razorpay
-  if (currency === 'INR' || country === 'IN' || country === 'India') {
-    return 'razorpay';
-  }
-
-  // Default: Use Stripe (global)
+  // The user explicitly requested Stripe for now.
+  // Razorpay auto-detection is disabled.
   return 'stripe';
 }
 
@@ -27,20 +23,26 @@ export function detectPaymentGateway(currency = 'USD', country = null) {
  * @param {string} currency - Currency code (INR, USD, EUR, etc.)
  * @param {string} country - User's country code (optional)
  */
-export async function createPaymentOrder(userId, planId, amount, currency = 'USD', country = null) {
+export async function createPaymentOrder(
+  userId,
+  planId,
+  amount,
+  currency = 'USD',
+  country = null,
+) {
   try {
     const gateway = detectPaymentGateway(currency, country);
 
     switch (gateway) {
       case 'razorpay':
         return await createRazorpayOrder(userId, planId, amount, currency);
-      
+
       case 'stripe':
         return await createStripeOrder(userId, planId, amount, currency);
-      
+
       case 'in_app':
         return await createInAppOrder(userId, planId, amount, currency);
-      
+
       default:
         return await createStripeOrder(userId, planId, amount, currency);
     }
@@ -61,7 +63,7 @@ async function createRazorpayOrder(userId, planId, amount, currency) {
     //   key_id: process.env.RAZORPAY_KEY_ID,
     //   key_secret: process.env.RAZORPAY_KEY_SECRET,
     // });
-    // 
+    //
     // const order = await razorpay.orders.create({
     //   amount: amount, // in paise
     //   currency: currency,
@@ -70,8 +72,10 @@ async function createRazorpayOrder(userId, planId, amount, currency) {
     // });
 
     // Mock for now
-    const orderId = `rzp_order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+    const orderId = `rzp_order_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
     return {
       success: true,
       gateway: 'razorpay',
@@ -95,9 +99,13 @@ async function createStripeOrder(userId, planId, amount, currency) {
     if (!process.env.STRIPE_SECRET_KEY) {
       console.warn('[Stripe] STRIPE_SECRET_KEY not set, using mock payment');
       // Fallback to mock for development
-      const orderId = `pi_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const clientSecret = `pi_mock_${orderId}_secret_${Math.random().toString(36).substr(2, 16)}`;
-      
+      const orderId = `pi_mock_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      const clientSecret = `pi_mock_${orderId}_secret_${Math.random()
+        .toString(36)
+        .substr(2, 16)}`;
+
       return {
         success: true,
         gateway: 'stripe',
@@ -112,16 +120,16 @@ async function createStripeOrder(userId, planId, amount, currency) {
     // Use real Stripe SDK
     const stripe = (await import('stripe')).default;
     const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
-    
+
     const paymentIntent = await stripeClient.paymentIntents.create({
       amount: amount, // in cents (or smallest currency unit)
       currency: currency.toLowerCase(),
-      metadata: { userId, planId },
+      metadata: {userId, planId},
       automatic_payment_methods: {
         enabled: true,
       },
     });
-    
+
     return {
       success: true,
       gateway: 'stripe',
@@ -144,8 +152,10 @@ async function createInAppOrder(userId, planId, amount, currency) {
   try {
     // In-app purchases are handled by app stores
     // This just creates a reference order
-    const orderId = `iap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+    const orderId = `iap_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
     return {
       success: true,
       gateway: 'in_app',
@@ -168,18 +178,34 @@ async function createInAppOrder(userId, planId, amount, currency) {
  * @param {string} signature - Payment signature for verification
  * @param {object} additionalData - Additional data (for Stripe webhooks, etc.)
  */
-export async function verifyPayment(gateway, orderId, paymentId, signature, additionalData = {}) {
+export async function verifyPayment(
+  gateway,
+  orderId,
+  paymentId,
+  signature,
+  additionalData = {},
+) {
   try {
     switch (gateway) {
       case 'razorpay':
         return await verifyRazorpayPayment(orderId, paymentId, signature);
-      
+
       case 'stripe':
-        return await verifyStripePayment(orderId, paymentId, signature, additionalData);
-      
+        return await verifyStripePayment(
+          orderId,
+          paymentId,
+          signature,
+          additionalData,
+        );
+
       case 'in_app':
-        return await verifyInAppPurchase(orderId, paymentId, signature, additionalData);
-      
+        return await verifyInAppPurchase(
+          orderId,
+          paymentId,
+          signature,
+          additionalData,
+        );
+
       default:
         return {
           success: false,
@@ -207,7 +233,7 @@ async function verifyRazorpayPayment(orderId, paymentId, signature) {
     // const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
     // hmac.update(orderId + '|' + paymentId);
     // const generatedSignature = hmac.digest('hex');
-    // 
+    //
     // return {
     //   success: generatedSignature === signature,
     //   verified: generatedSignature === signature,
@@ -235,41 +261,61 @@ async function verifyRazorpayPayment(orderId, paymentId, signature) {
 /**
  * Verify Stripe payment
  */
-async function verifyStripePayment(orderId, paymentId, signature, additionalData) {
+async function verifyStripePayment(
+  orderId,
+  paymentId,
+  signature,
+  additionalData,
+) {
   try {
-    // TODO: Integrate Stripe verification
-    // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    // 
-    // // For webhooks
-    // if (additionalData.webhookEvent) {
-    //   const event = stripe.webhooks.constructEvent(
-    //     additionalData.webhookEvent,
-    //     signature,
-    //     process.env.STRIPE_WEBHOOK_SECRET
-    //   );
-    //   return {
-    //     success: true,
-    //     verified: true,
-    //     paymentId: event.data.object.id,
-    //     orderId,
-    //   };
-    // }
-    // 
-    // // For payment intents
-    // const paymentIntent = await stripe.paymentIntents.retrieve(paymentId);
-    // return {
-    //   success: paymentIntent.status === 'succeeded',
-    //   verified: paymentIntent.status === 'succeeded',
-    //   paymentId,
-    //   orderId,
-    // };
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.warn(
+        '[Stripe] STRIPE_SECRET_KEY not set, using mock verification',
+      );
+      return {
+        success: true,
+        verified: true,
+        paymentId,
+        orderId,
+      };
+    }
 
-    // Mock for now
+    const stripe = (await import('stripe')).default;
+    const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
+
+    // Support for webhook verification
+    if (additionalData.webhookEvent && signature) {
+      try {
+        const event = stripeClient.webhooks.constructEvent(
+          additionalData.webhookEvent,
+          signature,
+          process.env.STRIPE_WEBHOOK_SECRET,
+        );
+
+        if (event.type === 'payment_intent.succeeded') {
+          const paymentIntent = event.data.object;
+          return {
+            success: true,
+            verified: true,
+            paymentId: paymentIntent.id,
+            orderId: paymentIntent.metadata.orderId || orderId,
+          };
+        }
+      } catch (err) {
+        console.error('Stripe webhook verification failed:', err.message);
+        return {success: false, verified: false, error: err.message};
+      }
+    }
+
+    // Direct retrieval verification (fallback/mobile flow)
+    const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentId);
+
     return {
-      success: true,
-      verified: true,
-      paymentId,
-      orderId,
+      success: paymentIntent.status === 'succeeded',
+      verified: paymentIntent.status === 'succeeded',
+      paymentId: paymentIntent.id,
+      orderId: orderId,
+      status: paymentIntent.status,
     };
   } catch (error) {
     console.error('Stripe verification error:', error);
@@ -284,12 +330,17 @@ async function verifyStripePayment(orderId, paymentId, signature, additionalData
 /**
  * Verify In-App Purchase
  */
-async function verifyInAppPurchase(orderId, paymentId, signature, additionalData) {
+async function verifyInAppPurchase(
+  orderId,
+  paymentId,
+  signature,
+  additionalData,
+) {
   try {
     // TODO: Verify with Apple App Store / Google Play Store
     // For iOS: Use App Store Server API
     // For Android: Use Google Play Billing API
-    
+
     // Mock for now
     return {
       success: true,
@@ -315,18 +366,23 @@ async function verifyInAppPurchase(orderId, paymentId, signature, additionalData
  * @param {number} amount - Amount to refund (optional, full refund if not provided)
  * @param {string} currency - Currency code
  */
-export async function processRefund(gateway, paymentId, amount = null, currency = 'USD') {
+export async function processRefund(
+  gateway,
+  paymentId,
+  amount = null,
+  currency = 'USD',
+) {
   try {
     switch (gateway) {
       case 'razorpay':
         return await processRazorpayRefund(paymentId, amount);
-      
+
       case 'stripe':
         return await processStripeRefund(paymentId, amount);
-      
+
       case 'in_app':
         return await processInAppRefund(paymentId, amount);
-      
+
       default:
         throw new Error('Unknown payment gateway');
     }
@@ -347,7 +403,7 @@ async function processRazorpayRefund(paymentId, amount) {
     //   key_id: process.env.RAZORPAY_KEY_ID,
     //   key_secret: process.env.RAZORPAY_KEY_SECRET,
     // });
-    // 
+    //
     // const refund = await razorpay.payments.refund(paymentId, {
     //   amount: amount, // in paise
     // });
@@ -371,7 +427,7 @@ async function processStripeRefund(paymentId, amount) {
   try {
     // TODO: Integrate Stripe refund
     // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    // 
+    //
     // const refund = await stripe.refunds.create({
     //   payment_intent: paymentId,
     //   amount: amount, // in cents
@@ -419,7 +475,18 @@ export function getSupportedGateways(country = null, currency = 'USD') {
     id: 'stripe',
     name: 'Stripe',
     supported: true,
-    currencies: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'SGD', 'AED', 'INR', 'and 135+ more'],
+    currencies: [
+      'USD',
+      'EUR',
+      'GBP',
+      'CAD',
+      'AUD',
+      'JPY',
+      'SGD',
+      'AED',
+      'INR',
+      'and 135+ more',
+    ],
     countries: 'Global',
     description: 'Credit/Debit cards, Apple Pay, Google Pay, and more',
   });
