@@ -109,6 +109,48 @@ export const createMatch = async (req, res) => {
       users: [userA, userB],
     });
 
+    // Send email notifications
+    try {
+      const {sendMatchEmail} = await import(
+        '../services/emailNotificationService.js'
+      );
+      const {getProfile} = await import('../services/profileService.js');
+      const {getUserById} = await import('../services/authService.js'); // Assuming this exists or we use storage directly
+
+      // Helper to get needed info
+      const getUserInfo = async id => {
+        const profile = await getProfile(id);
+        // We need email, which is in User model, not Profile.
+        // Let's rely on storage for now as likeController does, or import User model
+        const User = (await import('../models/User.js')).default;
+        const user = await User.findById(id);
+
+        return {
+          name: profile?.basicInfo?.firstName || profile?.name || 'Someone',
+          photo:
+            profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+          email: user?.email,
+        };
+      };
+
+      const infoA = await getUserInfo(userA);
+      const infoB = await getUserInfo(userB);
+
+      if (infoA.email) {
+        sendMatchEmail(infoA.email, infoB.name, infoB.photo).catch(e =>
+          console.error('Email error A:', e),
+        );
+      }
+      if (infoB.email) {
+        sendMatchEmail(infoB.email, infoA.name, infoA.photo).catch(e =>
+          console.error('Email error B:', e),
+        );
+      }
+    } catch (emailError) {
+      console.error('Failed to send match emails:', emailError);
+      // Don't block response
+    }
+
     res.status(201).json({success: true, match, existing: false});
   } catch (error) {
     console.error(error);

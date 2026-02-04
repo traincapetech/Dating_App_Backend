@@ -87,13 +87,11 @@ export const getMessages = async (req, res) => {
     res.json({success: true, messages});
   } catch (error) {
     console.error('Error fetching messages:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error fetching messages',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching messages',
+      error: error.message,
+    });
   }
 };
 
@@ -190,13 +188,11 @@ export const sendMessage = async (req, res) => {
     res.json({success: true, message});
   } catch (error) {
     console.error('Error sending message:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error sending message',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error sending message',
+      error: error.message,
+    });
   }
 };
 
@@ -232,13 +228,11 @@ export const markMessagesSeen = async (req, res) => {
     });
   } catch (error) {
     console.error('Error marking messages seen:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error marking messages seen',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error marking messages seen',
+      error: error.message,
+    });
   }
 };
 
@@ -273,13 +267,11 @@ export const getLastMessages = async (req, res) => {
     res.json({success: true, lastMessages});
   } catch (error) {
     console.error('Error fetching last messages:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error fetching last messages',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching last messages',
+      error: error.message,
+    });
   }
 };
 
@@ -301,8 +293,12 @@ export const deleteMessage = async (req, res) => {
         .json({success: false, message: 'Message not found'});
     }
 
+    console.log(
+      `[Delete Message] Requesting User: ${userId}, Message Sender: ${message.senderId}`,
+    );
+
     // Only allow sender to delete
-    if (message.senderId !== userId) {
+    if (message.senderId.toString() !== userId.toString()) {
       return res
         .status(403)
         .json({
@@ -316,12 +312,10 @@ export const deleteMessage = async (req, res) => {
     res.json({success: true, message: 'Message deleted'});
   } catch (error) {
     console.error('Error deleting message:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error deleting message',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting message',
+      error: error.message,
+    });
   }
 };
