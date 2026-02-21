@@ -105,12 +105,10 @@ export const likeUser = async (req, res) => {
     const isPremium = await isUserPremium(senderId);
 
     if (!senderId || !receiverId) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: 'senderId and receiverId are required',
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'senderId and receiverId are required',
+      });
     }
 
     // Check daily like limit
@@ -127,6 +125,59 @@ export const likeUser = async (req, res) => {
     // Check if already liked
     const existingLike = await Like.findOne({senderId, receiverId});
     if (existingLike) {
+      // REPAIR LOGIC: Check if this should be a match but isn't
+      const reverseLike = await Like.findOne({
+        senderId: receiverId,
+        receiverId: senderId,
+      });
+
+      if (reverseLike) {
+        const existingMatch = await Match.findOne({
+          users: {$all: [senderId, receiverId]},
+        });
+        if (!existingMatch) {
+          console.log(
+            '[LikeController] Found mutual likes but no match. Repairing...',
+          );
+
+          // Create the missing match
+          const match = await Match.create({users: [senderId, receiverId]});
+
+          // Return request as a SUCCESSFUL MATCH
+          const senderInfo = await getProfileInfo(senderId);
+          const receiverInfo = await getProfileInfo(receiverId);
+
+          // Send notifications (re-send to ensure they get it)
+          sendPushNotification(senderId, {
+            title: "It's a Match! 🎉",
+            body: `You and ${receiverInfo.name} liked each other!`,
+            data: {
+              type: 'match',
+              matchId: match._id.toString(),
+              userId: receiverId,
+            },
+          }).catch(e => console.error(e));
+
+          sendPushNotification(receiverId, {
+            title: "It's a Match! 🎉",
+            body: `You and ${senderInfo.name} liked each other!`,
+            data: {
+              type: 'match',
+              matchId: match._id.toString(),
+              userId: senderId,
+            },
+          }).catch(e => console.error(e));
+
+          return res.json({
+            success: true,
+            isMatch: true, // Force true
+            match,
+            dailyLikeInfo,
+            repaired: true,
+          });
+        }
+      }
+
       return res.json({
         success: true,
         isMatch: false,
@@ -255,13 +306,11 @@ export const likeUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Error liking user:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error liking user',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error liking user',
+      error: error.message,
+    });
   }
 };
 
@@ -334,13 +383,11 @@ export const getLikesReceived = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting likes received:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error getting likes',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error getting likes',
+      error: error.message,
+    });
   }
 };
 
@@ -376,13 +423,11 @@ export const getLikesCount = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting likes count:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error getting likes count',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error getting likes count',
+      error: error.message,
+    });
   }
 };
 
@@ -407,12 +452,10 @@ export const getDailyLikeInfo = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting daily like info:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Error getting daily like info',
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: 'Error getting daily like info',
+      error: error.message,
+    });
   }
 };

@@ -1,8 +1,10 @@
 import express from 'express';
-import morgan from 'morgan';
 import cors from 'cors';
 import path from 'path';
 import {fileURLToPath} from 'url';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+import compression from 'compression';
 import apiRouter from './routes/index.js';
 import {errorHandler} from './middlewares/errorHandler.js';
 import swipeRoutes from './routes/swipeRoutes.js';
@@ -22,16 +24,46 @@ import {
   messageLimiter,
   uploadLimiter,
 } from './middlewares/rateLimiter.js';
+import requestLogger from './middlewares/requestLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
+app.set('trust proxy', 1);
+
+// Security Headers
+app.use(helmet());
+
+// Compress responses
+app.use(compression());
+
+// CORS Configuration - Allow specific origins or keep open for mobile app APIs but with security in mind
+app.use(
+  cors({
+    origin: '*', // For mobile apps, often '*' is used, but for web clients restrict this.
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Device-Id',
+      'x-user-id',
+    ],
+    credentials: true,
+  }),
+);
+
+// Body Parser
 // Increase body size limit to 50MB for image uploads (base64 encoded images can be large)
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb', extended: true}));
-app.use(morgan('dev'));
+
+// Data Sanitization against NoSQL Query Injection
+app.use(mongoSanitize());
+
+// Use custom structured logger instead of morgan
+app.use(requestLogger);
 
 // Apply general rate limiting to all API routes
 app.use('/api', generalLimiter);

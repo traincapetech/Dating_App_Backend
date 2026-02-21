@@ -1,6 +1,8 @@
 import Message from '../models/Message.js';
 import Match from '../models/Match.js';
 import Block from '../models/Block.js';
+import {getIO, isUserOnline} from '../services/socketService.js';
+import {sendPushNotification} from '../services/pushService.js';
 
 // Helper to validate MongoDB ObjectId format
 function isValidObjectId(id) {
@@ -185,6 +187,54 @@ export const sendMessage = async (req, res) => {
       status: 'sent',
     });
 
+    // Real-time delivery handling
+    const io = getIO();
+    if (io) {
+      // 1. Emit to sender (for confirmation/update if they used optimistic UI)
+      // io.to(senderId).emit('messageSent', message);
+
+      // 2. Emit to receiver via their specific room or match room
+      io.to(matchId).emit('receiveMessage', message);
+
+      // 3. Check if receiver is online to update status to 'delivered'
+      const receiverOnline = isUserOnline(receiverId);
+
+      if (receiverOnline) {
+        // Mark as delivered immediately
+        message.status = 'delivered';
+        await message.save();
+
+        // Notify sender that message was delivered
+        io.to(matchId).emit('messageStatusUpdate', {
+          messageId: message._id,
+          status: 'delivered',
+          matchId, // Include matchId for easier client-side handling
+        });
+      } else {
+        // Receiver is offline - send push notification
+        try {
+          const pushTitle = 'New Message'; // You might want to fetch sender name here
+          const pushBody = text
+            ? text.length > 50
+              ? text.substring(0, 50) + '...'
+              : text
+            : 'Sent you a photo';
+
+          await sendPushNotification(receiverId, {
+            title: pushTitle,
+            body: pushBody,
+            data: {
+              type: 'message',
+              matchId,
+              senderId,
+            },
+          });
+        } catch (pushError) {
+          console.error('[Push Notification] Failed:', pushError.message);
+        }
+      }
+    }
+
     res.json({success: true, message});
   } catch (error) {
     console.error('Error sending message:', error);
@@ -220,6 +270,22 @@ export const markMessagesSeen = async (req, res) => {
       {matchId, receiverId: userId, status: {$ne: 'seen'}},
       {$set: {status: 'seen', seenAt: new Date()}},
     );
+
+    // Notify the other user (sender) that their messages were seen
+    const io = getIO();
+    if (io && result.modifiedCount > 0) {
+      // We need to know which messages were updated to be precise,
+      // but for now we can just signal that "all previous messages" are seen
+      // OR specifically fetch the IDs of messages that were just updated.
+
+      // Simplified: Just emit event saying "messages seen by userId in matchId"
+      // The client can update all "sent/delivered" messages from this user to "seen"
+      io.to(matchId).emit('messagesSeen', {
+        matchId,
+        userId, // Who saw the messages
+        seenAt: new Date(),
+      });
+    }
 
     res.json({
       success: true,
@@ -299,12 +365,10 @@ export const deleteMessage = async (req, res) => {
 
     // Only allow sender to delete
     if (message.senderId.toString() !== userId.toString()) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: 'You can only delete your own messages',
-        });
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own messages',
+      });
     }
 
     await Message.findByIdAndDelete(messageId);

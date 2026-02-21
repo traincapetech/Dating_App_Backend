@@ -20,18 +20,38 @@ import {authenticate} from '../middlewares/auth.js';
 const router = Router();
 
 // Apply sanitization to all profile update routes
-router.post('/basic-info', sanitizeInput, saveBasicInfoController);
-router.post('/dating-preferences', sanitizeInput, saveDatingPreferencesController);
-router.post('/personal-details', sanitizeInput, savePersonalDetailsController);
-router.post('/lifestyle', sanitizeInput, saveLifestyleController);
-router.post('/profile-prompts', sanitizeInput, saveProfilePromptsController);
-router.post('/media', saveMediaController);
-router.post('/upload-image', uploadImageController);
-router.get('/discover', getAllProfilesController);
-router.get('/:userId', getProfileController);
-router.put('/update', sanitizeInput, updateProfileController);
-router.post('/pause', pauseProfileController);
+// Apply sanitization to all profile update routes
+router.post(
+  '/basic-info',
+  authenticate,
+  sanitizeInput,
+  saveBasicInfoController,
+);
+router.post(
+  '/dating-preferences',
+  authenticate,
+  sanitizeInput,
+  saveDatingPreferencesController,
+);
+router.post(
+  '/personal-details',
+  authenticate,
+  sanitizeInput,
+  savePersonalDetailsController,
+);
+router.post('/lifestyle', authenticate, sanitizeInput, saveLifestyleController);
+router.post(
+  '/profile-prompts',
+  authenticate,
+  sanitizeInput,
+  saveProfilePromptsController,
+);
+router.post('/media', authenticate, saveMediaController);
+router.post('/upload-image', authenticate, uploadImageController);
+router.get('/discover', authenticate, getAllProfilesController);
+router.get('/:userId', authenticate, getProfileController);
+router.put('/update', authenticate, sanitizeInput, updateProfileController);
+router.post('/pause', authenticate, pauseProfileController);
 router.delete('/:userId', authenticate, deleteProfileController);
 
 export default router;
-

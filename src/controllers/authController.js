@@ -1,4 +1,12 @@
-import {registerUser, authenticateUser, changeEmail, changePassword, requestPasswordReset, resetPassword} from '../services/authService.js';
+import {
+  registerUser,
+  authenticateUser,
+  authenticateWithGoogle,
+  changeEmail,
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+} from '../services/authService.js';
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {
   signUpSchema,
@@ -33,6 +41,17 @@ export const updatePassword = asyncHandler(async (req, res) => {
   res.status(200).json(result);
 });
 
+export const googleSignIn = asyncHandler(async (req, res) => {
+  const {idToken} = req.body;
+  if (!idToken) {
+    return res
+      .status(400)
+      .json({success: false, message: 'ID token is required'});
+  }
+  const result = await authenticateWithGoogle({idToken});
+  res.status(200).json(result);
+});
+
 export const forgotPassword = asyncHandler(async (req, res) => {
   const parsed = requestPasswordResetSchema.parse(req.body);
   const result = await requestPasswordReset(parsed.email);
@@ -59,4 +78,3 @@ export const logoutFromAllDevicesController = asyncHandler(async (req, res) => {
     message: 'Logged out from all devices successfully',
   });
 });
-

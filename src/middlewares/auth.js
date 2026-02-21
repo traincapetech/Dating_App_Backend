@@ -15,18 +15,33 @@ export const authenticate = async (req, res, next) => {
       ? authHeader.replace('Bearer ', '')
       : req.headers.token || req.headers['x-access-token'];
 
+    console.log(
+      `[Auth Middleware] ${req.method} ${
+        req.path
+      } - Token present: ${!!token}, Auth header: ${
+        authHeader ? 'Bearer ...' + authHeader.slice(-10) : 'NONE'
+      }, token header: ${
+        req.headers.token ? '...' + req.headers.token.slice(-10) : 'NONE'
+      }`,
+    );
+
     if (!token) {
       // No token provided - allow request but req.user will be undefined
       // Protected routes should use requireAuth instead
+      console.log('[Auth Middleware] No token found, proceeding without user');
       return next();
     }
 
     // Verify token
     const decoded = jwt.verify(token, config.jwtSecret);
-    
+
     // Extract user ID from token payload (sub field contains user ID)
     const userId = decoded.sub || decoded.userId || decoded.id;
-    
+
+    console.log(
+      `[Auth Middleware] Token decoded successfully. userId: ${userId}, email: ${decoded.email}`,
+    );
+
     if (!userId) {
       // Invalid token format - reject
       return res.status(401).json({
@@ -43,6 +58,9 @@ export const authenticate = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error(
+      `[Auth Middleware] Error: ${error.name} - ${error.message} for ${req.method} ${req.path}`,
+    );
     if (error.name === 'JsonWebTokenError') {
       // Invalid token - reject
       return res.status(401).json({
@@ -52,6 +70,7 @@ export const authenticate = async (req, res, next) => {
     }
     if (error.name === 'TokenExpiredError') {
       // Token expired - reject
+      console.error('[Auth Middleware] Token expired at:', error.expiredAt);
       return res.status(401).json({
         success: false,
         message: 'Authentication token expired',
@@ -85,7 +104,7 @@ export const requireAuth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, config.jwtSecret);
     const userId = decoded.sub || decoded.userId || decoded.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -118,4 +137,3 @@ export const requireAuth = async (req, res, next) => {
     });
   }
 };
-

@@ -1,48 +1,53 @@
-import {storage} from '../storage/index.js';
+import User from './User.js';
 
-const USERS_PATH = 'data/users.json';
+// Adapter functions to map old file-system API to new Mongoose API
 
 export async function getUsers() {
-  return storage.readJson(USERS_PATH, []);
+  const users = await User.find({});
+  return users.map(user => user.toObject());
 }
 
 export async function findUserByEmail(email) {
-  const users = await getUsers();
-  return users.find(user => user.email.toLowerCase() === email.toLowerCase());
+  const user = await User.findOne({email: email.toLowerCase()});
+  return user ? user.toObject() : undefined;
 }
 
-export async function createUser(user) {
-  const users = await getUsers();
-  users.push(user);
-  await storage.writeJson(USERS_PATH, users);
-  return user;
+export async function createUser(userData) {
+  const data = {...userData};
+  if (data.id && !data._id) {
+    data._id = data.id;
+  }
+
+  const newUser = new User(data);
+  await newUser.save();
+  return newUser.toObject();
 }
 
 export async function findUserById(userId) {
-  const users = await getUsers();
-  return users.find(user => user.id === userId);
+  const user = await User.findById(userId);
+  return user ? user.toObject() : undefined;
 }
 
 export async function deleteUser(userId) {
-  const users = await getUsers();
-  const filtered = users.filter(user => user.id !== userId);
-  await storage.writeJson(USERS_PATH, filtered);
-  return true;
+  const result = await User.findByIdAndDelete(userId);
+  return !!result;
+}
+
+export async function findUserByGoogleId(googleId) {
+  const user = await User.findOne({googleId});
+  return user ? user.toObject() : undefined;
 }
 
 export async function updateUser(userId, updates) {
-  const users = await getUsers();
-  const index = users.findIndex(user => user.id === userId);
-  if (index === -1) {
-    return null;
-  }
-  const updatedUser = {
-    ...users[index],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  users[index] = updatedUser;
-  await storage.writeJson(USERS_PATH, users);
-  return updatedUser;
-}
+  const safeUpdates = {...updates};
+  delete safeUpdates.id;
+  delete safeUpdates._id;
 
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {$set: safeUpdates},
+    {new: true, runValidators: true},
+  );
+
+  return updatedUser ? updatedUser.toObject() : null;
+}

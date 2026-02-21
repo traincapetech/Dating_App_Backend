@@ -6,6 +6,7 @@ import {
   createUser,
   findUserByEmail,
   findUserById,
+  findUserByGoogleId,
   updateUser,
 } from '../models/userModel.js';
 import {sendEmailOTP} from './emailService.js';
@@ -265,5 +266,73 @@ export async function resetPassword({email, code, newPassword}) {
   return {
     success: true,
     message: 'Password reset successfully',
+  };
+}
+
+export async function authenticateWithGoogle({idToken}) {
+  // Verify Google ID token
+  const response = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+  );
+
+  if (!response.ok) {
+    const error = new Error('Invalid Google token.');
+    error.status = 401;
+    throw error;
+  }
+
+  const googleUser = await response.json();
+  const {sub: googleId, email, name, picture} = googleUser;
+
+  if (!email) {
+    const error = new Error('Google account does not have an email.');
+    error.status = 400;
+    throw error;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Check if user already exists by googleId
+  let user = await findUserByGoogleId(googleId);
+
+  if (!user) {
+    // Check if user exists by email (existing email/password user)
+    user = await findUserByEmail(normalizedEmail);
+
+    if (user) {
+      // Link existing account with Google
+      user = await updateUser(user.id, {
+        googleId,
+        authProvider: user.authProvider === 'local' ? 'local' : 'google',
+      });
+    } else {
+      // Create new user with Google auth
+      const newUser = {
+        id: randomUUID(),
+        fullName: name || 'Google User',
+        email: normalizedEmail,
+        phone: '',
+        authProvider: 'google',
+        googleId,
+        isVerified: true, // Google accounts are already verified
+        createdAt: new Date().toISOString(),
+      };
+
+      user = await createUser(newUser);
+    }
+  }
+
+  const tokens = generateTokens(user);
+  const isNewUser = !user.updatedAt || user.createdAt === user.updatedAt;
+
+  return {
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone || '',
+    },
+    tokens,
+    isNewUser,
   };
 }

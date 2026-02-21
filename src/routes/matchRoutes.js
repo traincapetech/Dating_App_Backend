@@ -1,18 +1,27 @@
-import express from "express";
-import { getUserMatches, getMatchById, createMatch, unmatch } from "../controllers/matchController.js";
+import express from 'express';
+import {
+  getUserMatches,
+  getMatchById,
+  createMatch,
+  unmatch,
+  scheduleDate,
+} from '../controllers/matchController.js';
 
 const router = express.Router();
 
 // Get all matches for a user
-router.get("/:userId", getUserMatches);
+router.get('/:userId', getUserMatches);
 
 // Get a specific match by ID
-router.get("/detail/:matchId", getMatchById);
+router.get('/detail/:matchId', getMatchById);
 
 // Create a new match
-router.post("/", createMatch);
+router.post('/', createMatch);
 
 // Unmatch (disable chat)
-router.post("/:matchId/unmatch", unmatch);
+router.post('/:matchId/unmatch', unmatch);
+
+// Schedule a date (Stop the timer)
+router.post('/:matchId/schedule', scheduleDate);
 
 export default router;
