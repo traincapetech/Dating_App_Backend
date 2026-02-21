@@ -1,7 +1,7 @@
 import Message from '../models/Message.js';
 import Match from '../models/Match.js';
 import Block from '../models/Block.js';
-import {getIO, isUserOnline} from '../services/socketService.js';
+import {getIO, isUserOnline, emitToUser} from '../services/socketService.js';
 import {sendPushNotification} from '../services/pushService.js';
 
 // Helper to validate MongoDB ObjectId format
@@ -195,6 +195,10 @@ export const sendMessage = async (req, res) => {
 
       // 2. Emit to receiver via their specific room or match room
       io.to(matchId).emit('receiveMessage', message);
+
+      // 3. Also emit directly to receiver's user sockets (for when they're
+      //    on the chat list screen and haven't joined this specific room)
+      emitToUser(receiverId, 'receiveMessage', message);
 
       // 3. Check if receiver is online to update status to 'delivered'
       const receiverOnline = isUserOnline(receiverId);
