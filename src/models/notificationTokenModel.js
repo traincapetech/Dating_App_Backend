@@ -1,49 +1,43 @@
-import {storage} from '../storage/index.js';
+import mongoose from 'mongoose';
 
-const NOTIFICATION_TOKENS_PATH = 'data/notificationTokens.json';
+const notificationTokenSchema = new mongoose.Schema(
+  {
+    userId: {type: String, required: true, index: true},
+    deviceToken: {type: String, required: true},
+    platform: {type: String, default: 'unknown'},
+  },
+  {timestamps: true},
+);
+
+const NotificationToken =
+  mongoose.models.NotificationToken ||
+  mongoose.model('NotificationToken', notificationTokenSchema);
 
 export async function getNotificationTokens() {
-  return storage.readJson(NOTIFICATION_TOKENS_PATH, []);
+  return await NotificationToken.find({});
 }
 
 export async function findTokenByUserId(userId) {
-  const tokens = await getNotificationTokens();
-  return tokens.find(token => token.userId === userId);
+  return await NotificationToken.findOne({userId});
 }
 
 export async function findTokenByDeviceToken(deviceToken) {
-  const tokens = await getNotificationTokens();
-  return tokens.find(token => token.deviceToken === deviceToken);
+  return await NotificationToken.findOne({deviceToken});
 }
 
 export async function registerToken(userId, deviceToken, platform = 'unknown') {
-  const tokens = await getNotificationTokens();
-  
-  // Remove existing token for this user if exists
-  const filtered = tokens.filter(token => token.userId !== userId);
-  
-  const tokenData = {
-    userId,
-    deviceToken,
-    platform,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  
-  filtered.push(tokenData);
-  await storage.writeJson(NOTIFICATION_TOKENS_PATH, filtered);
-  return tokenData;
+  return await NotificationToken.findOneAndUpdate(
+    {userId},
+    {deviceToken, platform},
+    {new: true, upsert: true},
+  );
 }
 
 export async function unregisterToken(userId) {
-  const tokens = await getNotificationTokens();
-  const filtered = tokens.filter(token => token.userId !== userId);
-  await storage.writeJson(NOTIFICATION_TOKENS_PATH, filtered);
+  await NotificationToken.deleteMany({userId});
   return true;
 }
 
 export async function getTokensByUserIds(userIds) {
-  const tokens = await getNotificationTokens();
-  return tokens.filter(token => userIds.includes(token.userId));
+  return await NotificationToken.find({userId: {$in: userIds}});
 }
-
