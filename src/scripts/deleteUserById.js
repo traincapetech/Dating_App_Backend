@@ -16,30 +16,30 @@ if (!userId) {
 async function deleteUserData(userId) {
   try {
     console.log(`\n🗑️  Deleting user: ${userId}`);
-    
+
     // Check if user exists
     const user = await findUserById(userId);
     if (!user) {
-      console.log(`  ❌ User not found`);
+      console.log('  ❌ User not found');
       return;
     }
-    
+
     console.log(`  👤 User: ${user.fullName || user.email || userId}`);
-    
+
     // Get profile and delete media files
     const profile = await getProfile(userId);
     if (profile?.media?.media) {
       console.log(`  📸 Found ${profile.media.media.length} media files`);
-      
+
       for (const mediaItem of profile.media.media) {
         if (mediaItem.url) {
           try {
             // Extract file path from URL
             let filePath = null;
-            
+
             if (mediaItem.url.includes('/api/files/')) {
               filePath = new URL(mediaItem.url).pathname.replace('/api/files/', '');
-            } else if (mediaItem.url.includes('r2.cloudflarestorage.com') || 
+            } else if (mediaItem.url.includes('r2.cloudflarestorage.com') ||
                        (config.r2.publicBaseUrl && mediaItem.url.includes(config.r2.publicBaseUrl))) {
               const urlObj = new URL(mediaItem.url);
               filePath = urlObj.pathname.replace(/^\//, '');
@@ -51,7 +51,7 @@ async function deleteUserData(userId) {
                 filePath = filePath.substring(profilesIndex);
               }
             }
-            
+
             if (filePath) {
               await storage.deleteObject(filePath);
               console.log(`    ✓ Deleted: ${filePath}`);
@@ -62,7 +62,7 @@ async function deleteUserData(userId) {
         }
       }
     }
-    
+
     // Delete from other collections
     const collections = [
       {name: 'matches', key: 'users', userIdKey: 'userId'},
@@ -76,7 +76,7 @@ async function deleteUserData(userId) {
       {name: 'reports', key: 'reportedUserId', userIdKey: 'reportedUserId'},
       {name: 'notificationTokens', key: 'userId', userIdKey: 'userId'},
     ];
-    
+
     for (const collection of collections) {
       try {
         const filePath = `data/${collection.name}.json`;
@@ -90,15 +90,15 @@ async function deleteUserData(userId) {
         // Collection might not exist, that's okay
       }
     }
-    
+
     // Delete profile
     await deleteProfile(userId);
-    console.log(`  ✓ Profile deleted`);
-    
+    console.log('  ✓ Profile deleted');
+
     // Delete user
     await deleteUser(userId);
-    console.log(`  ✓ User deleted`);
-    
+    console.log('  ✓ User deleted');
+
     console.log(`\n✅ Successfully deleted all data for user ${userId}`);
   } catch (error) {
     console.error(`  ❌ Error deleting user ${userId}:`, error.message);

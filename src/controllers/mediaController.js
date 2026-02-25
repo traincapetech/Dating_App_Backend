@@ -9,16 +9,16 @@ export const uploadChatMedia = async (req, res) => {
     const { image, userId, matchId } = req.body;
 
     if (!image) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Image data is required" 
+      return res.status(400).json({
+        success: false,
+        message: 'Image data is required',
       });
     }
 
     if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "userId is required" 
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required',
       });
     }
 
@@ -40,21 +40,21 @@ export const uploadChatMedia = async (req, res) => {
     // Check file size (max 10MB)
     const maxSize = 10 * 1024 * 1024;
     if (buffer.length > maxSize) {
-      return res.status(413).json({ 
-        success: false, 
-        message: "Image too large. Maximum size is 10MB." 
+      return res.status(413).json({
+        success: false,
+        message: 'Image too large. Maximum size is 10MB.',
       });
     }
 
     // Image moderation (basic check)
     const {moderateImage} = await import('../services/moderationService.js');
     const moderationResult = await moderateImage(image);
-    
+
     // If image is not safe, reject upload
     if (!moderationResult.isSafe) {
       return res.status(400).json({
         success: false,
-        message: "Image does not meet community guidelines",
+        message: 'Image does not meet community guidelines',
         reason: moderationResult.categories,
       });
     }
@@ -70,11 +70,11 @@ export const uploadChatMedia = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error uploading chat media:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error uploading media", 
-      error: error.message 
+    console.error('Error uploading chat media:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading media',
+      error: error.message,
     });
   }
 };

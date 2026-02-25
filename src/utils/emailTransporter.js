@@ -73,10 +73,10 @@ export async function verifyEmailConnection() {
     const transporter = getEmailTransporter();
     // Use a timeout promise to prevent hanging
     const verifyPromise = transporter.verify();
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Connection timeout')), 10000)
     );
-    
+
     await Promise.race([verifyPromise, timeoutPromise]);
     console.log('Email server connection verified successfully');
     return true;

@@ -109,7 +109,7 @@ export const createPaymentOrderController = asyncHandler(async (req, res) => {
           `[Upgrade] User ${userId} upgrading from ${currentPlan.id} to ${planId}. Credit: ${upgradeCredit}, Final Price: ${finalPrice}`,
         );
       } else {
-        console.log(`[SubscriptionOrder] Downgrade/Same-tier blocked.`);
+        console.log('[SubscriptionOrder] Downgrade/Same-tier blocked.');
         return res.status(400).json({
           success: false,
           message:

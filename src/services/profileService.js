@@ -5,11 +5,24 @@ import {
   getProfiles,
 } from '../models/profileModel.js';
 import {getUsers} from '../models/userModel.js';
+import Like from '../models/Like.js';
+import Pass from '../models/Pass.js';
+import Match from '../models/Match.js';
 
 function computeAge(dob) {
   if (!dob) return null;
-  const birthDate = new Date(dob);
+  let birthDate = new Date(dob);
+
+  // Handle DD-MM-YYYY or DD/MM/YYYY formats
+  if (Number.isNaN(birthDate.getTime())) {
+    const parts = dob.split(/[-/]/);
+    if (parts.length === 3 && parts[2].length === 4) {
+      birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+  }
+
   if (Number.isNaN(birthDate.getTime())) return null;
+
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
@@ -237,6 +250,21 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
   const profiles = await getProfiles();
   const users = await getUsers();
 
+  // Get users already swiped by this user
+  let swipedUserIds = [];
+  if (excludeUserId) {
+    const [likes, passes, matches] = await Promise.all([
+      Like.find({senderId: excludeUserId}, 'receiverId'),
+      Pass.find({userId: excludeUserId}, 'passedUserId'),
+      Match.find({users: excludeUserId}, 'users'),
+    ]);
+    swipedUserIds = [
+      ...likes.map(l => l.receiverId),
+      ...passes.map(p => p.passedUserId),
+      ...matches.map(m => m.users.find(u => u !== excludeUserId)),
+    ];
+  }
+
   // Get viewer preferences to filter by gender
   let viewerAllowedGenders = null;
   if (excludeUserId) {
@@ -270,6 +298,8 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     .filter(profile => {
       // Exclude current user
       if (excludeUserId && profile.userId === excludeUserId) return false;
+      // Exclude already swiped users
+      if (swipedUserIds.includes(profile.userId)) return false;
       // Exclude paused/hidden profiles
       if (profile.isPaused || profile.isHidden) return false;
       return true;

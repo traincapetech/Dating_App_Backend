@@ -33,24 +33,24 @@ const ENCRYPTED_FILE_FIELDS = {
 export const storage = {
   async readJson(relativePath, defaultValue = null) {
     const data = await getDriver().readJson(relativePath, defaultValue);
-    
+
     // Auto-decrypt sensitive fields if this file has encryption configured
     const sensitiveFields = ENCRYPTED_FILE_FIELDS[relativePath];
     if (sensitiveFields && Array.isArray(data)) {
       return data.map(item => decryptObject(item, sensitiveFields));
     }
-    
+
     return data;
   },
   async writeJson(relativePath, data) {
     let dataToWrite = data;
-    
+
     // Auto-encrypt sensitive fields if this file has encryption configured
     const sensitiveFields = ENCRYPTED_FILE_FIELDS[relativePath];
     if (sensitiveFields && Array.isArray(data)) {
       dataToWrite = data.map(item => encryptObject(item, sensitiveFields));
     }
-    
+
     return getDriver().writeJson(relativePath, dataToWrite);
   },
   async readFile(relativePath) {
@@ -74,48 +74,48 @@ export const storage = {
    */
   async uploadFile(relativePath, buffer, contentType = 'application/octet-stream') {
     const driver = getDriver();
-    
+
     // Write the file
     await driver.writeFile(relativePath, buffer, { contentType });
-    
+
     // Get the public URL
     let url = driver.getPublicUrl?.(relativePath);
-    
+
     // For local storage, construct a local URL
     if (!url && config.storageDriver === 'local') {
       // Local files are served statically - construct URL based on server
       const port = config.port || 3000;
       url = `http://localhost:${port}/uploads/${relativePath}`;
     }
-    
+
     return { url };
   },
-  
+
   /**
    * Read encrypted file with automatic decryption of specified fields
    * For files not in ENCRYPTED_FILE_FIELDS, use this for manual decryption
    */
   async readEncryptedJson(relativePath, sensitiveFields, defaultValue = null) {
     const data = await getDriver().readJson(relativePath, defaultValue);
-    
+
     if (sensitiveFields && Array.isArray(data)) {
       return data.map(item => decryptObject(item, sensitiveFields));
     }
-    
+
     return data;
   },
-  
+
   /**
    * Write data with automatic encryption of specified fields
    * For files not in ENCRYPTED_FILE_FIELDS, use this for manual encryption
    */
   async writeEncryptedJson(relativePath, data, sensitiveFields) {
     let dataToWrite = data;
-    
+
     if (sensitiveFields && Array.isArray(data)) {
       dataToWrite = data.map(item => encryptObject(item, sensitiveFields));
     }
-    
+
     return getDriver().writeJson(relativePath, dataToWrite);
   },
 };

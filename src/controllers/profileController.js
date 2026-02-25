@@ -35,15 +35,17 @@ export const saveBasicInfoController = asyncHandler(async (req, res) => {
   res.status(200).json({profile});
 });
 
-export const saveDatingPreferencesController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
-  if (!userId) {
-    return res.status(401).json({error: 'User ID is required'});
-  }
-  const parsed = datingPreferencesSchema.parse(req.body);
-  const profile = await saveDatingPreferences(userId, parsed);
-  res.status(200).json({profile});
-});
+export const saveDatingPreferencesController = asyncHandler(
+  async (req, res) => {
+    const userId = req.user?.id || req.body.userId;
+    if (!userId) {
+      return res.status(401).json({error: 'User ID is required'});
+    }
+    const parsed = datingPreferencesSchema.parse(req.body);
+    const profile = await saveDatingPreferences(userId, parsed);
+    res.status(200).json({profile});
+  },
+);
 
 export const savePersonalDetailsController = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.body.userId;
@@ -102,21 +104,33 @@ export const updateProfileController = asyncHandler(async (req, res) => {
   if (!userId) {
     return res.status(401).json({error: 'User ID is required'});
   }
-  
+
   // Remove userId from body before validation (it's not part of the schema)
   const {userId: _, ...bodyWithoutUserId} = req.body;
-  
-  console.log('[updateProfileController] Received body:', JSON.stringify(bodyWithoutUserId, null, 2));
-  
+
+  console.log(
+    '[updateProfileController] Received body:',
+    JSON.stringify(bodyWithoutUserId, null, 2),
+  );
+
   const parsed = updateProfileSchema.parse(bodyWithoutUserId);
-  
-  console.log('[updateProfileController] Parsed data:', JSON.stringify(parsed, null, 2));
-  
+
+  console.log(
+    '[updateProfileController] Parsed data:',
+    JSON.stringify(parsed, null, 2),
+  );
+
   const profile = await updateProfileData(userId, parsed);
-  
-  console.log('[updateProfileController] Saved profile basicInfo:', JSON.stringify(profile?.basicInfo, null, 2));
-  console.log('[updateProfileController] Saved profile lifestyle:', JSON.stringify(profile?.lifestyle, null, 2));
-  
+
+  console.log(
+    '[updateProfileController] Saved profile basicInfo:',
+    JSON.stringify(profile?.basicInfo, null, 2),
+  );
+  console.log(
+    '[updateProfileController] Saved profile lifestyle:',
+    JSON.stringify(profile?.lifestyle, null, 2),
+  );
+
   res.status(200).json({profile});
 });
 
@@ -129,24 +143,29 @@ export const pauseProfileController = asyncHandler(async (req, res) => {
   const {isPaused} = req.body;
   const paused = isPaused === true || isPaused === 'true' || isPaused === true;
   const profile = await updateProfileData(userId, {isPaused: paused});
-  
+
   res.status(200).json({
     success: true,
-    message: paused ? 'Profile paused successfully' : 'Profile resumed successfully',
+    message: paused
+      ? 'Profile paused successfully'
+      : 'Profile resumed successfully',
     profile,
   });
 });
 
 export const getAllProfilesController = asyncHandler(async (req, res) => {
   const excludeUserId = req.query.excludeUserId || req.user?.id;
-  
+
   // Parse matching options from query parameters
-  const useMatching = req.query.useMatching === 'true' || req.query.useMatching === '1';
+  const useMatching =
+    req.query.useMatching === 'true' || req.query.useMatching === '1';
   const minScore = req.query.minScore ? parseInt(req.query.minScore, 10) : 0;
-  const maxDistance = req.query.maxDistance ? parseFloat(req.query.maxDistance) : null;
+  const maxDistance = req.query.maxDistance
+    ? parseFloat(req.query.maxDistance)
+    : null;
   const sortBy = req.query.sortBy || 'score'; // 'score', 'distance', 'recent'
   const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
-  
+
   // Advanced filters (premium feature)
   const filters = {};
   if (req.query.educationLevel) {
@@ -173,7 +192,7 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
   if (req.query.politicalBeliefs) {
     filters.politicalBeliefs = req.query.politicalBeliefs;
   }
-  
+
   const options = {
     useMatching,
     minScore,
@@ -182,7 +201,7 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
     limit,
     filters: Object.keys(filters).length > 0 ? filters : null,
   };
-  
+
   const profiles = await getAllProfiles(excludeUserId, options);
   res.status(200).json({profiles});
 });
@@ -220,7 +239,10 @@ export const uploadImageController = asyncHandler(async (req, res) => {
       contentType = req.file.mimetype;
     } else if (req.body.imageUri) {
       // If image is sent as base64 data URI
-      const base64Data = req.body.imageUri.replace(/^data:image\/\w+;base64,/, '');
+      const base64Data = req.body.imageUri.replace(
+        /^data:image\/\w+;base64,/,
+        '',
+      );
       imageBuffer = Buffer.from(base64Data, 'base64');
       fileName = req.body.fileName || `image_${Date.now()}.jpg`;
       contentType = req.body.contentType || 'image/jpeg';
@@ -238,7 +260,10 @@ export const uploadImageController = asyncHandler(async (req, res) => {
     const filePath = `profiles/${userId}/images/${randomUUID()}.${fileExtension}`;
 
     console.log('[Image Upload] Uploading to path:', filePath);
-    console.log('[Image Upload] Storage driver being used:', config.storageDriver);
+    console.log(
+      '[Image Upload] Storage driver being used:',
+      config.storageDriver,
+    );
 
     // Upload to storage (R2 or local)
     await storage.writeFile(filePath, imageBuffer, {
@@ -248,8 +273,11 @@ export const uploadImageController = asyncHandler(async (req, res) => {
     console.log('[Image Upload] File uploaded successfully to:', filePath);
 
     // Get public URL
-    const publicUrl = storage.getPublicUrl(filePath) || 
-      `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/files/${filePath}`;
+    const publicUrl =
+      storage.getPublicUrl(filePath) ||
+      `${
+        process.env.API_BASE_URL || 'http://localhost:3000'
+      }/api/files/${filePath}`;
 
     console.log('[Image Upload] Public URL:', publicUrl);
 
@@ -313,12 +341,17 @@ export const deleteUserController = asyncHandler(async (req, res) => {
           // R2 URLs: https://[bucket].r2.cloudflarestorage.com/[key] or custom domain
           // Local URLs: http://localhost:3000/api/files/[path]
           let filePath = null;
-          
+
           if (mediaItem.url.includes('/api/files/')) {
             // Local storage URL
-            filePath = new URL(mediaItem.url).pathname.replace('/api/files/', '');
-          } else if (mediaItem.url.includes('r2.cloudflarestorage.com') || 
-                     mediaItem.url.includes(config.r2.publicBaseUrl)) {
+            filePath = new URL(mediaItem.url).pathname.replace(
+              '/api/files/',
+              '',
+            );
+          } else if (
+            mediaItem.url.includes('r2.cloudflarestorage.com') ||
+            mediaItem.url.includes(config.r2.publicBaseUrl)
+          ) {
             // R2 URL - extract key from URL
             const urlObj = new URL(mediaItem.url);
             // R2 public URLs have the key as the pathname
@@ -333,7 +366,7 @@ export const deleteUserController = asyncHandler(async (req, res) => {
               filePath = filePath.substring(profilesIndex);
             }
           }
-          
+
           if (filePath) {
             await storage.deleteObject(filePath);
             console.log(`Deleted media file: ${filePath}`);
@@ -347,7 +380,7 @@ export const deleteUserController = asyncHandler(async (req, res) => {
 
   // Delete profile
   await deleteProfile(userId);
-  
+
   // Delete user
   await deleteUser(userId);
 
@@ -375,11 +408,16 @@ export const deleteProfileController = asyncHandler(async (req, res) => {
         try {
           // Extract file path from URL (same logic as deleteUserController)
           let filePath = null;
-          
+
           if (mediaItem.url.includes('/api/files/')) {
-            filePath = new URL(mediaItem.url).pathname.replace('/api/files/', '');
-          } else if (mediaItem.url.includes('r2.cloudflarestorage.com') || 
-                     mediaItem.url.includes(config.r2.publicBaseUrl)) {
+            filePath = new URL(mediaItem.url).pathname.replace(
+              '/api/files/',
+              '',
+            );
+          } else if (
+            mediaItem.url.includes('r2.cloudflarestorage.com') ||
+            mediaItem.url.includes(config.r2.publicBaseUrl)
+          ) {
             const urlObj = new URL(mediaItem.url);
             filePath = urlObj.pathname.replace(/^\//, '');
           } else {
@@ -390,7 +428,7 @@ export const deleteProfileController = asyncHandler(async (req, res) => {
               filePath = filePath.substring(profilesIndex);
             }
           }
-          
+
           if (filePath) {
             await storage.deleteObject(filePath);
             console.log(`Deleted media file: ${filePath}`);
@@ -408,4 +446,3 @@ export const deleteProfileController = asyncHandler(async (req, res) => {
     message: 'Profile deleted successfully',
   });
 });
-

@@ -17,12 +17,12 @@ const SUSPICIOUS_PATTERNS = {
     // Check if photos are too similar (basic check)
     return false; // Implement image similarity check if needed
   },
-  
+
   // Suspicious bio patterns
   suspiciousBio: (bio) => {
     if (!bio) return false;
     const lowerBio = bio.toLowerCase();
-    
+
     // Check for common fake profile indicators
     const indicators = [
       'add me on snap',
@@ -34,15 +34,15 @@ const SUSPICIOUS_PATTERNS = {
       'crypto',
       'investment',
     ];
-    
+
     return indicators.some(indicator => lowerBio.includes(indicator));
   },
-  
+
   // Too few photos
   insufficientPhotos: (photos) => {
     return !photos || photos.length < 2;
   },
-  
+
   // Suspicious age
   suspiciousAge: (age) => {
     return age < 18 || age > 100;
@@ -54,18 +54,18 @@ const SUSPICIOUS_PATTERNS = {
  */
 export function detectChatAbuse(text) {
   if (!text) return { isAbusive: false, reason: null };
-  
+
   const lowerText = text.toLowerCase();
-  
+
   // Check for profanity
-  const hasProfanity = PROFANITY_KEYWORDS.some(keyword => 
+  const hasProfanity = PROFANITY_KEYWORDS.some(keyword =>
     lowerText.includes(keyword.toLowerCase())
   );
-  
+
   if (hasProfanity) {
     return { isAbusive: true, reason: 'profanity', severity: 'medium' };
   }
-  
+
   // Check for harassment patterns
   const harassmentPatterns = [
     /send.*nude/i,
@@ -73,24 +73,24 @@ export function detectChatAbuse(text) {
     /meet.*now/i,
     /come.*over/i,
   ];
-  
+
   const hasHarassment = harassmentPatterns.some(pattern => pattern.test(text));
   if (hasHarassment) {
     return { isAbusive: true, reason: 'harassment', severity: 'high' };
   }
-  
+
   // Check for spam patterns
   const spamPatterns = [
     /http[s]?:\/\//i, // URLs
     /www\./i,
     /bit\.ly|tinyurl|short\.link/i, // Short links
   ];
-  
+
   const hasSpam = spamPatterns.some(pattern => pattern.test(text));
   if (hasSpam) {
     return { isAbusive: true, reason: 'spam', severity: 'medium' };
   }
-  
+
   return { isAbusive: false, reason: null };
 }
 
@@ -100,7 +100,7 @@ export function detectChatAbuse(text) {
 export function detectFakeProfile(profile) {
   const flags = [];
   let riskScore = 0;
-  
+
   // Check bio
   if (profile.basicInfo?.bio || profile.profilePrompts?.aboutMe?.answer) {
     const bio = profile.basicInfo?.bio || profile.profilePrompts?.aboutMe?.answer;
@@ -109,14 +109,14 @@ export function detectFakeProfile(profile) {
       riskScore += 30;
     }
   }
-  
+
   // Check photos
   const photos = profile.media?.media || [];
   if (SUSPICIOUS_PATTERNS.insufficientPhotos(photos)) {
     flags.push('insufficient_photos');
     riskScore += 20;
   }
-  
+
   // Check age
   if (profile.basicInfo?.dob) {
     const dob = new Date(profile.basicInfo.dob);
@@ -126,16 +126,16 @@ export function detectFakeProfile(profile) {
       riskScore += 25;
     }
   }
-  
+
   // Check for empty profile
   if (!profile.basicInfo?.bio && !profile.profilePrompts?.aboutMe?.answer && photos.length === 0) {
     flags.push('empty_profile');
     riskScore += 15;
   }
-  
+
   // Determine if fake
   const isFake = riskScore >= 50;
-  
+
   return {
     isFake,
     riskScore,
@@ -151,10 +151,10 @@ export function detectFakeProfile(profile) {
 export async function moderateImage(imageUrl) {
   // Basic implementation - in production, use ML service
   // For now, return a placeholder that can be extended
-  
+
   // TODO: Integrate with image moderation service
   // Example: AWS Rekognition, Google Cloud Vision API, or Cloudinary Moderation
-  
+
   return {
     isSafe: true, // Default to safe until moderation service is integrated
     confidence: 0.95,
@@ -173,7 +173,7 @@ export async function moderateImage(imageUrl) {
  */
 export async function autoReviewProfile(profile) {
   const fakeProfileCheck = detectFakeProfile(profile);
-  
+
   // If high risk, flag for manual review
   if (fakeProfileCheck.isFake || fakeProfileCheck.riskScore >= 50) {
     return {
@@ -184,7 +184,7 @@ export async function autoReviewProfile(profile) {
       requiresManualReview: true,
     };
   }
-  
+
   // If medium risk, mark as pending review
   if (fakeProfileCheck.riskScore >= 30) {
     return {
@@ -195,7 +195,7 @@ export async function autoReviewProfile(profile) {
       requiresManualReview: true,
     };
   }
-  
+
   // Low risk, auto-approve
   return {
     status: 'approved',

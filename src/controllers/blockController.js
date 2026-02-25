@@ -1,6 +1,6 @@
-import Block from "../models/Block.js";
-import Report from "../models/Report.js";
-import Match from "../models/Match.js";
+import Block from '../models/Block.js';
+import Report from '../models/Report.js';
+import Match from '../models/Match.js';
 
 /**
  * Block a user
@@ -10,25 +10,25 @@ export const blockUser = async (req, res) => {
     const { blockerId, blockedId, reason } = req.body;
 
     if (!blockerId || !blockedId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "blockerId and blockedId are required" 
+      return res.status(400).json({
+        success: false,
+        message: 'blockerId and blockedId are required',
       });
     }
 
     if (blockerId === blockedId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Cannot block yourself" 
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot block yourself',
       });
     }
 
     // Check if already blocked
     const existingBlock = await Block.findOne({ blockerId, blockedId });
     if (existingBlock) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "User is already blocked" 
+      return res.status(400).json({
+        success: false,
+        message: 'User is already blocked',
       });
     }
 
@@ -36,7 +36,7 @@ export const blockUser = async (req, res) => {
     const block = await Block.create({
       blockerId,
       blockedId,
-      reason: reason || null
+      reason: reason || null,
     });
 
     // Disable chat in any matches between these users
@@ -45,18 +45,18 @@ export const blockUser = async (req, res) => {
       { $set: { chatEnabled: false } }
     );
 
-    res.json({ 
-      success: true, 
-      message: "User blocked successfully",
-      block 
+    res.json({
+      success: true,
+      message: 'User blocked successfully',
+      block,
     });
 
   } catch (error) {
-    console.error("Error blocking user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error blocking user", 
-      error: error.message 
+    console.error('Error blocking user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error blocking user',
+      error: error.message,
     });
   }
 };
@@ -69,25 +69,25 @@ export const unblockUser = async (req, res) => {
     const { blockerId, blockedId } = req.body;
 
     if (!blockerId || !blockedId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "blockerId and blockedId are required" 
+      return res.status(400).json({
+        success: false,
+        message: 'blockerId and blockedId are required',
       });
     }
 
     const result = await Block.findOneAndDelete({ blockerId, blockedId });
 
     if (!result) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Block not found" 
+      return res.status(404).json({
+        success: false,
+        message: 'Block not found',
       });
     }
 
     // Re-enable chat in matches (only if not blocked by the other user)
-    const reverseBlock = await Block.findOne({ 
-      blockerId: blockedId, 
-      blockedId: blockerId 
+    const reverseBlock = await Block.findOne({
+      blockerId: blockedId,
+      blockedId: blockerId,
     });
 
     if (!reverseBlock) {
@@ -97,17 +97,17 @@ export const unblockUser = async (req, res) => {
       );
     }
 
-    res.json({ 
-      success: true, 
-      message: "User unblocked successfully" 
+    res.json({
+      success: true,
+      message: 'User unblocked successfully',
     });
 
   } catch (error) {
-    console.error("Error unblocking user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error unblocking user", 
-      error: error.message 
+    console.error('Error unblocking user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error unblocking user',
+      error: error.message,
     });
   }
 };
@@ -120,29 +120,29 @@ export const getBlockedUsers = async (req, res) => {
     const { userId } = req.params;
 
     if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "userId is required" 
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required',
       });
     }
 
     const blocks = await Block.find({ blockerId: userId });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       blockedUsers: blocks.map(b => ({
         blockedId: b.blockedId,
         blockedAt: b.createdAt,
-        reason: b.reason
-      }))
+        reason: b.reason,
+      })),
     });
 
   } catch (error) {
-    console.error("Error getting blocked users:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error getting blocked users", 
-      error: error.message 
+    console.error('Error getting blocked users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting blocked users',
+      error: error.message,
     });
   }
 };
@@ -157,22 +157,22 @@ export const checkBlocked = async (req, res) => {
     const block = await Block.findOne({
       $or: [
         { blockerId: userId, blockedId: otherUserId },
-        { blockerId: otherUserId, blockedId: userId }
-      ]
+        { blockerId: otherUserId, blockedId: userId },
+      ],
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       isBlocked: !!block,
-      blockedBy: block ? block.blockerId : null
+      blockedBy: block ? block.blockerId : null,
     });
 
   } catch (error) {
-    console.error("Error checking block status:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error checking block status", 
-      error: error.message 
+    console.error('Error checking block status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking block status',
+      error: error.message,
     });
   }
 };
@@ -185,24 +185,24 @@ export const reportUser = async (req, res) => {
     const { reporterId, reportedId, matchId, reason, description } = req.body;
 
     if (!reporterId || !reportedId || !reason) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "reporterId, reportedId, and reason are required" 
+      return res.status(400).json({
+        success: false,
+        message: 'reporterId, reportedId, and reason are required',
       });
     }
 
     if (reporterId === reportedId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Cannot report yourself" 
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot report yourself',
       });
     }
 
     const validReasons = ['harassment', 'spam', 'inappropriate_content', 'fake_profile', 'underage', 'other'];
     if (!validReasons.includes(reason)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Invalid reason. Valid reasons: ${validReasons.join(', ')}` 
+      return res.status(400).json({
+        success: false,
+        message: `Invalid reason. Valid reasons: ${validReasons.join(', ')}`,
       });
     }
 
@@ -212,21 +212,21 @@ export const reportUser = async (req, res) => {
       reportedId,
       matchId: matchId || null,
       reason,
-      description: description || null
+      description: description || null,
     });
 
-    res.json({ 
-      success: true, 
-      message: "User reported successfully. Our team will review this report.",
-      reportId: report._id 
+    res.json({
+      success: true,
+      message: 'User reported successfully. Our team will review this report.',
+      reportId: report._id,
     });
 
   } catch (error) {
-    console.error("Error reporting user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error reporting user", 
-      error: error.message 
+    console.error('Error reporting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error reporting user',
+      error: error.message,
     });
   }
 };
@@ -239,9 +239,9 @@ export const blockAndReport = async (req, res) => {
     const { blockerId, blockedId, matchId, reason, description } = req.body;
 
     if (!blockerId || !blockedId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "blockerId and blockedId are required" 
+      return res.status(400).json({
+        success: false,
+        message: 'blockerId and blockedId are required',
       });
     }
 
@@ -251,7 +251,7 @@ export const blockAndReport = async (req, res) => {
       await Block.create({
         blockerId,
         blockedId,
-        reason: reason || null
+        reason: reason || null,
       });
 
       // Disable chat
@@ -269,23 +269,23 @@ export const blockAndReport = async (req, res) => {
         reportedId: blockedId,
         matchId: matchId || null,
         reason,
-        description: description || null
+        description: description || null,
       });
       reportId = report._id;
     }
 
-    res.json({ 
-      success: true, 
-      message: "User blocked and reported successfully",
-      reportId 
+    res.json({
+      success: true,
+      message: 'User blocked and reported successfully',
+      reportId,
     });
 
   } catch (error) {
-    console.error("Error blocking and reporting user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error blocking and reporting user", 
-      error: error.message 
+    console.error('Error blocking and reporting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error blocking and reporting user',
+      error: error.message,
     });
   }
 };

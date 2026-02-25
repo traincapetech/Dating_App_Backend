@@ -15,7 +15,7 @@ const DATA_FILES = [
 async function clearAllData() {
   try {
     console.log('🗑️  Clearing all JSON data files...\n');
-    
+
     for (const file of DATA_FILES) {
       try {
         await storage.writeJson(file, []);
@@ -24,7 +24,7 @@ async function clearAllData() {
         console.log(`- ${file} doesn't exist or couldn't be cleared: ${error.message}`);
       }
     }
-    
+
     console.log('\n✅ All data cleared successfully!');
     console.log('You can now create fresh accounts and profiles.');
     process.exit(0);

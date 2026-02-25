@@ -16,7 +16,7 @@ export const verifyAdminToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change-me');
-    
+
     // Verify admin exists and is active
     const admin = await findAdminById(decoded.adminId);
     if (!admin || !admin.isActive) {

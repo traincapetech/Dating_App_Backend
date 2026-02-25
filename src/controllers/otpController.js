@@ -14,7 +14,7 @@ export const sendEmailOTPController = asyncHandler(async (req, res) => {
 export const verifyEmailOTPController = asyncHandler(async (req, res) => {
   const parsed = verifyEmailOTPSchema.parse(req.body);
   const result = await verifyEmailOTP(parsed.email, parsed.code);
-  
+
   if (!result.valid) {
     return res.status(400).json({
       success: false,

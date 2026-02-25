@@ -178,7 +178,7 @@ function getLikeEmailHtml(likerName, likerPhoto, isVisible = true) {
 export async function sendMatchEmail(userEmail, matchName, matchPhoto) {
   const htmlContent = getMatchEmailHtml(matchName, matchPhoto);
   const textContent = `It's a Match! You matched with ${matchName} on Pryvo. Open the app to start chatting!`;
-  
+
   return sendEmail({
     to: userEmail,
     subject: `💕 It's a Match! You matched with ${matchName}`,
@@ -192,13 +192,13 @@ export async function sendMatchEmail(userEmail, matchName, matchPhoto) {
  */
 export async function sendMessageEmail(userEmail, senderName, senderPhoto, messagePreview) {
   // Truncate message preview
-  const preview = messagePreview.length > 100 
-    ? messagePreview.slice(0, 100) + '...' 
+  const preview = messagePreview.length > 100
+    ? messagePreview.slice(0, 100) + '...'
     : messagePreview;
-    
+
   const htmlContent = getMessageEmailHtml(senderName, senderPhoto, preview);
   const textContent = `${senderName} sent you a message on Pryvo: "${preview}"`;
-  
+
   return sendEmail({
     to: userEmail,
     subject: `💬 ${senderName} sent you a message`,
@@ -212,13 +212,13 @@ export async function sendMessageEmail(userEmail, senderName, senderPhoto, messa
  */
 export async function sendLikeEmail(userEmail, likerName, likerPhoto, isVisible = true) {
   const htmlContent = getLikeEmailHtml(likerName, likerPhoto, isVisible);
-  const textContent = isVisible 
+  const textContent = isVisible
     ? `${likerName} likes you on Pryvo! Open the app to like them back.`
-    : `Someone new likes you on Pryvo! Open the app to find out who.`;
-  
+    : 'Someone new likes you on Pryvo! Open the app to find out who.';
+
   return sendEmail({
     to: userEmail,
-    subject: isVisible ? `💕 ${likerName} likes you!` : `💕 Someone new likes you!`,
+    subject: isVisible ? `💕 ${likerName} likes you!` : '💕 Someone new likes you!',
     htmlContent,
     textContent,
   });

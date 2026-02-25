@@ -25,10 +25,10 @@ export async function processSubscriptionRenewals() {
       }
 
       const expiresAt = new Date(subscription.expiresAt);
-      
+
       // Check if subscription expires within 24 hours or has expired
       const hoursUntilExpiry = (expiresAt - now) / (1000 * 60 * 60);
-      
+
       if (hoursUntilExpiry <= 24 && hoursUntilExpiry >= -24) {
         // Attempt to renew
         const renewalResult = await attemptRenewal(subscription);

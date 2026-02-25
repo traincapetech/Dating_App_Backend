@@ -10,14 +10,14 @@ async function clearAllData() {
 
     const collections = [
       'users',
-      'profiles', 
+      'profiles',
       'matches',
       'messages',
       'likes',
       'otps',
       'blocks',
       'reports',
-      'notificationtokens'
+      'notificationtokens',
     ];
 
     for (const collection of collections) {

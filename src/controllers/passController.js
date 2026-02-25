@@ -1,6 +1,6 @@
-import Pass from "../models/Pass.js";
-import Like from "../models/Like.js";
-import { isUserPremium } from "../models/Subscription.js";
+import Pass from '../models/Pass.js';
+import Like from '../models/Like.js';
+import { isUserPremium } from '../models/Subscription.js';
 
 export const passUser = async (req, res) => {
   try {
@@ -8,7 +8,7 @@ export const passUser = async (req, res) => {
     await Pass.create({ userId, passedUserId });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ message: "Error passing user", error });
+    res.status(500).json({ message: 'Error passing user', error });
   }
 };
 
@@ -21,19 +21,19 @@ export const undoLastSwipe = async (req, res) => {
     const { userId } = req.body;
 
     if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "userId is required" 
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required',
       });
     }
 
     // Check if user is premium
     const isPremium = await isUserPremium(userId);
     if (!isPremium) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Undo is a premium feature. Upgrade to unlock!",
-        requiresPremium: true
+      return res.status(403).json({
+        success: false,
+        message: 'Undo is a premium feature. Upgrade to unlock!',
+        requiresPremium: true,
       });
     }
 
@@ -49,48 +49,48 @@ export const undoLastSwipe = async (req, res) => {
         .limit(1);
 
       if (!lastLike) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "No recent swipe to undo" 
+        return res.status(404).json({
+          success: false,
+          message: 'No recent swipe to undo',
         });
       }
 
       // Undo the like
       await Like.deleteOne({ _id: lastLike._id });
-      
-      return res.json({ 
-        success: true, 
+
+      return res.json({
+        success: true,
         undoneAction: 'like',
         undoneUserId: lastLike.receiverId,
-        message: "Like undone successfully"
+        message: 'Like undone successfully',
       });
     }
 
     // Check if pass is within last 5 minutes (optional time limit)
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     if (lastPass.createdAt < fiveMinutesAgo) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Can only undo swipes within the last 5 minutes" 
+      return res.status(400).json({
+        success: false,
+        message: 'Can only undo swipes within the last 5 minutes',
       });
     }
 
     // Undo the pass
     await Pass.deleteOne({ _id: lastPass._id });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       undoneAction: 'pass',
       undoneUserId: lastPass.passedUserId,
-      message: "Swipe undone successfully"
+      message: 'Swipe undone successfully',
     });
 
   } catch (error) {
-    console.error("Error undoing swipe:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error undoing swipe", 
-      error: error.message 
+    console.error('Error undoing swipe:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error undoing swipe',
+      error: error.message,
     });
   }
 };
@@ -103,9 +103,9 @@ export const getUndoStatus = async (req, res) => {
     const { userId } = req.params;
 
     if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "userId is required" 
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required',
       });
     }
 
@@ -154,15 +154,15 @@ export const getUndoStatus = async (req, res) => {
       canUndo: isPremium && canUndo,
       lastAction,
       lastActionTime,
-      requiresPremium: !isPremium && canUndo
+      requiresPremium: !isPremium && canUndo,
     });
 
   } catch (error) {
-    console.error("Error getting undo status:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error getting undo status", 
-      error: error.message 
+    console.error('Error getting undo status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting undo status',
+      error: error.message,
     });
   }
 };

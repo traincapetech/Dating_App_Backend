@@ -1,7 +1,7 @@
 /**
  * Encryption Service for Data at Rest
  * Uses AES-256-GCM for authenticated encryption
- * 
+ *
  * Encrypts sensitive user data before storage
  */
 
@@ -21,11 +21,11 @@ const SALT_LENGTH = 32;
 function getEncryptionKey() {
   // Use environment variable or derive from JWT secret
   const keySource = process.env.ENCRYPTION_KEY || config.jwtSecret;
-  
+
   if (!keySource) {
     throw new Error('No encryption key configured. Set ENCRYPTION_KEY in environment.');
   }
-  
+
   // Derive a 256-bit key from the source using PBKDF2
   return crypto.pbkdf2Sync(
     keySource,
@@ -49,16 +49,16 @@ export function encrypt(plaintext) {
   try {
     const key = getEncryptionKey();
     const iv = crypto.randomBytes(IV_LENGTH);
-    
+
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv, {
-      authTagLength: AUTH_TAG_LENGTH
+      authTagLength: AUTH_TAG_LENGTH,
     });
-    
+
     let encrypted = cipher.update(plaintext, 'utf8', 'base64');
     encrypted += cipher.final('base64');
-    
+
     const authTag = cipher.getAuthTag();
-    
+
     // Return iv:authTag:ciphertext format
     return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
   } catch (error) {
@@ -96,7 +96,7 @@ export function decrypt(encryptedData) {
     const authTag = Buffer.from(authTagBase64, 'base64');
 
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, {
-      authTagLength: AUTH_TAG_LENGTH
+      authTagLength: AUTH_TAG_LENGTH,
     });
     decipher.setAuthTag(authTag);
 
@@ -123,7 +123,7 @@ export function encryptObject(data, sensitiveFields) {
   }
 
   const result = { ...data };
-  
+
   for (const field of sensitiveFields) {
     if (result[field] && typeof result[field] === 'string') {
       result[field] = encrypt(result[field]);

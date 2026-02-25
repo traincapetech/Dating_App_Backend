@@ -3,15 +3,15 @@
  * Handles email subscriptions and broadcast emails
  */
 
-import Newsletter from "../models/Newsletter.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { z } from "zod";
-import nodemailer from "nodemailer";
-import { config } from "../config/env.js";
+import Newsletter from '../models/Newsletter.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { z } from 'zod';
+import nodemailer from 'nodemailer';
+import { config } from '../config/env.js';
 
 // Validation schema for subscription
 const subscribeSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email('Invalid email address'),
 });
 
 /**
@@ -27,7 +27,7 @@ export const subscribe = asyncHandler(async (req, res) => {
     if (existing.status === 'active') {
       return res.status(400).json({
         success: false,
-        message: "This email is already subscribed"
+        message: 'This email is already subscribed',
       });
     } else {
       // Re-activate
@@ -36,7 +36,7 @@ export const subscribe = asyncHandler(async (req, res) => {
       await existing.save();
       return res.status(200).json({
         success: true,
-        message: "Successfully re-subscribed to our newsletter!"
+        message: 'Successfully re-subscribed to our newsletter!',
       });
     }
   }
@@ -47,13 +47,13 @@ export const subscribe = asyncHandler(async (req, res) => {
     metadata: {
       source: req.body.source || 'landing_page',
       ip: req.ip,
-      userAgent: req.get('user-agent')
-    }
+      userAgent: req.get('user-agent'),
+    },
   });
 
   res.status(201).json({
     success: true,
-    message: "Thank you for subscribing to our newsletter!"
+    message: 'Thank you for subscribing to our newsletter!',
   });
 });
 
@@ -67,7 +67,7 @@ export const getSubscribers = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     count: subscribers.length,
-    subscribers
+    subscribers,
   });
 });
 
@@ -82,16 +82,16 @@ export const sendNewsletter = asyncHandler(async (req, res) => {
   if (!subject || (!content && !html)) {
     return res.status(400).json({
       success: false,
-      message: "Subject and content are required"
+      message: 'Subject and content are required',
     });
   }
 
   const activeSubscribers = await Newsletter.find({ status: 'active' });
-  
+
   if (activeSubscribers.length === 0) {
     return res.status(400).json({
       success: false,
-      message: "No active subscribers found"
+      message: 'No active subscribers found',
     });
   }
 
@@ -112,7 +112,7 @@ export const sendNewsletter = asyncHandler(async (req, res) => {
   const results = {
     total: activeSubscribers.length,
     success: 0,
-    failed: 0
+    failed: 0,
   };
 
   const emailPromises = activeSubscribers.map(sub => {
@@ -135,6 +135,6 @@ export const sendNewsletter = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: `Newsletter broadcast complete. Sent to ${results.success} subscribers, ${results.failed} failed.`,
-    results
+    results,
   });
 });

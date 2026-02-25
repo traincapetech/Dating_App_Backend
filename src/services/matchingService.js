@@ -2,6 +2,29 @@ import Profile from '../models/Profile.js';
 import User from '../models/User.js';
 import {hasActiveBoost} from './boostService.js';
 
+function computeAge(dob) {
+  if (!dob) return null;
+  let birthDate = new Date(dob);
+
+  // Handle DD-MM-YYYY or DD/MM/YYYY formats
+  if (Number.isNaN(birthDate.getTime())) {
+    const parts = dob.split(/[-/]/);
+    if (parts.length === 3 && parts[2].length === 4) {
+      birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+  }
+
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 /**
  * Calculate compatibility score between two profiles
  * @param {object} currentUserProfile - Current user's profile
@@ -291,7 +314,11 @@ export async function getMatchedProfiles(userId, options = {}) {
           profile.user?.fullName || profile.basicInfo?.firstName || 'Unknown',
         email: profile.user?.email || '',
         id: profile._id, // Ensure ID is mapped
-        age: profile.personalDetails?.age || profile.basicInfo?.age || null, // Logic to calc age needed?
+        age:
+          computeAge(profile.basicInfo?.dob) ??
+          profile.personalDetails?.age ??
+          profile.basicInfo?.age ??
+          null,
         photos: profile.media?.media?.map(m => m.url).filter(Boolean) || [],
         bio: profile.profilePrompts?.bio || profile.basicInfo?.bio || '',
         interests: profile.lifestyle?.interests || [],

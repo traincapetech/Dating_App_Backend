@@ -19,11 +19,11 @@ function sanitizeObject(obj) {
   if (typeof obj === 'string') {
     return xss(obj, xssOptions);
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(item => sanitizeObject(item));
   }
-  
+
   if (obj && typeof obj === 'object') {
     const sanitized = {};
     for (const key of Object.keys(obj)) {
@@ -37,7 +37,7 @@ function sanitizeObject(obj) {
     }
     return sanitized;
   }
-  
+
   return obj;
 }
 
@@ -49,15 +49,15 @@ export const sanitizeInput = (req, res, next) => {
   if (req.body && typeof req.body === 'object') {
     req.body = sanitizeObject(req.body);
   }
-  
+
   if (req.query && typeof req.query === 'object') {
     req.query = sanitizeObject(req.query);
   }
-  
+
   if (req.params && typeof req.params === 'object') {
     req.params = sanitizeObject(req.params);
   }
-  
+
   next();
 };
 

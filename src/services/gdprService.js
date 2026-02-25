@@ -20,7 +20,7 @@ export async function exportUserData(userId) {
     }
 
     const profile = await findProfileByUserId(userId);
-    
+
     // Get all related data
     const [matches, messages, likes, passes, blocks, reports, subscriptions, notificationTokens] = await Promise.all([
       getCollectionData('matches', userId),
@@ -112,7 +112,7 @@ async function getCollectionData(collectionName, userId) {
   try {
     const filePath = `data/${collectionName}.json`;
     const data = await storage.readJson(filePath, []);
-    
+
     // Filter data where user is involved
     return data.filter(item => {
       // Check common user ID fields

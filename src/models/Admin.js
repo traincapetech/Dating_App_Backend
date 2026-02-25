@@ -19,7 +19,7 @@ export async function findAdminById(adminId) {
 
 export async function createAdmin(adminData) {
   const admins = await getAdmins();
-  
+
   // Check if admin already exists
   const existing = await findAdminByEmail(adminData.email);
   if (existing) {
@@ -53,7 +53,7 @@ export async function createAdmin(adminData) {
 
   admins.push(newAdmin);
   await storage.writeJson(ADMINS_PATH, admins);
-  
+
   // Return admin without password
   const {password, ...adminWithoutPassword} = newAdmin;
   return adminWithoutPassword;
@@ -62,7 +62,7 @@ export async function createAdmin(adminData) {
 export async function updateAdmin(adminId, updates) {
   const admins = await getAdmins();
   const index = admins.findIndex(admin => admin.id === adminId);
-  
+
   if (index === -1) {
     return null;
   }
@@ -80,7 +80,7 @@ export async function updateAdmin(adminId, updates) {
 
   admins[index] = updatedAdmin;
   await storage.writeJson(ADMINS_PATH, admins);
-  
+
   // Return admin without password
   const {password, ...adminWithoutPassword} = updatedAdmin;
   return adminWithoutPassword;

@@ -29,18 +29,18 @@ export async function blacklistToken(token, userId, expiresAt) {
 export async function isTokenBlacklisted(token) {
   const blacklist = await getBlacklistedTokens();
   const now = new Date();
-  
+
   // Remove expired tokens
   const validBlacklist = blacklist.filter(item => {
     const expiresAt = new Date(item.expiresAt);
     return expiresAt > now;
   });
-  
+
   // Update blacklist if we removed expired tokens
   if (validBlacklist.length !== blacklist.length) {
     await storage.writeJson(TOKEN_BLACKLIST_PATH, validBlacklist);
   }
-  
+
   return validBlacklist.some(item => item.token === token);
 }
 

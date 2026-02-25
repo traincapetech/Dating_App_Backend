@@ -21,7 +21,7 @@ async function getProfileName(userId) {
   }
 }
 
-// Helper to get profile info for email notifications
+// Helper to get profile info for notifications
 async function getProfileInfo(userId) {
   try {
     const profile = await Profile.findOne({userId});
@@ -29,8 +29,8 @@ async function getProfileInfo(userId) {
 
     return {
       name: profile?.basicInfo?.firstName || profile?.name || 'Someone',
-      photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
-      email: user?.email || null,
+      photo: profile?.photos?.[0] || null,
+      email: profile?.email || null,
     };
   } catch (error) {
     return {name: 'Someone', photo: null, email: null};
@@ -217,9 +217,16 @@ export const likeUser = async (req, res) => {
 
     if (reverseLike) {
       // It's a match!
-      const match = await Match.create({
-        users: [senderId, receiverId],
+      // Check if match already exists
+      let match = await Match.findOne({
+        users: {$all: [senderId, receiverId]},
       });
+
+      if (!match) {
+        match = await Match.create({
+          users: [senderId, receiverId],
+        });
+      }
 
       // Get profile info for both users (for notifications)
       const senderInfo = await getProfileInfo(senderId);
@@ -327,17 +334,9 @@ export const getLikesReceived = async (req, res) => {
     // Get all likes where this user is the receiver
     const likes = await Like.find({receiverId: userId}).sort({createdAt: -1});
 
-    // Check which ones are already matched (mutual likes)
-    const matchedUserIds = [];
-    for (const like of likes) {
-      const mutualLike = await Like.findOne({
-        senderId: userId,
-        receiverId: like.senderId,
-      });
-      if (mutualLike) {
-        matchedUserIds.push(like.senderId);
-      }
-    }
+    // Check which ones are already matched
+    const matches = await Match.find({users: userId});
+    const matchedUserIds = matches.map(m => m.users.find(id => id !== userId));
 
     // Filter out already matched users (they're in matches now)
     const pendingLikes = likes.filter(
@@ -368,6 +367,7 @@ export const getLikesReceived = async (req, res) => {
         name: profile?.basicInfo?.firstName || profile?.name || 'Unknown',
         age: profile?.personalDetails?.age || profile?.basicInfo?.age || null,
         photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+        comment: like.likedContent?.comment,
       };
     });
 

@@ -477,7 +477,7 @@ export const getDashboardAnalyticsController = asyncHandler(async (req, res) => 
 export const getAllReportsController = asyncHandler(async (req, res) => {
   const {status, page = 1, limit = 50} = req.query;
   const Report = (await import('../models/Report.js')).default;
-  
+
   let query = {};
   if (status) {
     query.status = status;
@@ -494,7 +494,7 @@ export const getAllReportsController = asyncHandler(async (req, res) => {
   // Enrich with user details
   const {findUserById} = await import('../models/userModel.js');
   const {findProfileByUserId} = await import('../models/profileModel.js');
-  
+
   const enrichedReports = await Promise.all(
     reports.map(async report => {
       const reporter = await findUserById(report.reporterId);
@@ -537,7 +537,7 @@ export const getAllReportsController = asyncHandler(async (req, res) => {
 export const getReportDetailsController = asyncHandler(async (req, res) => {
   const {reportId} = req.params;
   const Report = (await import('../models/Report.js')).default;
-  
+
   const report = await Report.findById(reportId).lean();
   if (!report) {
     return res.status(404).json({
@@ -548,7 +548,7 @@ export const getReportDetailsController = asyncHandler(async (req, res) => {
 
   const {findUserById} = await import('../models/userModel.js');
   const {findProfileByUserId} = await import('../models/profileModel.js');
-  
+
   const reporter = await findUserById(report.reporterId);
   const reported = await findUserById(report.reportedId);
   const reporterProfile = reporter ? await findProfileByUserId(report.reporterId) : null;
@@ -618,9 +618,9 @@ export const updateReportStatusController = asyncHandler(async (req, res) => {
 export const getPendingProfilesController = asyncHandler(async (req, res) => {
   const {page = 1, limit = 50} = req.query;
   const {getProfiles} = await import('../models/profileModel.js');
-  
+
   const profiles = await getProfiles();
-  
+
   // Filter profiles that need moderation (new profiles, flagged, etc.)
   const pendingProfiles = profiles
     .filter(profile => {
@@ -664,7 +664,7 @@ export const moderateProfileController = asyncHandler(async (req, res) => {
   }
 
   const {findProfileByUserId, updateProfile} = await import('../models/profileModel.js');
-  
+
   // Find profile by userId (assuming profileId is userId)
   const profile = await findProfileByUserId(profileId);
   if (!profile) {
@@ -703,9 +703,9 @@ export const moderateProfileController = asyncHandler(async (req, res) => {
 export const getFlaggedProfilesController = asyncHandler(async (req, res) => {
   const {page = 1, limit = 50} = req.query;
   const {getProfiles} = await import('../models/profileModel.js');
-  
+
   const profiles = await getProfiles();
-  
+
   const flaggedProfiles = profiles
     .filter(profile => profile.moderationStatus === 'flagged')
     .sort((a, b) => new Date(b.moderatedAt || 0) - new Date(a.moderatedAt || 0));

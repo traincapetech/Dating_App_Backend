@@ -7,7 +7,7 @@ export const fetchMessages = async (matchId) => {
         const res = await apiClient.get(`/chat/${matchId}`);
         return res.data || [];
       } catch (err) {
-        console.log("❌ fetchMessages error:", err?.response?.data);
+        console.log('❌ fetchMessages error:', err?.response?.data);
         return []; // <-- fallback JSON
       }
 };

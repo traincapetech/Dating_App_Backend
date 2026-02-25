@@ -239,7 +239,7 @@ export const sendMessage = async (req, res) => {
               senderId,
             },
           });
-          console.log(`[Push Debug] Push result:`, JSON.stringify(pushResult));
+          console.log('[Push Debug] Push result:', JSON.stringify(pushResult));
         } catch (pushError) {
           console.error('[Push Notification] Failed:', pushError.message);
         }

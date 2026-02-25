@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const LikeSchema = new mongoose.Schema({
   senderId: { type: String, required: true },
@@ -13,7 +13,7 @@ const LikeSchema = new mongoose.Schema({
     promptAnswer: { type: String },   // The answer they liked
     comment: { type: String, maxlength: 200 }, // Optional comment on the like
   },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
-export default mongoose.model("Like", LikeSchema);
+export default mongoose.model('Like', LikeSchema);

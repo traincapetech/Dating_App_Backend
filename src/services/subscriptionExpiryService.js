@@ -23,7 +23,7 @@ export async function processExpiredSubscriptions() {
       }
 
       const expiresAt = new Date(subscription.expiresAt);
-      
+
       // Check if subscription has expired
       if (expiresAt < now) {
         // Mark as expired
@@ -173,8 +173,8 @@ export async function syncAllPremiumStatuses() {
 
     for (const subscription of subscriptions) {
       const expiresAt = new Date(subscription.expiresAt);
-      const shouldBePremium = 
-        subscription.status === 'active' && 
+      const shouldBePremium =
+        subscription.status === 'active' &&
         expiresAt >= now;
 
       const user = await findUserById(subscription.userId);

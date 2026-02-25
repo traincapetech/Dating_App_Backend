@@ -3,11 +3,11 @@
  * Handles Hinge-style comments/icebreakers on profiles
  */
 
-import ProfileComment from "../models/ProfileComment.js";
-import Match from "../models/Match.js";
-import { sendPushNotification } from "../services/pushService.js";
-import { storage } from "../storage/index.js";
-import { isUserPremium } from "../models/Subscription.js";
+import ProfileComment from '../models/ProfileComment.js';
+import Match from '../models/Match.js';
+import { sendPushNotification } from '../services/pushService.js';
+import { storage } from '../storage/index.js';
+import { isUserPremium } from '../models/Subscription.js';
 
 const PROFILES_PATH = 'data/profiles.json';
 
@@ -18,7 +18,7 @@ async function getProfileInfo(userId) {
     const profile = profiles.find(p => p.userId === userId);
     const users = await storage.readJson('data/users.json', []);
     const user = users.find(u => u._id === userId || u.id === userId);
-    
+
     return {
       name: profile?.basicInfo?.firstName || profile?.name || 'Someone',
       photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
@@ -43,14 +43,14 @@ export const sendComment = async (req, res) => {
     if (!senderId || !receiverId || !comment) {
       return res.status(400).json({
         success: false,
-        message: "senderId, receiverId, and comment are required"
+        message: 'senderId, receiverId, and comment are required',
       });
     }
 
     if (comment.length > 500) {
       return res.status(400).json({
         success: false,
-        message: "Comment must be 500 characters or less"
+        message: 'Comment must be 500 characters or less',
       });
     }
 
@@ -61,10 +61,10 @@ export const sendComment = async (req, res) => {
     // Check daily comment limit
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    
+
     const todayCommentCount = await ProfileComment.countDocuments({
       senderId,
-      createdAt: { $gte: todayStart }
+      createdAt: { $gte: todayStart },
     });
 
     if (todayCommentCount >= dailyLimit) {
@@ -72,7 +72,7 @@ export const sendComment = async (req, res) => {
         success: false,
         message: `You've reached your daily comment limit (${dailyLimit}). ${!isPremium ? 'Upgrade to Premium for more!' : 'Try again tomorrow!'}`,
         limitReached: true,
-        isPremium
+        isPremium,
       });
     }
 
@@ -80,13 +80,13 @@ export const sendComment = async (req, res) => {
     const existingComment = await ProfileComment.findOne({
       senderId,
       receiverId,
-      status: 'pending'
+      status: 'pending',
     });
 
     if (existingComment) {
       return res.status(400).json({
         success: false,
-        message: "You already have a pending comment for this user"
+        message: 'You already have a pending comment for this user',
       });
     }
 
@@ -101,29 +101,29 @@ export const sendComment = async (req, res) => {
 
     // Send push notification to receiver
     const senderInfo = await getProfileInfo(senderId);
-    
+
     sendPushNotification(receiverId, {
-      title: "New Comment! 💬",
+      title: 'New Comment! 💬',
       body: `${senderInfo.name} left you a comment${targetContent?.type === 'photo' ? ' on your photo' : targetContent?.type === 'prompt' ? ' on your answer' : ''}`,
       data: {
         type: 'profile_comment',
         commentId: profileComment._id.toString(),
         senderId,
-      }
+      },
     }).catch(err => console.error('Push notification error:', err));
 
     res.status(201).json({
       success: true,
       comment: profileComment,
-      remainingComments: dailyLimit - todayCommentCount - 1
+      remainingComments: dailyLimit - todayCommentCount - 1,
     });
 
   } catch (error) {
-    console.error("Error sending comment:", error);
+    console.error('Error sending comment:', error);
     res.status(500).json({
       success: false,
-      message: "Error sending comment",
-      error: error.message
+      message: 'Error sending comment',
+      error: error.message,
     });
   }
 };
@@ -139,18 +139,18 @@ export const getReceivedComments = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "userId is required"
+        message: 'userId is required',
       });
     }
 
     const comments = await ProfileComment.find({
       receiverId: userId,
-      status: status === 'all' ? { $exists: true } : status
+      status: status === 'all' ? { $exists: true } : status,
     }).sort({ createdAt: -1 });
 
     // Get profile info for each sender
     const profiles = await storage.readJson(PROFILES_PATH, []);
-    
+
     const commentsWithProfiles = await Promise.all(comments.map(async (comment) => {
       const profile = profiles.find(p => p.userId === comment.senderId);
       return {
@@ -159,22 +159,22 @@ export const getReceivedComments = async (req, res) => {
           name: profile?.basicInfo?.firstName || profile?.name || 'Unknown',
           age: profile?.personalDetails?.age || profile?.basicInfo?.age || null,
           photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
-        }
+        },
       };
     }));
 
     res.json({
       success: true,
       count: commentsWithProfiles.length,
-      comments: commentsWithProfiles
+      comments: commentsWithProfiles,
     });
 
   } catch (error) {
-    console.error("Error getting comments:", error);
+    console.error('Error getting comments:', error);
     res.status(500).json({
       success: false,
-      message: "Error getting comments",
-      error: error.message
+      message: 'Error getting comments',
+      error: error.message,
     });
   }
 };
@@ -189,26 +189,26 @@ export const getSentComments = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "userId is required"
+        message: 'userId is required',
       });
     }
 
     const comments = await ProfileComment.find({
-      senderId: userId
+      senderId: userId,
     }).sort({ createdAt: -1 });
 
     res.json({
       success: true,
       count: comments.length,
-      comments
+      comments,
     });
 
   } catch (error) {
-    console.error("Error getting sent comments:", error);
+    console.error('Error getting sent comments:', error);
     res.status(500).json({
       success: false,
-      message: "Error getting sent comments",
-      error: error.message
+      message: 'Error getting sent comments',
+      error: error.message,
     });
   }
 };
@@ -225,14 +225,14 @@ export const respondToComment = async (req, res) => {
     if (!userId || !action) {
       return res.status(400).json({
         success: false,
-        message: "userId and action are required"
+        message: 'userId and action are required',
       });
     }
 
     if (!['accept', 'reject'].includes(action)) {
       return res.status(400).json({
         success: false,
-        message: "Action must be 'accept' or 'reject'"
+        message: "Action must be 'accept' or 'reject'",
       });
     }
 
@@ -241,21 +241,21 @@ export const respondToComment = async (req, res) => {
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: "Comment not found"
+        message: 'Comment not found',
       });
     }
 
     if (comment.receiverId !== userId) {
       return res.status(403).json({
         success: false,
-        message: "You can only respond to comments sent to you"
+        message: 'You can only respond to comments sent to you',
       });
     }
 
     if (comment.status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: `Comment has already been ${comment.status}`
+        message: `Comment has already been ${comment.status}`,
       });
     }
 
@@ -271,20 +271,20 @@ export const respondToComment = async (req, res) => {
       match = await Match.create({
         users: [comment.senderId, comment.receiverId],
         initiatedBy: 'comment',
-        commentId: comment._id
+        commentId: comment._id,
       });
 
       // Notify the sender
       const receiverInfo = await getProfileInfo(userId);
-      
+
       sendPushNotification(comment.senderId, {
         title: "It's a Match! 🎉",
         body: `${receiverInfo.name} liked your comment! Start chatting now!`,
         data: {
           type: 'match',
           matchId: match._id.toString(),
-          userId: userId
-        }
+          userId: userId,
+        },
       }).catch(err => console.error('Push notification error:', err));
     }
 
@@ -293,15 +293,15 @@ export const respondToComment = async (req, res) => {
       action,
       comment,
       match,
-      message: action === 'accept' ? "It's a match! You can now chat." : "Comment rejected"
+      message: action === 'accept' ? "It's a match! You can now chat." : 'Comment rejected',
     });
 
   } catch (error) {
-    console.error("Error responding to comment:", error);
+    console.error('Error responding to comment:', error);
     res.status(500).json({
       success: false,
-      message: "Error responding to comment",
-      error: error.message
+      message: 'Error responding to comment',
+      error: error.message,
     });
   }
 };
@@ -319,14 +319,14 @@ export const markCommentRead = async (req, res) => {
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: "Comment not found"
+        message: 'Comment not found',
       });
     }
 
     if (comment.receiverId !== userId) {
       return res.status(403).json({
         success: false,
-        message: "You can only mark your own received comments as read"
+        message: 'You can only mark your own received comments as read',
       });
     }
 
@@ -335,15 +335,15 @@ export const markCommentRead = async (req, res) => {
 
     res.json({
       success: true,
-      comment
+      comment,
     });
 
   } catch (error) {
-    console.error("Error marking comment as read:", error);
+    console.error('Error marking comment as read:', error);
     res.status(500).json({
       success: false,
-      message: "Error marking comment as read",
-      error: error.message
+      message: 'Error marking comment as read',
+      error: error.message,
     });
   }
 };
@@ -358,27 +358,27 @@ export const getUnreadCommentCount = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "userId is required"
+        message: 'userId is required',
       });
     }
 
     const count = await ProfileComment.countDocuments({
       receiverId: userId,
       status: 'pending',
-      isRead: false
+      isRead: false,
     });
 
     res.json({
       success: true,
-      count
+      count,
     });
 
   } catch (error) {
-    console.error("Error getting unread count:", error);
+    console.error('Error getting unread count:', error);
     res.status(500).json({
       success: false,
-      message: "Error getting unread count",
-      error: error.message
+      message: 'Error getting unread count',
+      error: error.message,
     });
   }
 };
@@ -396,21 +396,21 @@ export const deleteComment = async (req, res) => {
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: "Comment not found"
+        message: 'Comment not found',
       });
     }
 
     if (comment.senderId !== userId) {
       return res.status(403).json({
         success: false,
-        message: "You can only delete your own comments"
+        message: 'You can only delete your own comments',
       });
     }
 
     if (comment.status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: "Can only delete pending comments"
+        message: 'Can only delete pending comments',
       });
     }
 
@@ -418,15 +418,15 @@ export const deleteComment = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Comment deleted successfully"
+      message: 'Comment deleted successfully',
     });
 
   } catch (error) {
-    console.error("Error deleting comment:", error);
+    console.error('Error deleting comment:', error);
     res.status(500).json({
       success: false,
-      message: "Error deleting comment",
-      error: error.message
+      message: 'Error deleting comment',
+      error: error.message,
     });
   }
 };

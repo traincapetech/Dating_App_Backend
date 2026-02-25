@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 /**
  * Newsletter Model
@@ -6,31 +6,31 @@ import mongoose from "mongoose";
  * from the landing page.
  */
 const NewsletterSchema = new mongoose.Schema({
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    lowercase: true, 
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
     trim: true,
-    index: true
+    index: true,
   },
   status: {
     type: String,
     enum: ['active', 'unsubscribed'],
-    default: 'active'
+    default: 'active',
   },
-  subscribedAt: { 
-    type: Date, 
-    default: Date.now 
+  subscribedAt: {
+    type: Date,
+    default: Date.now,
   },
-  unsubscribedAt: { 
-    type: Date 
+  unsubscribedAt: {
+    type: Date,
   },
   metadata: {
     source: { type: String, default: 'landing_page' },
     ip: { type: String },
-    userAgent: { type: String }
-  }
+    userAgent: { type: String },
+  },
 });
 
-export default mongoose.model("Newsletter", NewsletterSchema);
+export default mongoose.model('Newsletter', NewsletterSchema);

@@ -1,6 +1,6 @@
 /**
  * Script to create admin user
- * 
+ *
  * Usage: node server/src/scripts/createAdmin.js <email> <password> <name>
  * Example: node server/src/scripts/createAdmin.js admin@pryvo.com password123 "Admin User"
  */
