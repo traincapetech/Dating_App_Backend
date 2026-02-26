@@ -2,6 +2,42 @@ import Profile from '../models/Profile.js';
 import User from '../models/User.js';
 import {hasActiveBoost} from './boostService.js';
 
+function computeAge(dob) {
+  if (!dob) return null;
+  let birthDate = new Date(dob);
+
+  if (Number.isNaN(birthDate.getTime()) && typeof dob === 'string') {
+    // try YYYYMMDD
+    if (dob.length === 8 && /^\d+$/.test(dob)) {
+      birthDate = new Date(
+        `${dob.substring(0, 4)}-${dob.substring(4, 6)}-${dob.substring(6, 8)}`,
+      );
+    } else {
+      const parts = dob.split(/[-/]/);
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        } else if (parts[0].length === 4 && parseInt(parts[1]) > 12) {
+          birthDate = new Date(`${parts[0]}-${parts[2]}-${parts[1]}`);
+        }
+      }
+    }
+  }
+
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age < 0 || age > 120) return null;
+
+  return age;
+}
+
 /**
  * Calculate compatibility score between two profiles
  * @param {object} currentUserProfile - Current user's profile
@@ -291,7 +327,11 @@ export async function getMatchedProfiles(userId, options = {}) {
           profile.user?.fullName || profile.basicInfo?.firstName || 'Unknown',
         email: profile.user?.email || '',
         id: profile._id, // Ensure ID is mapped
-        age: profile.personalDetails?.age || profile.basicInfo?.age || null, // Logic to calc age needed?
+        age:
+          computeAge(profile.basicInfo?.dob) ??
+          profile.personalDetails?.age ??
+          profile.basicInfo?.age ??
+          null,
         photos: profile.media?.media?.map(m => m.url).filter(Boolean) || [],
         bio: profile.profilePrompts?.bio || profile.basicInfo?.bio || '',
         interests: profile.lifestyle?.interests || [],

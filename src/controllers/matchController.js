@@ -38,8 +38,17 @@ export const getUserMatches = async (req, res) => {
           chatEnabled: match.chatEnabled,
           callEnabled: match.callEnabled,
           theirId,
-          theirName: theirProfile?.name || null,
-          theirPhoto: theirProfile?.photos?.[0] || null,
+          theirName:
+            theirProfile?.basicInfo?.firstName || theirProfile?.name || null,
+          theirPhoto:
+            theirProfile?.media?.media?.[0]?.url ||
+            theirProfile?.photos?.[0] ||
+            null,
+          theirAge:
+            theirProfile?.basicInfo?.age ||
+            theirProfile?.personalDetails?.age ||
+            theirProfile?.age ||
+            null,
         };
       }),
     );
@@ -96,8 +105,17 @@ export const getMatchById = async (req, res) => {
         chatEnabled: match.chatEnabled,
         callEnabled: match.callEnabled,
         theirId,
-        theirName: theirProfile?.name || null,
-        theirPhoto: theirProfile?.photos?.[0] || null,
+        theirName:
+          theirProfile?.basicInfo?.firstName || theirProfile?.name || null,
+        theirPhoto:
+          theirProfile?.media?.media?.[0]?.url ||
+          theirProfile?.photos?.[0] ||
+          null,
+        theirAge:
+          theirProfile?.basicInfo?.age ||
+          theirProfile?.personalDetails?.age ||
+          theirProfile?.age ||
+          null,
       },
     });
   } catch (error) {

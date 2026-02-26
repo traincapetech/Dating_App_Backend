@@ -1,0 +1,126 @@
+
+> start
+> node ./src/index.js
+
+🔌 Socket.IO server initialized
+📌 MongoDB Connected Successfully
+🚀 API & Socket Server running on port 3000
+
+[Storage Configuration]
+Storage driver: r2
+R2 Account ID: Set
+R2 Access Key ID: Set
+R2 Secret Access Key: Set
+R2 Bucket: dating-app
+R2 Prefix: (none)
+R2 Public Base URL: https://pub-ae1910b9353e4e5b9139976cef3cc019.r2.dev
+
+[Email Configuration]
+Email provider: brevo
+SMTP Host: smtp.hostinger.com
+SMTP Port: 465
+SMTP Secure: true
+SMTP User: pryvo@traincapetech.in
+[EMAIL] Using provider: brevo
+[EMAIL] SMTP: smtp.hostinger.com:465, user: pryvo@traincapetech.in
+[WARNING] node-cron not installed. Cron jobs disabled.
+[WARNING] Install node-cron: npm install node-cron
+[WARNING] Or run manually: node server/src/scripts/subscriptionExpiryCron.js
+[INFO] Real-time expiry checks still work - premium is revoked on next check even without cron.
+Email server connection verified successfully
+2026-02-26T08:15:57.233Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"357ms","ip":"::ffff:192.168.1.65","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /discover
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:16:48.466Z [[33mwarn[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":401,"duration":"29ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /d7fdf924-4577-416a-a866-4ee82590326e - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /d7fdf924-4577-416a-a866-4ee82590326e
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:16:48.531Z [[33mwarn[39m]: GET /api/profile/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/profile/d7fdf924-4577-416a-a866-4ee82590326e","status":401,"duration":"3ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:16:48.794Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"326ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:16:49.003Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"478ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:16:49.442Z [[32minfo[39m]: POST /api/notifications/register {"method":"POST","url":"/api/notifications/register","status":200,"duration":"45ms","ip":"::ffff:127.0.0.1","contentLength":"428","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /discover
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:16:52.995Z [[33mwarn[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":401,"duration":"1ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /discover
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:16:53.002Z [[33mwarn[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":401,"duration":"4ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:16:53.138Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"160ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:16:53.590Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"492ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:17:18.668Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"580ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:17:48.411Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"373ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:18:19.640Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"1618ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:18:48.368Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"333ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:19:18.405Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"400ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:19:24.146Z [[32minfo[39m]: POST /api/swipe/reset-passes {"method":"POST","url":"/api/swipe/reset-passes","status":200,"duration":"63ms","ip":"::ffff:127.0.0.1","contentLength":"54","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /discover
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:19:24.220Z [[33mwarn[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":401,"duration":"2ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /d7fdf924-4577-416a-a866-4ee82590326e - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /d7fdf924-4577-416a-a866-4ee82590326e
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:19:28.726Z [[33mwarn[39m]: GET /api/profile/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/profile/d7fdf924-4577-416a-a866-4ee82590326e","status":401,"duration":"2ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /d7fdf924-4577-416a-a866-4ee82590326e - Token present: true, Auth header: Bearer ...dlczNi23y8, token header: NONE
+[Auth Middleware] Error: TokenExpiredError - jwt expired for GET /d7fdf924-4577-416a-a866-4ee82590326e
+[Auth Middleware] Token expired at: 2026-02-24T12:16:25.000Z
+2026-02-26T08:19:35.620Z [[33mwarn[39m]: GET /api/profile/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/profile/d7fdf924-4577-416a-a866-4ee82590326e","status":401,"duration":"3ms","ip":"::ffff:127.0.0.1","contentLength":"58","userAgent":"okhttp/4.9.2"}
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:19:35.867Z [[32minfo[39m]: GET /api/subscription/status/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/subscription/status/d7fdf924-4577-416a-a866-4ee82590326e","status":200,"duration":"274ms","ip":"::ffff:127.0.0.1","contentLength":"557","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:19:57.956Z [[32minfo[39m]: POST /api/auth/login {"method":"POST","url":"/api/auth/login","status":200,"duration":"148ms","ip":"::ffff:127.0.0.1","contentLength":"641","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /d7fdf924-4577-416a-a866-4ee82590326e - Token present: true, Auth header: Bearer ...UPSvzFxcIM, token header: NONE
+[Auth Middleware] Token decoded successfully. userId: d7fdf924-4577-416a-a866-4ee82590326e, email: blacksaura2@gmail.com
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...UPSvzFxcIM, token header: NONE
+[Auth Middleware] Token decoded successfully. userId: d7fdf924-4577-416a-a866-4ee82590326e, email: blacksaura2@gmail.com
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:19:58.357Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"169ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:19:58.359Z [[32minfo[39m]: GET /api/profile/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/profile/d7fdf924-4577-416a-a866-4ee82590326e","status":200,"duration":"110ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+[getAllProfiles] Viewer profile whoToDate: [ 'Everyone' ] for userId: d7fdf924-4577-416a-a866-4ee82590326e
+[getAllProfiles] No gender filter (Everyone or empty)
+2026-02-26T08:19:58.425Z [[32minfo[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":200,"duration":"168ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:19:58.637Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"438ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:19:58.909Z [[32minfo[39m]: POST /api/notifications/register {"method":"POST","url":"/api/notifications/register","status":200,"duration":"58ms","ip":"::ffff:127.0.0.1","contentLength":"428","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...UPSvzFxcIM, token header: NONE
+[Auth Middleware] Token decoded successfully. userId: d7fdf924-4577-416a-a866-4ee82590326e, email: blacksaura2@gmail.com
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:19:59.050Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"175ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+[getAllProfiles] Viewer profile whoToDate: [ 'Everyone' ] for userId: d7fdf924-4577-416a-a866-4ee82590326e
+[getAllProfiles] No gender filter (Everyone or empty)
+2026-02-26T08:19:59.118Z [[32minfo[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":304,"duration":"201ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...UPSvzFxcIM, token header: NONE
+[Auth Middleware] Token decoded successfully. userId: d7fdf924-4577-416a-a866-4ee82590326e, email: blacksaura2@gmail.com
+[Auth Middleware] GET /discover - Token present: true, Auth header: Bearer ...UPSvzFxcIM, token header: NONE
+[Auth Middleware] Token decoded successfully. userId: d7fdf924-4577-416a-a866-4ee82590326e, email: blacksaura2@gmail.com
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+[getAllProfiles] Viewer profile whoToDate: [ 'Everyone' ] for userId: d7fdf924-4577-416a-a866-4ee82590326e
+[getAllProfiles] No gender filter (Everyone or empty)
+2026-02-26T08:20:02.875Z [[32minfo[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":304,"duration":"164ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:20:02.876Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"186ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+[getAllProfiles] Viewer profile whoToDate: [ 'Everyone' ] for userId: d7fdf924-4577-416a-a866-4ee82590326e
+[getAllProfiles] No gender filter (Everyone or empty)
+2026-02-26T08:20:02.879Z [[32minfo[39m]: GET /api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50 {"method":"GET","url":"/api/profile/discover?excludeUserId=d7fdf924-4577-416a-a866-4ee82590326e&useMatching=false&maxDistance=50","status":304,"duration":"165ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+[SubscriptionModel] Finding sub for d7fdf924-4577-416a-a866-4ee82590326e. Total subs: 5
+[SubscriptionModel] Found active sub: sub_1770029111017_0f558jc3t, status: active, plan: 3months
+2026-02-26T08:20:03.335Z [[32minfo[39m]: GET /api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false {"method":"GET","url":"/api/swipe/daily-likes/d7fdf924-4577-416a-a866-4ee82590326e?isPremium=false","status":304,"duration":"185ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:20:08.241Z [[32minfo[39m]: POST /api/swipe/pass {"method":"POST","url":"/api/swipe/pass","status":200,"duration":"52ms","ip":"::ffff:127.0.0.1","contentLength":"16","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:20:28.627Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"460ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:20:58.583Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"373ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:21:28.624Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"471ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:21:58.556Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"405ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:22:28.651Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"507ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
+2026-02-26T08:22:58.817Z [[32minfo[39m]: GET /api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e {"method":"GET","url":"/api/swipe/likes-count/d7fdf924-4577-416a-a866-4ee82590326e","status":304,"duration":"671ms","ip":"::ffff:127.0.0.1","userAgent":"okhttp/4.9.2"}
