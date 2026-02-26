@@ -11,18 +11,8 @@ import Match from '../models/Match.js';
 
 function computeAge(dob) {
   if (!dob) return null;
-  let birthDate = new Date(dob);
-
-  // Handle DD-MM-YYYY or DD/MM/YYYY formats
-  if (Number.isNaN(birthDate.getTime())) {
-    const parts = dob.split(/[-/]/);
-    if (parts.length === 3 && parts[2].length === 4) {
-      birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-    }
-  }
-
+  const birthDate = new Date(dob);
   if (Number.isNaN(birthDate.getTime())) return null;
-
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();

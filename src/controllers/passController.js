@@ -1,14 +1,14 @@
 import Pass from '../models/Pass.js';
 import Like from '../models/Like.js';
-import { isUserPremium } from '../models/Subscription.js';
+import {isUserPremium} from '../models/Subscription.js';
 
 export const passUser = async (req, res) => {
   try {
-    const { userId, passedUserId } = req.body;
-    await Pass.create({ userId, passedUserId });
-    res.json({ success: true });
+    const {userId, passedUserId} = req.body;
+    await Pass.create({userId, passedUserId});
+    res.json({success: true});
   } catch (error) {
-    res.status(500).json({ message: 'Error passing user', error });
+    res.status(500).json({message: 'Error passing user', error});
   }
 };
 
@@ -18,7 +18,7 @@ export const passUser = async (req, res) => {
  */
 export const undoLastSwipe = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const {userId} = req.body;
 
     if (!userId) {
       return res.status(400).json({
@@ -38,14 +38,14 @@ export const undoLastSwipe = async (req, res) => {
     }
 
     // Find and remove the most recent pass
-    const lastPass = await Pass.findOne({ userId })
-      .sort({ createdAt: -1 })
+    const lastPass = await Pass.findOne({userId})
+      .sort({createdAt: -1})
       .limit(1);
 
     if (!lastPass) {
       // Check for a like to undo
-      const lastLike = await Like.findOne({ senderId: userId })
-        .sort({ createdAt: -1 })
+      const lastLike = await Like.findOne({senderId: userId})
+        .sort({createdAt: -1})
         .limit(1);
 
       if (!lastLike) {
@@ -56,7 +56,7 @@ export const undoLastSwipe = async (req, res) => {
       }
 
       // Undo the like
-      await Like.deleteOne({ _id: lastLike._id });
+      await Like.deleteOne({_id: lastLike._id});
 
       return res.json({
         success: true,
@@ -76,7 +76,7 @@ export const undoLastSwipe = async (req, res) => {
     }
 
     // Undo the pass
-    await Pass.deleteOne({ _id: lastPass._id });
+    await Pass.deleteOne({_id: lastPass._id});
 
     res.json({
       success: true,
@@ -84,7 +84,6 @@ export const undoLastSwipe = async (req, res) => {
       undoneUserId: lastPass.passedUserId,
       message: 'Swipe undone successfully',
     });
-
   } catch (error) {
     console.error('Error undoing swipe:', error);
     res.status(500).json({
@@ -100,7 +99,7 @@ export const undoLastSwipe = async (req, res) => {
  */
 export const getUndoStatus = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const {userId} = req.params;
 
     if (!userId) {
       return res.status(400).json({
@@ -113,12 +112,12 @@ export const getUndoStatus = async (req, res) => {
     const isPremium = await isUserPremium(userId);
 
     // Find most recent action (pass or like)
-    const lastPass = await Pass.findOne({ userId })
-      .sort({ createdAt: -1 })
+    const lastPass = await Pass.findOne({userId})
+      .sort({createdAt: -1})
       .limit(1);
 
-    const lastLike = await Like.findOne({ senderId: userId })
-      .sort({ createdAt: -1 })
+    const lastLike = await Like.findOne({senderId: userId})
+      .sort({createdAt: -1})
       .limit(1);
 
     // Determine which is more recent
@@ -156,12 +155,35 @@ export const getUndoStatus = async (req, res) => {
       lastActionTime,
       requiresPremium: !isPremium && canUndo,
     });
-
   } catch (error) {
     console.error('Error getting undo status:', error);
     res.status(500).json({
       success: false,
       message: 'Error getting undo status',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Reset all passes for a user
+ * This allows a user to see previously passed profiles again
+ */
+export const resetPasses = async (req, res) => {
+  try {
+    const {userId} = req.body;
+    if (!userId) {
+      return res
+        .status(400)
+        .json({success: false, message: 'userId is required'});
+    }
+    await Pass.deleteMany({userId});
+    res.json({success: true, message: 'Passes reset successfully'});
+  } catch (error) {
+    console.error('Error resetting passes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error resetting passes',
       error: error.message,
     });
   }
