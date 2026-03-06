@@ -13,6 +13,7 @@ import {
   deleteUserController,
   deleteProfileController,
   pauseProfileController,
+  updateOnlineStatusController,
 } from '../controllers/profileController.js';
 import {sanitizeInput} from '../middlewares/sanitizer.js';
 import {authenticate} from '../middlewares/auth.js';
@@ -51,6 +52,11 @@ router.post('/upload-image', authenticate, uploadImageController);
 router.get('/discover', authenticate, getAllProfilesController);
 router.get('/:userId', authenticate, getProfileController);
 router.put('/update', authenticate, sanitizeInput, updateProfileController);
+router.put(
+  '/settings/online-status',
+  authenticate,
+  updateOnlineStatusController,
+);
 router.post('/pause', authenticate, pauseProfileController);
 router.delete('/:userId', authenticate, deleteProfileController);
 

@@ -21,7 +21,6 @@ router.post('/pass', passUser);
 // Undo swipe (premium only)
 router.post('/undo', undoLastSwipe);
 router.get('/undo-status/:userId', getUndoStatus);
-
 // Reset passes to see profiles again
 router.post('/reset-passes', resetPasses);
 

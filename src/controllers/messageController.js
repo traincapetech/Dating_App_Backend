@@ -3,6 +3,7 @@ import Match from '../models/Match.js';
 import Block from '../models/Block.js';
 import {getIO, isUserOnline, emitToUser} from '../services/socketService.js';
 import {sendPushNotification} from '../services/pushService.js';
+import streakService from '../modules/streak/streak.service.js';
 
 // Helper to validate MongoDB ObjectId format
 function isValidObjectId(id) {
@@ -186,6 +187,9 @@ export const sendMessage = async (req, res) => {
       mediaType: mediaType || null,
       status: 'sent',
     });
+
+    // Handle streak engagement
+    streakService.handleEngagement(senderId, receiverId, 'message');
 
     // Real-time delivery handling
     const io = getIO();

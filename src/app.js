@@ -18,6 +18,7 @@ import boostRoutes from './routes/boostRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
+import streakRoutes from './modules/streak/streak.routes.js';
 import {
   generalLimiter,
   swipeLimiter,

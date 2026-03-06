@@ -205,7 +205,7 @@ export function calculateCompatibilityScore(
 export async function getMatchedProfiles(userId, options = {}) {
   const {
     minScore = 0,
-    maxDistance = 100, // Default 100km if not specified
+    maxDistance = null, // No default distance limit unless specified
     sortBy = 'score',
     limit = 50,
   } = options;
@@ -220,20 +220,32 @@ export async function getMatchedProfiles(userId, options = {}) {
   const pipeline = [];
 
   // A. Geo-Spatial Filter ($geoNear must be first)
-  // If user has location, use it. Otherwise, skip geo-filter or use default (but $geoNear requires index)
-  if (currentUserProfile.location && currentUserProfile.location.coordinates) {
+  const viewerCoords = currentUserProfile.location?.coordinates;
+  const hasViewerLocation =
+    viewerCoords && viewerCoords[0] !== 0 && viewerCoords[1] !== 0;
+
+  if (hasViewerLocation) {
     pipeline.push({
       $geoNear: {
         near: currentUserProfile.location,
         distanceField: 'dist.calculated', // Output field for distance
-        maxDistance: (maxDistance || 10000) * 1000, // Convert km to meters
+        // Use provided maxDistance, or a very large default (5000km) if none provided
+        maxDistance: (maxDistance || 5000) * 1000, // Convert km to meters
         distanceMultiplier: 0.001, // Convert meters to km
         spherical: true,
         query: {userId: {$ne: userId}}, // Exclude current user
       },
     });
   } else {
-    // Fallback if user has no location: just exclude self
+    // If a specific distance filter was requested but viewer has no location, we can't filter.
+    // Return empty results to avoid "global leaks" when user expects a filter.
+    if (maxDistance !== null) {
+      console.log(
+        `[getMatchedProfiles] maxDistance ${maxDistance} requested but user ${userId} has no location. Returning empty.`,
+      );
+      return [];
+    }
+    // Fallback if no specific distance filter: just exclude self
     pipeline.push({$match: {userId: {$ne: userId}}});
   }
 

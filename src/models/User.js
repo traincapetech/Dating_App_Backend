@@ -49,6 +49,14 @@ const userSchema = new mongoose.Schema(
     passwordResetToken: String,
     passwordResetExpires: Date,
     lastLogin: Date,
+    lastActive: {
+      type: Date,
+      default: Date.now,
+    },
+    showOnlineStatus: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt automatically

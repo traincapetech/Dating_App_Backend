@@ -94,4 +94,3 @@ export const resetPasswordSchema = z.object({
     .min(6)
     .max(64),
 });
-

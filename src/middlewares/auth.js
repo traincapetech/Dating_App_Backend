@@ -1,6 +1,20 @@
 import jwt from 'jsonwebtoken';
 import {config} from '../config/env.js';
-import {findUserById} from '../models/userModel.js';
+import {findUserById, updateUser} from '../models/userModel.js';
+
+export const updateActivityStatus = async (req, res, next) => {
+  if (req.user && req.user.id) {
+    try {
+      // Background update of lastActive timestamp
+      updateUser(req.user.id, {lastActive: new Date()}).catch(err => {
+        console.error('[Auth Middleware] Failed to update lastActive:', err);
+      });
+    } catch (e) {
+      // Ignore errors so we don't block requests
+    }
+  }
+  next();
+};
 
 /**
  * Middleware to verify user JWT token
@@ -56,7 +70,8 @@ export const authenticate = async (req, res, next) => {
       email: decoded.email,
     };
 
-    next();
+    // Update last active
+    updateActivityStatus(req, res, next);
   } catch (error) {
     console.error(
       `[Auth Middleware] Error: ${error.name} - ${error.message} for ${req.method} ${req.path}`,
@@ -117,7 +132,7 @@ export const requireAuth = async (req, res, next) => {
       email: decoded.email,
     };
 
-    next();
+    updateActivityStatus(req, res, next);
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({

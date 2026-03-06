@@ -23,7 +23,7 @@ const startServer = async () => {
       console.log(`🚀 API & Socket Server running on port ${config.port}`);
 
       // Log storage configuration
-      console.log(`\n[Storage Configuration]`);
+      console.log('\n[Storage Configuration]');
       console.log(`Storage driver: ${config.storageDriver}`);
       if (config.storageDriver === 'r2') {
         console.log(
@@ -60,7 +60,7 @@ const startServer = async () => {
       }
 
       // Email Configuration
-      console.log(`\n[Email Configuration]`);
+      console.log('\n[Email Configuration]');
       console.log(`Email provider: ${config.email.provider}`);
       console.log(`SMTP Host: ${config.email.host}`);
       console.log(`SMTP Port: ${config.email.port}`);
@@ -124,6 +124,24 @@ const startServer = async () => {
           }
         });
         console.log('✅ GDPR deletion cron scheduled (daily at 2 AM)');
+
+        // Setup Streak hourly cron
+        cron.schedule('0 * * * *', async () => {
+          console.log('[Cron] Running hourly streak check...');
+          try {
+            const {default: streakCron} = await import(
+              './modules/streak/streak.cron.js'
+            );
+            await streakCron.runHourlyTask();
+          } catch (error) {
+            console.error('[Cron] Error in streak cron:', error);
+          }
+        });
+        console.log('✅ Streak hourly cron scheduled');
+
+        // Initialize Streak event listeners/hooks
+        await import('./modules/streak/streak.listener.js');
+        console.log('✅ Streak module initialized');
       } catch (error) {
         console.warn('[WARNING] node-cron not installed. Cron jobs disabled.');
         console.warn('[WARNING] Install node-cron: npm install node-cron');

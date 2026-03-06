@@ -20,7 +20,8 @@ import {
   getAllProfiles,
 } from '../services/profileService.js';
 import {deleteProfile} from '../models/profileModel.js';
-import {deleteUser, findUserById} from '../models/userModel.js';
+import Profile from '../models/Profile.js';
+import {deleteUser, findUserById, updateUser} from '../models/userModel.js';
 import {storage} from '../storage/index.js';
 import {randomUUID} from 'crypto';
 import {config} from '../config/env.js';
@@ -88,11 +89,27 @@ export const saveMediaController = asyncHandler(async (req, res) => {
 });
 
 export const getProfileController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.params.userId;
-  if (!userId) {
+  const viewerId = req.user?.id;
+  const targetUserId = req.params.userId || viewerId;
+
+  if (!targetUserId) {
     return res.status(401).json({error: 'User ID is required'});
   }
-  const profile = await getProfile(userId);
+
+  // If viewing someone else's profile, increment views
+  if (viewerId && viewerId !== targetUserId) {
+    try {
+      await Profile.findOneAndUpdate(
+        {userId: targetUserId},
+        {$inc: {views: 1}},
+      );
+    } catch (err) {
+      console.error('[getProfileController] Failed to increment views:', err);
+      // Continue even if view increment fails
+    }
+  }
+
+  const profile = await getProfile(targetUserId);
   if (!profile) {
     return res.status(404).json({error: 'Profile not found'});
   }
@@ -150,6 +167,31 @@ export const pauseProfileController = asyncHandler(async (req, res) => {
       ? 'Profile paused successfully'
       : 'Profile resumed successfully',
     profile,
+  });
+});
+
+export const updateOnlineStatusController = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+  if (!userId) {
+    return res.status(401).json({error: 'User ID is required'});
+  }
+
+  const {showOnlineStatus} = req.body;
+
+  if (typeof showOnlineStatus !== 'boolean') {
+    return res.status(400).json({error: 'showOnlineStatus must be a boolean'});
+  }
+
+  const user = await updateUser(userId, {showOnlineStatus});
+
+  if (!user) {
+    return res.status(404).json({error: 'User not found'});
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Online status preference updated successfully',
+    showOnlineStatus: user.showOnlineStatus,
   });
 });
 
