@@ -67,8 +67,18 @@ export async function authenticateUser({email, password}) {
     throw error;
   }
 
-  const passwordValid = await bcrypt.compare(password, user.password);
+  const passwordValid = user.password
+    ? await bcrypt.compare(password, user.password)
+    : false;
+
   if (!passwordValid) {
+    if (!user.password && user.authProvider === 'google') {
+      const error = new Error(
+        'This account uses Google Sign-In. Please use the Google button to log in.',
+      );
+      error.status = 401;
+      throw error;
+    }
     const error = new Error('Invalid email or password.');
     error.status = 401;
     throw error;

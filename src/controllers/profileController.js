@@ -22,6 +22,7 @@ import {
 import {deleteProfile} from '../models/profileModel.js';
 import Profile from '../models/Profile.js';
 import {deleteUser, findUserById, updateUser} from '../models/userModel.js';
+import bcrypt from 'bcryptjs';
 import {storage} from '../storage/index.js';
 import {randomUUID} from 'crypto';
 import {config} from '../config/env.js';
@@ -362,14 +363,36 @@ export const uploadImageController = asyncHandler(async (req, res) => {
 
 export const deleteUserController = asyncHandler(async (req, res) => {
   const userId = req.params.userId || req.body.userId;
+  const {password} = req.body;
+
   if (!userId) {
     return res.status(400).json({error: 'User ID is required'});
+  }
+
+  // SECURITY: Ensure user is only deleting THEIR OWN account
+  if (req.user.id !== userId) {
+    return res
+      .status(403)
+      .json({error: 'You are not authorized to delete this account'});
   }
 
   // Check if user exists
   const user = await findUserById(userId);
   if (!user) {
     return res.status(404).json({error: 'User not found'});
+  }
+
+  // SECURITY: Verify password for local accounts
+  if (user.authProvider !== 'google') {
+    if (!password) {
+      return res
+        .status(400)
+        .json({error: 'Password is required to delete your account'});
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({error: 'Incorrect password'});
+    }
   }
 
   // Delete profile and associated media
