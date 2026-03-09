@@ -1,0 +1,109 @@
+[
+  {
+    "basicInfo": {
+      "locationDetails": {
+        "lat": 33.769027,
+        "lng": 35.881899,
+        "source": "seed",
+        "timestamp": 1772782271590
+      },
+      "firstName": "Jordan",
+      "lastName": "Gerlach-Donnelly",
+      "gender": "Woman",
+      "showGenderOnProfile": true,
+      "dob": "2004-06-26",
+      "bio": "Passionate girl based in Lebanon. Looking for something real.",
+      "hometown": "Baalbek",
+      "work": "Bogisich Group",
+      "education": "PhD",
+      "location": "Baalbek, Lebanon"
+    },
+    "datingPreferences": {
+      "ageRange": {
+        "min": 21,
+        "max": 40
+      },
+      "whoToDate": [
+        "Men"
+      ],
+      "datingIntention": "New friends",
+      "relationshipType": "I'll explain later",
+      "showIntentionOnProfile": true,
+      "showRelationshipTypeOnProfile": false,
+      "distance": 42,
+      "global": false
+    },
+    "lifestyle": {
+      "drink": "Yes",
+      "smokeTobacco": "Occasionally",
+      "smokeWeed": "Trying to quit",
+      "drugs": "Never",
+      "religiousBeliefs": "Muslim",
+      "politicalBeliefs": "Apolitical",
+      "interests": [
+        "Dogs",
+        "Hiking",
+        "Gym",
+        "Foodie",
+        "Football",
+        "Cooking",
+        "Volunteering"
+      ],
+      "pets": [
+        "Dog"
+      ]
+    },
+    "personalDetails": {
+      "height": "5'8\"",
+      "educationLevel": "Some college",
+      "children": "Yes",
+      "hasChildren": "Yes",
+      "familyPlans": "Don't want children",
+      "ethnicity": "White",
+      "hometown": "Baalbek",
+      "workplace": "Bashirian - Ryan",
+      "jobTitle": "Central Applications Consultant",
+      "school": "Roswell University",
+      "starSign": "Scorpio",
+      "languages": [
+        "Tamil",
+        "Arabic",
+        "French"
+      ]
+    },
+    "media": {
+      "media": [
+        {
+          "id": "7ac8c165-8141-4cb2-9343-5fdd6a26ddcf",
+          "type": "photo",
+          "url": "https://randomuser.me/api/portraits/women/98.jpg",
+          "thumbnail": "https://randomuser.me/api/portraits/women/98.jpg"
+        }
+      ]
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        35.881899,
+        33.769027
+      ]
+    },
+    "userId": "88c2c93f-8273-4715-93c9-ca1f320189a4",
+    "profilePrompts": {
+      "prompt1": {
+        "question": "I'm looking for",
+        "answer": "A genuine connection"
+      }
+    },
+    "isPaused": false,
+    "isHidden": false,
+    "moderationStatus": "approved",
+    "moderationFlags": [],
+    "moderationRiskScore": 0,
+    "autoReviewedAt": "2026-03-06T07:31:11.590Z",
+    "views": 136,
+    "createdAt": "2026-03-06T07:31:12.356Z",
+    "updatedAt": "2026-03-06T07:31:12.356Z",
+    "id": "profile_88c2c93f-8273-4715-93c9-ca1f320189a4"
+  }
+]

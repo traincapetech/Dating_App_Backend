@@ -1,0 +1,14 @@
+{
+  "_id": "69a16eec1a3c5147570fc93d",
+  "users": [
+    "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+    "aed96285-5e76-49c5-b5d6-4dacecd2f684"
+  ],
+  "dateScheduled": null,
+  "status": "active",
+  "chatEnabled": false,
+  "callEnabled": true,
+  "createdAt": "2026-02-27T10:16:12.655Z",
+  "expiresAt": "2026-03-02T10:16:12.655Z",
+  "__v": 0
+}

@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "streaks": [
+    {
+      "_id": "69a69c52c2065577846449ac",
+      "userPairId": "2fff81a0-eb2a-4652-8481-81babc8a4547_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "userA": "2fff81a0-eb2a-4652-8481-81babc8a4547",
+      "userB": "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 2,
+      "lastActivityDate": "2026-03-05T06:17:28.763Z",
+      "graceUsed": true,
+      "createdAt": "2026-03-03T08:31:14.881Z",
+      "updatedAt": "2026-03-05T06:17:28.899Z",
+      "__v": 0
+    },
+    {
+      "_id": "69a93658c7268bddb875cd49",
+      "userPairId": "5e54b7bf-26e1-4c2e-913a-a546e6557182_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "userA": "5e54b7bf-26e1-4c2e-913a-a546e6557182",
+      "userB": "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-05T07:52:56.041Z",
+      "userALastActivity": null,
+      "userBLastActivity": "2026-03-05T07:52:56.041Z",
+      "lastIncrementDate": null,
+      "createdAt": "2026-03-05T07:52:56.130Z",
+      "updatedAt": "2026-03-05T08:36:17.013Z",
+      "__v": 0
+    }
+  ]
+}

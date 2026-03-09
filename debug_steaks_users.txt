@@ -1,0 +1,46 @@
+-- Top 10 Streaks Details --
+Pair: 2fff81a0-eb2a-4652-8481-81babc8a4547_ca0a4734-5ea0-4e50-9882-9108a5a34d15, Count: 2
+  userA: 2fff81a0-eb2a-4652-8481-81babc8a4547
+  userB: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+  lastActivityA: null
+  lastActivityB: null
+Pair: aed96285-5e76-49c5-b5d6-4dacecd2f684_ca0a4734-5ea0-4e50-9882-9108a5a34d15, Count: 1
+  userA: aed96285-5e76-49c5-b5d6-4dacecd2f684
+  userB: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+  lastActivityA: null
+  lastActivityB: null
+Pair: 4ff7b240-5de6-48cd-8b35-d577a8462778_ca0a4734-5ea0-4e50-9882-9108a5a34d15, Count: 1
+  userA: 4ff7b240-5de6-48cd-8b35-d577a8462778
+  userB: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+  lastActivityA: null
+  lastActivityB: null
+Pair: ca0a4734-5ea0-4e50-9882-9108a5a34d15_d6ad20c1-a69f-4cc7-b7e9-4b6f7b954e38, Count: 1
+  userA: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+  userB: d6ad20c1-a69f-4cc7-b7e9-4b6f7b954e38
+  lastActivityA: null
+  lastActivityB: null
+Pair: bb3f6525-b383-4100-9e1a-0207d7b5b5f4_ca0a4734-5ea0-4e50-9882-9108a5a34d15, Count: 1
+  userA: bb3f6525-b383-4100-9e1a-0207d7b5b5f4
+  userB: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+  lastActivityA: null
+  lastActivityB: null
+Pair: test_user_a_test_user_b, Count: 1
+  userA: test_user_a
+  userB: test_user_b
+  lastActivityA: null
+  lastActivityB: null
+Pair: 5e54b7bf-26e1-4c2e-913a-a546e6557182_ca0a4734-5ea0-4e50-9882-9108a5a34d15, Count: 1
+  userA: 5e54b7bf-26e1-4c2e-913a-a546e6557182
+  userB: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+  lastActivityA: null
+  lastActivityB: null
+Pair: test-user-a_test-user-b, Count: 1
+  userA: test-user-a
+  userB: test-user-b
+  lastActivityA: Thu Mar 05 2026 15:01:16 GMT+0530 (India Standard Time)
+  lastActivityB: Thu Mar 05 2026 15:01:16 GMT+0530 (India Standard Time)
+Pair: aed96285-5e76-49c5-b5d6-4dacecd2f684_d7fdf924-4577-416a-a866-4ee82590326e, Count: 1
+  userA: aed96285-5e76-49c5-b5d6-4dacecd2f684
+  userB: d7fdf924-4577-416a-a866-4ee82590326e
+  lastActivityA: null
+  lastActivityB: null

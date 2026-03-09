@@ -1,0 +1,177 @@
+{
+  "count": 9,
+  "streaks": [
+    {
+      "userPairId": "aed96285-5e76-49c5-b5d6-4dacecd2f684_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-03T07:10:28.655Z",
+      "graceUsed": false,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "graceUsed",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "4ff7b240-5de6-48cd-8b35-d577a8462778_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-03T07:15:46.915Z",
+      "graceUsed": false,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "graceUsed",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "ca0a4734-5ea0-4e50-9882-9108a5a34d15_d6ad20c1-a69f-4cc7-b7e9-4b6f7b954e38",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-03T07:24:37.654Z",
+      "graceUsed": false,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "graceUsed",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "bb3f6525-b383-4100-9e1a-0207d7b5b5f4_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-03T08:13:52.077Z",
+      "graceUsed": false,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "graceUsed",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "2fff81a0-eb2a-4652-8481-81babc8a4547_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 2,
+      "lastActivityDate": "2026-03-05T06:17:28.763Z",
+      "graceUsed": true,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "graceUsed",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "test_user_a_test_user_b",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-05T10:50:25.062Z",
+      "lastActivityA": "2026-03-05T10:50:25.062Z",
+      "lastIncrementDate": "2026-03-05T07:10:07.301Z",
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "userALastActivity",
+        "userBLastActivity",
+        "lastIncrementDate",
+        "createdAt",
+        "updatedAt",
+        "__v",
+        "lastActivityA"
+      ]
+    },
+    {
+      "userPairId": "5e54b7bf-26e1-4c2e-913a-a546e6557182_ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-05T07:52:56.041Z",
+      "lastIncrementDate": null,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "userALastActivity",
+        "userBLastActivity",
+        "lastIncrementDate",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "test-user-a_test-user-b",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-05T09:31:16.856Z",
+      "lastActivityA": "2026-03-05T09:31:16.702Z",
+      "lastActivityB": "2026-03-05T09:31:16.856Z",
+      "lastIncrementDate": "2026-03-05T09:31:16.856Z",
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "lastActivityA",
+        "lastActivityB",
+        "lastIncrementDate",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    },
+    {
+      "userPairId": "aed96285-5e76-49c5-b5d6-4dacecd2f684_d7fdf924-4577-416a-a866-4ee82590326e",
+      "streakCount": 1,
+      "lastActivityDate": "2026-03-05T10:23:22.372Z",
+      "graceUsed": false,
+      "allKeys": [
+        "_id",
+        "userPairId",
+        "userA",
+        "userB",
+        "streakCount",
+        "lastActivityDate",
+        "graceUsed",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ]
+    }
+  ]
+}

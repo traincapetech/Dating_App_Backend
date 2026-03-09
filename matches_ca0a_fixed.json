@@ -1,0 +1,142 @@
+[
+  {
+    "_id": "699d595e53b93c1dd80adb0e",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "4ff7b240-5de6-48cd-8b35-d577a8462778"
+    ],
+    "dateScheduled": null,
+    "status": "expired",
+    "chatEnabled": false,
+    "callEnabled": true,
+    "createdAt": "2026-02-24T07:55:10.147Z",
+    "expiresAt": "2026-02-27T07:55:10.147Z",
+    "__v": 0
+  },
+  {
+    "_id": "699d596353b93c1dd80adb1e",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "f35804c5-7db2-46a2-bba4-322aadff6972"
+    ],
+    "dateScheduled": null,
+    "status": "expired",
+    "chatEnabled": false,
+    "callEnabled": true,
+    "createdAt": "2026-02-24T07:55:15.227Z",
+    "expiresAt": "2026-02-27T07:55:15.227Z",
+    "__v": 0
+  },
+  {
+    "_id": "699d596853b93c1dd80adb2e",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "d7fdf924-4577-416a-a866-4ee82590326e"
+    ],
+    "dateScheduled": null,
+    "status": "expired",
+    "chatEnabled": false,
+    "callEnabled": true,
+    "createdAt": "2026-02-24T07:55:20.028Z",
+    "expiresAt": "2026-02-27T07:55:20.028Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a0151eb6b0e63e34bc5e19",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "87f34797-e26d-4c20-878a-072a2d6d72c9"
+    ],
+    "dateScheduled": null,
+    "status": "expired",
+    "chatEnabled": false,
+    "callEnabled": true,
+    "createdAt": "2026-02-26T09:40:46.725Z",
+    "expiresAt": "2026-03-01T09:40:46.725Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a16eec1a3c5147570fc93d",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "aed96285-5e76-49c5-b5d6-4dacecd2f684"
+    ],
+    "dateScheduled": null,
+    "status": "expired",
+    "chatEnabled": false,
+    "callEnabled": true,
+    "createdAt": "2026-02-27T10:16:12.655Z",
+    "expiresAt": "2026-03-02T10:16:12.655Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a52732799a785fac7b1ef5",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "d6ad20c1-a69f-4cc7-b7e9-4b6f7b954e38"
+    ],
+    "dateScheduled": null,
+    "status": "expired",
+    "chatEnabled": false,
+    "callEnabled": true,
+    "createdAt": "2026-03-02T05:59:14.182Z",
+    "expiresAt": "2026-03-05T05:59:14.182Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a69825f1836027f403487e",
+    "users": [
+      "bb3f6525-b383-4100-9e1a-0207d7b5b5f4",
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15"
+    ],
+    "dateScheduled": null,
+    "status": "active",
+    "chatEnabled": true,
+    "callEnabled": true,
+    "createdAt": "2026-03-03T08:13:25.586Z",
+    "expiresAt": "2026-03-06T08:13:25.586Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a69c3ac206557784644960",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "2fff81a0-eb2a-4652-8481-81babc8a4547"
+    ],
+    "dateScheduled": null,
+    "status": "active",
+    "chatEnabled": true,
+    "callEnabled": true,
+    "createdAt": "2026-03-03T08:30:50.304Z",
+    "expiresAt": "2026-03-06T08:30:50.305Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a93633c7268bddb875cd18",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "5e54b7bf-26e1-4c2e-913a-a546e6557182"
+    ],
+    "dateScheduled": null,
+    "status": "active",
+    "chatEnabled": true,
+    "callEnabled": true,
+    "createdAt": "2026-03-05T07:52:19.330Z",
+    "expiresAt": "2026-03-08T07:52:19.330Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a9478113953d0f276debd5",
+    "users": [
+      "ca0a4734-5ea0-4e50-9882-9108a5a34d15",
+      "test-user-1772701569866"
+    ],
+    "dateScheduled": null,
+    "status": "active",
+    "chatEnabled": true,
+    "callEnabled": true,
+    "createdAt": "2026-03-05T09:06:09.874Z",
+    "expiresAt": "2026-03-08T09:06:09.874Z",
+    "__v": 0
+  }
+]

@@ -5,9 +5,10 @@
 
 import ProfileComment from '../models/ProfileComment.js';
 import Match from '../models/Match.js';
-import { sendPushNotification } from '../services/pushService.js';
-import { storage } from '../storage/index.js';
-import { isUserPremium } from '../models/Subscription.js';
+import {sendPushNotification} from '../services/pushService.js';
+import {storage} from '../storage/index.js';
+import {isUserPremium} from '../models/Subscription.js';
+import eventEmitter from '../modules/streak/eventEmitter.js';
 
 const PROFILES_PATH = 'data/profiles.json';
 
@@ -25,7 +26,7 @@ async function getProfileInfo(userId) {
       email: user?.email || null,
     };
   } catch (error) {
-    return { name: 'Someone', photo: null, email: null };
+    return {name: 'Someone', photo: null, email: null};
   }
 }
 
@@ -38,7 +39,7 @@ const PREMIUM_COMMENT_LIMIT = 100;
  */
 export const sendComment = async (req, res) => {
   try {
-    const { senderId, receiverId, comment, targetContent } = req.body;
+    const {senderId, receiverId, comment, targetContent} = req.body;
 
     if (!senderId || !receiverId || !comment) {
       return res.status(400).json({
@@ -64,13 +65,15 @@ export const sendComment = async (req, res) => {
 
     const todayCommentCount = await ProfileComment.countDocuments({
       senderId,
-      createdAt: { $gte: todayStart },
+      createdAt: {$gte: todayStart},
     });
 
     if (todayCommentCount >= dailyLimit) {
       return res.status(429).json({
         success: false,
-        message: `You've reached your daily comment limit (${dailyLimit}). ${!isPremium ? 'Upgrade to Premium for more!' : 'Try again tomorrow!'}`,
+        message: `You've reached your daily comment limit (${dailyLimit}). ${
+          !isPremium ? 'Upgrade to Premium for more!' : 'Try again tomorrow!'
+        }`,
         limitReached: true,
         isPremium,
       });
@@ -95,7 +98,7 @@ export const sendComment = async (req, res) => {
       senderId,
       receiverId,
       comment: comment.trim(),
-      targetContent: targetContent || { type: 'profile' },
+      targetContent: targetContent || {type: 'profile'},
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Expires in 7 days
     });
 
@@ -104,7 +107,13 @@ export const sendComment = async (req, res) => {
 
     sendPushNotification(receiverId, {
       title: 'New Comment! 💬',
-      body: `${senderInfo.name} left you a comment${targetContent?.type === 'photo' ? ' on your photo' : targetContent?.type === 'prompt' ? ' on your answer' : ''}`,
+      body: `${senderInfo.name} left you a comment${
+        targetContent?.type === 'photo'
+          ? ' on your photo'
+          : targetContent?.type === 'prompt'
+          ? ' on your answer'
+          : ''
+      }`,
       data: {
         type: 'profile_comment',
         commentId: profileComment._id.toString(),
@@ -112,12 +121,18 @@ export const sendComment = async (req, res) => {
       },
     }).catch(err => console.error('Push notification error:', err));
 
+    // 🔥 Streak: record commenter's participation
+    eventEmitter.emit('activity:engagement', {
+      fromUser: senderId,
+      toUser: receiverId,
+      type: 'comment',
+    });
+
     res.status(201).json({
       success: true,
       comment: profileComment,
       remainingComments: dailyLimit - todayCommentCount - 1,
     });
-
   } catch (error) {
     console.error('Error sending comment:', error);
     res.status(500).json({
@@ -133,8 +148,8 @@ export const sendComment = async (req, res) => {
  */
 export const getReceivedComments = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { status = 'pending' } = req.query;
+    const {userId} = req.params;
+    const {status = 'pending'} = req.query;
 
     if (!userId) {
       return res.status(400).json({
@@ -145,30 +160,33 @@ export const getReceivedComments = async (req, res) => {
 
     const comments = await ProfileComment.find({
       receiverId: userId,
-      status: status === 'all' ? { $exists: true } : status,
-    }).sort({ createdAt: -1 });
+      status: status === 'all' ? {$exists: true} : status,
+    }).sort({createdAt: -1});
 
     // Get profile info for each sender
     const profiles = await storage.readJson(PROFILES_PATH, []);
 
-    const commentsWithProfiles = await Promise.all(comments.map(async (comment) => {
-      const profile = profiles.find(p => p.userId === comment.senderId);
-      return {
-        ...comment.toObject(),
-        senderProfile: {
-          name: profile?.basicInfo?.firstName || profile?.name || 'Unknown',
-          age: profile?.personalDetails?.age || profile?.basicInfo?.age || null,
-          photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
-        },
-      };
-    }));
+    const commentsWithProfiles = await Promise.all(
+      comments.map(async comment => {
+        const profile = profiles.find(p => p.userId === comment.senderId);
+        return {
+          ...comment.toObject(),
+          senderProfile: {
+            name: profile?.basicInfo?.firstName || profile?.name || 'Unknown',
+            age:
+              profile?.personalDetails?.age || profile?.basicInfo?.age || null,
+            photo:
+              profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+          },
+        };
+      }),
+    );
 
     res.json({
       success: true,
       count: commentsWithProfiles.length,
       comments: commentsWithProfiles,
     });
-
   } catch (error) {
     console.error('Error getting comments:', error);
     res.status(500).json({
@@ -184,7 +202,7 @@ export const getReceivedComments = async (req, res) => {
  */
 export const getSentComments = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const {userId} = req.params;
 
     if (!userId) {
       return res.status(400).json({
@@ -195,14 +213,13 @@ export const getSentComments = async (req, res) => {
 
     const comments = await ProfileComment.find({
       senderId: userId,
-    }).sort({ createdAt: -1 });
+    }).sort({createdAt: -1});
 
     res.json({
       success: true,
       count: comments.length,
       comments,
     });
-
   } catch (error) {
     console.error('Error getting sent comments:', error);
     res.status(500).json({
@@ -219,8 +236,8 @@ export const getSentComments = async (req, res) => {
  */
 export const respondToComment = async (req, res) => {
   try {
-    const { commentId } = req.params;
-    const { userId, action } = req.body; // action: 'accept' or 'reject'
+    const {commentId} = req.params;
+    const {userId, action} = req.body; // action: 'accept' or 'reject'
 
     if (!userId || !action) {
       return res.status(400).json({
@@ -293,9 +310,11 @@ export const respondToComment = async (req, res) => {
       action,
       comment,
       match,
-      message: action === 'accept' ? "It's a match! You can now chat." : 'Comment rejected',
+      message:
+        action === 'accept'
+          ? "It's a match! You can now chat."
+          : 'Comment rejected',
     });
-
   } catch (error) {
     console.error('Error responding to comment:', error);
     res.status(500).json({
@@ -311,8 +330,8 @@ export const respondToComment = async (req, res) => {
  */
 export const markCommentRead = async (req, res) => {
   try {
-    const { commentId } = req.params;
-    const { userId } = req.body;
+    const {commentId} = req.params;
+    const {userId} = req.body;
 
     const comment = await ProfileComment.findById(commentId);
 
@@ -337,7 +356,6 @@ export const markCommentRead = async (req, res) => {
       success: true,
       comment,
     });
-
   } catch (error) {
     console.error('Error marking comment as read:', error);
     res.status(500).json({
@@ -353,7 +371,7 @@ export const markCommentRead = async (req, res) => {
  */
 export const getUnreadCommentCount = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const {userId} = req.params;
 
     if (!userId) {
       return res.status(400).json({
@@ -372,7 +390,6 @@ export const getUnreadCommentCount = async (req, res) => {
       success: true,
       count,
     });
-
   } catch (error) {
     console.error('Error getting unread count:', error);
     res.status(500).json({
@@ -388,8 +405,8 @@ export const getUnreadCommentCount = async (req, res) => {
  */
 export const deleteComment = async (req, res) => {
   try {
-    const { commentId } = req.params;
-    const { userId } = req.body;
+    const {commentId} = req.params;
+    const {userId} = req.body;
 
     const comment = await ProfileComment.findById(commentId);
 
@@ -414,13 +431,12 @@ export const deleteComment = async (req, res) => {
       });
     }
 
-    await ProfileComment.deleteOne({ _id: commentId });
+    await ProfileComment.deleteOne({_id: commentId});
 
     res.json({
       success: true,
       message: 'Comment deleted successfully',
     });
-
   } catch (error) {
     console.error('Error deleting comment:', error);
     res.status(500).json({

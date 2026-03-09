@@ -10,6 +10,7 @@ import {
 import {isUserPremium} from '../models/Subscription.js';
 import Profile from '../models/Profile.js';
 import User from '../models/User.js';
+import eventEmitter from '../modules/streak/eventEmitter.js';
 
 // Helper to get profile name
 async function getProfileName(userId) {
@@ -269,6 +270,13 @@ export const likeUser = async (req, res) => {
         ).catch(err => console.error('Match email error:', err));
       }
 
+      // 🔥 Streak: mutual like = both users interacted → treat as 'match'
+      eventEmitter.emit('activity:engagement', {
+        fromUser: senderId,
+        toUser: receiverId,
+        type: 'match',
+      });
+
       return res.json({
         success: true,
         isMatch: true,
@@ -277,6 +285,12 @@ export const likeUser = async (req, res) => {
       });
     }
 
+    // 🔥 Streak: one-sided like — record this user's participation flag
+    eventEmitter.emit('activity:engagement', {
+      fromUser: senderId,
+      toUser: receiverId,
+      type: 'like',
+    });
     // Not a match yet - send "someone liked you" notification to receiver
     const senderInfo = await getProfileInfo(senderId);
     const receiverInfo = await getProfileInfo(receiverId);

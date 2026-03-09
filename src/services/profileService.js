@@ -131,7 +131,7 @@ export async function getProfile(userId) {
 
   // Enrich profile with user data and formatted fields (similar to getAllProfiles)
   const users = await getUsers();
-  const user = users.find(u => u.id === profile.userId);
+  const user = users.find(u => (u._id || u.id) === profile.userId);
 
   // Combine firstName and lastName if fullName is not available
   const fullName =
@@ -338,7 +338,7 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
       return true;
     })
     .map(profile => {
-      const user = users.find(u => u.id === profile.userId);
+      const user = users.find(u => (u._id || u.id) === profile.userId);
       // Combine firstName and lastName if fullName is not available
       const fullName =
         user?.fullName ||

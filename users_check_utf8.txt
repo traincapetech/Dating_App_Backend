@@ -1,0 +1,7 @@
+﻿--- TARGET USERS ---
+[User] ID: af597ecf-80b7-470a-b03e-67b16d806ad8 | Name: Jordan
+[User] ID: 1a7c5922-5535-437e-93be-ad1b4654a2d7 | Name: Jordan Blake
+[User] ID: dda2b27e-b20c-4d5f-977b-2648daf44203 | Name: Gaurav
+--- TARGET PROFILES ---
+[Profile] UserID: af597ecf-80b7-470a-b03e-67b16d806ad8 | Name: Karma
+[Profile] UserID: dda2b27e-b20c-4d5f-977b-2648daf44203 | Name: Gaurav

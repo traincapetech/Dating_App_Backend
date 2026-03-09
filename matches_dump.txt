@@ -1,0 +1,11 @@
+Checking matches for user: ca0a4734-5ea0-4e50-9882-9108a5a34d15
+Total matches in DB: 9
+- Match with Karan (4ff7b240-5de6-48cd-8b35-d577a8462778): ID=699d595e53b93c1dd80adb0e, Status=expired, Chat=false, CreatedAt=Tue Feb 24 2026 13:25:10 GMT+0530 (India Standard Time)
+- Match with Unknown (f35804c5-7db2-46a2-bba4-322aadff6972): ID=699d596353b93c1dd80adb1e, Status=expired, Chat=false, CreatedAt=Tue Feb 24 2026 13:25:15 GMT+0530 (India Standard Time)
+- Match with Saurav (d7fdf924-4577-416a-a866-4ee82590326e): ID=699d596853b93c1dd80adb2e, Status=expired, Chat=false, CreatedAt=Tue Feb 24 2026 13:25:20 GMT+0530 (India Standard Time)
+- Match with Mohit (87f34797-e26d-4c20-878a-072a2d6d72c9): ID=69a0151eb6b0e63e34bc5e19, Status=expired, Chat=false, CreatedAt=Thu Feb 26 2026 15:10:46 GMT+0530 (India Standard Time)
+- Match with Nitin (aed96285-5e76-49c5-b5d6-4dacecd2f684): ID=69a16eec1a3c5147570fc93d, Status=active, Chat=false, CreatedAt=Fri Feb 27 2026 15:46:12 GMT+0530 (India Standard Time)
+- Match with 2^cssaM lauqe ygren (d6ad20c1-a69f-4cc7-b7e9-4b6f7b954e38): ID=69a52732799a785fac7b1ef5, Status=expired, Chat=false, CreatedAt=Mon Mar 02 2026 11:29:14 GMT+0530 (India Standard Time)
+- Match with Shruti (bb3f6525-b383-4100-9e1a-0207d7b5b5f4): ID=69a69825f1836027f403487e, Status=active, Chat=true, CreatedAt=Tue Mar 03 2026 13:43:25 GMT+0530 (India Standard Time)
+- Match with Mansi (2fff81a0-eb2a-4652-8481-81babc8a4547): ID=69a69c3ac206557784644960, Status=active, Chat=true, CreatedAt=Tue Mar 03 2026 14:00:50 GMT+0530 (India Standard Time)
+- Match with Dilip (5e54b7bf-26e1-4c2e-913a-a546e6557182): ID=69a93633c7268bddb875cd18, Status=active, Chat=true, CreatedAt=Thu Mar 05 2026 13:22:19 GMT+0530 (India Standard Time)

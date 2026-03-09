@@ -241,11 +241,10 @@ export async function getMatchedProfiles(userId, options = {}) {
     // Return empty results to avoid "global leaks" when user expects a filter.
     if (maxDistance !== null) {
       console.log(
-        `[getMatchedProfiles] maxDistance ${maxDistance} requested but user ${userId} has no location. Returning empty.`,
+        `[getMatchedProfiles] maxDistance ${maxDistance} requested but user ${userId} has no location. Ignoring distance filter.`,
       );
-      return [];
     }
-    // Fallback if no specific distance filter: just exclude self
+    // Fallback: just exclude self
     pipeline.push({$match: {userId: {$ne: userId}}});
   }
 

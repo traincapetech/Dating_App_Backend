@@ -1,0 +1,24 @@
+=== Simulating GET /api/match/:userId for Karma ===
+
+Matches found in DB: 2
+After dedup: 2
+
+- Match ID: 69ae73445d57fc66a706aee4
+  Their ID: 1a7c5922-5533-437e-93be-ad1b4654a2d7
+  status: active, chatEnabled: true
+  expiresAt: Wed Mar 11 2026 12:44:12 GMT+0530 (India Standard Time), currentlyExpired: false
+  Profile found: false
+
+- Match ID: 69ae7323ab198bd6d81f391f
+  Their ID: dda2b27e-b20c-4d5f-977b-2648daf44203
+  status: active, chatEnabled: true
+  expiresAt: Wed Mar 11 2026 12:43:39 GMT+0530 (India Standard Time), currentlyExpired: false
+  Profile found: true
+  Name: Gaurav
+  Photo: https://pub-ae1910b9353e4e5b9139976cef3cc019.r2.dev/profiles/dda2b27e-b20c-4d5f-977b-2648daf44203/images/25841458-7c6b-4e16-be8f-bf5e798b5dec.jpg
+
+=== Simulating GET /api/swipe/likes/:userId for Karma ===
+
+Total likes received: 2
+Matched user IDs to filter out: ["dda2b27e-b20c-4d5f-977b-2648daf44203","1a7c5922-5533-437e-93be-ad1b4654a2d7"]
+Pending (non-matched) likes: 0
