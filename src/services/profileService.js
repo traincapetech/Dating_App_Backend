@@ -154,6 +154,7 @@ export async function getProfile(userId) {
     ...profile,
     name: fullName,
     email: user?.email || '',
+    isVerified: user?.isVerified || false,
     showOnlineStatus: user?.showOnlineStatus !== false, // Defaults to true
     isActiveToday: !!isActiveToday,
     // Extract age from profile if available

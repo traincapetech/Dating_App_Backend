@@ -12,7 +12,11 @@ import {
 import {sendEmailOTP} from './emailService.js';
 
 function generateTokens(user) {
-  const payload = {sub: user.id, email: user.email};
+  const payload = {
+    sub: user.id || user._id,
+    email: user.email,
+    tokenVersion: user.tokenVersion || '0',
+  };
   const accessToken = jwt.sign(payload, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
   });

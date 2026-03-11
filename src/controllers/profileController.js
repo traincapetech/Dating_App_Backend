@@ -395,63 +395,16 @@ export const deleteUserController = asyncHandler(async (req, res) => {
     }
   }
 
-  // Delete profile and associated media
-  const profile = await getProfile(userId);
-  if (profile?.media?.media) {
-    // Delete media files from storage
-    for (const mediaItem of profile.media.media) {
-      if (mediaItem.url) {
-        try {
-          // Extract file path from URL
-          // R2 URLs: https://[bucket].r2.cloudflarestorage.com/[key] or custom domain
-          // Local URLs: http://localhost:3000/api/files/[path]
-          let filePath = null;
-
-          if (mediaItem.url.includes('/api/files/')) {
-            // Local storage URL
-            filePath = new URL(mediaItem.url).pathname.replace(
-              '/api/files/',
-              '',
-            );
-          } else if (
-            mediaItem.url.includes('r2.cloudflarestorage.com') ||
-            mediaItem.url.includes(config.r2.publicBaseUrl)
-          ) {
-            // R2 URL - extract key from URL
-            const urlObj = new URL(mediaItem.url);
-            // R2 public URLs have the key as the pathname
-            filePath = urlObj.pathname.replace(/^\//, ''); // Remove leading slash
-          } else {
-            // Try to extract from any URL format
-            const urlObj = new URL(mediaItem.url);
-            filePath = urlObj.pathname.replace(/^\//, '');
-            // If it contains 'profiles/', use that part
-            const profilesIndex = filePath.indexOf('profiles/');
-            if (profilesIndex !== -1) {
-              filePath = filePath.substring(profilesIndex);
-            }
-          }
-
-          if (filePath) {
-            await storage.deleteObject(filePath);
-            console.log(`Deleted media file: ${filePath}`);
-          }
-        } catch (error) {
-          console.error(`Failed to delete media file: ${mediaItem.url}`, error);
-        }
-      }
-    }
-  }
-
-  // Delete profile
-  await deleteProfile(userId);
-
-  // Delete user
-  await deleteUser(userId);
+  // Perform industry-standard thorough deletion (photos, matches, messages, scores, etc.)
+  const {performThoroughAccountDeletion} = await import(
+    '../services/accountDeletionService.js'
+  );
+  await performThoroughAccountDeletion(userId);
 
   res.status(200).json({
     success: true,
-    message: 'User and profile deleted successfully',
+    message:
+      'All account data has been deleted successfully as per industry standards.',
   });
 });
 
