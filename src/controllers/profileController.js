@@ -75,7 +75,17 @@ export const saveProfilePromptsController = asyncHandler(async (req, res) => {
     return res.status(401).json({error: 'User ID is required'});
   }
   const parsed = profilePromptsSchema.parse(req.body);
+  console.log(
+    '[saveProfilePromptsController] Saving prompts for userId:',
+    userId,
+    'Body:',
+    JSON.stringify(parsed, null, 2),
+  );
   const profile = await saveProfilePrompts(userId, parsed);
+  console.log(
+    '[saveProfilePromptsController] Saved profile prompts. New profilePrompts:',
+    JSON.stringify(profile.profilePrompts, null, 2),
+  );
   res.status(200).json({profile});
 });
 

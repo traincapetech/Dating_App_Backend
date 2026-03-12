@@ -188,9 +188,6 @@ export const sendMessage = async (req, res) => {
       status: 'sent',
     });
 
-    // Handle streak engagement
-    streakService.handleEngagement(senderId, receiverId, 'message');
-
     // Real-time delivery handling
     const io = getIO();
     if (io) {

@@ -3,6 +3,8 @@ import Match from '../../models/Match.js';
 import streakNotification from './streak.notification.js';
 import {emitToUser} from '../../services/socketService.js';
 
+const IN_PROGRESS_ENGAGEMENTS = new Set();
+const delay = ms => new Promise(res => setTimeout(res, ms));
 /**
  * StreakService
  *
@@ -62,10 +64,16 @@ class StreakService {
     const flag = process.env.FEATURE_STREAK_ENABLED;
     if (flag !== undefined && flag !== 'true') return;
 
+    const fromStr = fromUserId.toString().toLowerCase();
+    const toStr = toUserId.toString().toLowerCase();
+    const pairId = this.getUserPairId(fromStr, toStr);
+
+    while (IN_PROGRESS_ENGAGEMENTS.has(pairId)) {
+      await delay(50);
+    }
+    IN_PROGRESS_ENGAGEMENTS.add(pairId);
+
     try {
-      const fromStr = fromUserId.toString().toLowerCase();
-      const toStr = toUserId.toString().toLowerCase();
-      const pairId = this.getUserPairId(fromStr, toStr);
       const now = new Date();
 
       console.log(
@@ -145,29 +153,42 @@ class StreakService {
 
       // ── Check if BOTH users have now participated ──────────────────────
       if (streak.participationA && streak.participationB) {
-        // Both sides are in — increment!
-        streak.streakCount += 1;
+        // ── Check if we already incremented on this calendar day ──────────
+        const lastInteraction = streak.lastMutualInteractionAt;
+        const isSameDay =
+          lastInteraction &&
+          new Date(lastInteraction).toDateString() === now.toDateString();
+
+        if (!isSameDay) {
+          // New day mutual interaction — increment!
+          streak.streakCount += 1;
+          console.log(
+            `[Streak] 🔥 Mutual interaction! ${pairId} → streakCount=${streak.streakCount}`,
+          );
+
+          // Notify both users
+          await streakNotification.sendIncrement(
+            fromStr,
+            toStr,
+            streak.streakCount,
+          );
+          await streakNotification.sendIncrement(
+            toStr,
+            fromStr,
+            streak.streakCount,
+          );
+        } else {
+          console.log(
+            `[Streak] ⏳ Already incremented today for ${pairId}. Count stays ${streak.streakCount}.`,
+          );
+        }
+
+        // Always update timestamp and reset flags to "freshen" the window
         streak.lastMutualInteractionAt = now;
-        streak.participationA = false; // ← reset for next cycle
-        streak.participationB = false; // ← reset for next cycle
+        streak.participationA = false;
+        streak.participationB = false;
         streak.warningSent = false;
         await streak.save();
-
-        console.log(
-          `[Streak] 🔥 Mutual interaction! ${pairId} → streakCount=${streak.streakCount}`,
-        );
-
-        // Notify both users
-        await streakNotification.sendIncrement(
-          fromStr,
-          toStr,
-          streak.streakCount,
-        );
-        await streakNotification.sendIncrement(
-          toStr,
-          fromStr,
-          streak.streakCount,
-        );
         this.broadcastUpdate(fromStr, toStr, streak);
       } else {
         // Only one side so far; save and wait for the other
@@ -182,6 +203,11 @@ class StreakService {
       return streak;
     } catch (err) {
       console.error('[Streak] handleEngagement error:', err.message, err.stack);
+    } finally {
+      const fromStr = fromUserId.toString().toLowerCase();
+      const toStr = toUserId.toString().toLowerCase();
+      const pairId = this.getUserPairId(fromStr, toStr);
+      IN_PROGRESS_ENGAGEMENTS.delete(pairId);
     }
   }
 
