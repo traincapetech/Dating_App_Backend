@@ -1,4 +1,4 @@
-import { findTokenByUserId, unregisterToken } from '../models/notificationTokenModel.js';
+import { findTokenByUserId } from '../models/notificationTokenModel.js';
 
 let admin = null;
 let isInitialized = false;
@@ -120,20 +120,11 @@ export async function sendPushNotification(userId, notification) {
   } catch (error) {
     console.error(`Failed to send push to ${userId}:`, error.message);
 
-    // If token is invalid, remove it so the app can re-register a fresh one
-    if (
-      error.code === 'messaging/invalid-registration-token' ||
-      error.code === 'messaging/registration-token-not-registered'
-    ) {
+    // If token is invalid, we could remove it here
+    if (error.code === 'messaging/invalid-registration-token' ||
+        error.code === 'messaging/registration-token-not-registered') {
       console.log(`Removing invalid token for user ${userId}`);
-      try {
-        await unregisterToken(userId);
-      } catch (cleanupError) {
-        console.error(
-          `Failed to remove invalid token for user ${userId}:`,
-          cleanupError.message,
-        );
-      }
+      // Optionally: await unregisterToken(userId);
     }
 
     return { success: false, error: error.message };

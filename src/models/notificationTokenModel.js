@@ -41,5 +41,3 @@ export async function unregisterToken(userId) {
 export async function getTokensByUserIds(userIds) {
   return await NotificationToken.find({userId: {$in: userIds}});
 }
-
-export default NotificationToken;

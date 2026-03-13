@@ -5,8 +5,8 @@ const MatchSchema = new mongoose.Schema({
   createdAt: {type: Date, default: Date.now},
   expiresAt: {
     type: Date,
-    default: () => new Date(+new Date() + 3 * 24 * 60 * 60 * 1000),
-  }, // Default 72 hours from now
+    default: () => new Date(+new Date() + 7 * 24 * 60 * 60 * 1000),
+  }, // Default 7 days from now
   dateScheduled: {type: Date, default: null},
   status: {
     type: String,

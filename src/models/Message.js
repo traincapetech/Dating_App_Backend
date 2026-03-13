@@ -8,8 +8,15 @@ const MessageSchema = new mongoose.Schema({
   mediaUrl: {type: String},
   mediaType: {
     type: String,
-    enum: ['image', 'video', 'gif', null],
+    enum: ['image', 'video', 'gif', 'gift', null],
     default: null,
+  },
+  giftMetadata: {
+    giftId: {type: mongoose.Schema.Types.ObjectId, ref: 'Gift'},
+    name: String,
+    slug: String,
+    coinValue: Number,
+    imageUrl: String,
   },
   timestamp: {type: Date, default: Date.now},
   status: {

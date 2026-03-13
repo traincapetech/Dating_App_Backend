@@ -57,10 +57,6 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    tokenVersion: {
-      type: String,
-      default: '0',
-    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt automatically

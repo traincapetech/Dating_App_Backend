@@ -7,22 +7,18 @@ export const basicInfoSchema = z.object({
   email: z.string().email().optional(),
   notificationsEnabled: z.boolean().optional(),
   location: z.string().optional(),
-  locationDetails: z
-    .object({
-      lat: z.number(),
-      lng: z.number(),
-      source: z.string().optional(),
-      timestamp: z.number().optional(),
-    })
-    .optional(),
+  locationDetails: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    source: z.string().optional(),
+    timestamp: z.number().optional(),
+  }).optional(),
   gender: z.enum(['Man', 'Woman', 'Non Binary']).optional(),
   showGenderOnProfile: z.boolean().optional(),
 });
 
 export const datingPreferencesSchema = z.object({
-  whoToDate: z
-    .array(z.enum(['Men', 'Women', 'Nonbinary People', 'Everyone']))
-    .optional(),
+  whoToDate: z.array(z.enum(['Men', 'Women', 'Nonbinary People', 'Everyone'])).optional(),
   datingIntention: z.string().optional(),
   relationshipType: z.enum(['Monogamy', 'Non-Monogamy']).optional(),
   showIntentionOnProfile: z.boolean().optional(),
@@ -45,43 +41,33 @@ export const lifestyleSchema = z.object({
   drink: z.string().optional(),
   smokeTobacco: z.string().optional(),
   smokeWeed: z.string().optional(),
-  drugs: z.string().optional(),
+  useDrugs: z.string().optional(),
   politicalBeliefs: z.string().optional(),
   religiousBeliefs: z.string().optional(),
   interests: z.array(z.string()).optional(),
 });
 
 export const profilePromptsSchema = z.object({
-  aboutMe: z
-    .object({
-      question: z.string().optional(),
-      answer: z.string().optional(),
-    })
-    .optional(),
-  selfCare: z
-    .object({
-      question: z.string().optional(),
-      answer: z.string().optional(),
-    })
-    .optional(),
-  gettingPersonal: z
-    .object({
-      question: z.string().optional(),
-      answer: z.string().optional(),
-    })
-    .optional(),
+  aboutMe: z.object({
+    prompt: z.string().optional(),
+    answer: z.string().optional(),
+  }).optional(),
+  selfCare: z.object({
+    prompt: z.string().optional(),
+    answer: z.string().optional(),
+  }).optional(),
+  gettingPersonal: z.object({
+    prompt: z.string().optional(),
+    answer: z.string().optional(),
+  }).optional(),
 });
 
 export const mediaUploadSchema = z.object({
-  media: z
-    .array(
-      z.object({
-        type: z.enum(['photo', 'video']),
-        url: z.string(),
-        order: z.number(),
-      }),
-    )
-    .optional(),
+  media: z.array(z.object({
+    type: z.enum(['photo', 'video']),
+    url: z.string(),
+    order: z.number(),
+  })).optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -94,3 +80,4 @@ export const updateProfileSchema = z.object({
   isPaused: z.boolean().optional(),
   isHidden: z.boolean().optional(),
 });
+

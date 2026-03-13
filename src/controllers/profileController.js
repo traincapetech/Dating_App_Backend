@@ -22,7 +22,6 @@ import {
 import {deleteProfile} from '../models/profileModel.js';
 import Profile from '../models/Profile.js';
 import {deleteUser, findUserById, updateUser} from '../models/userModel.js';
-import bcrypt from 'bcryptjs';
 import {storage} from '../storage/index.js';
 import {randomUUID} from 'crypto';
 import {config} from '../config/env.js';
@@ -75,17 +74,7 @@ export const saveProfilePromptsController = asyncHandler(async (req, res) => {
     return res.status(401).json({error: 'User ID is required'});
   }
   const parsed = profilePromptsSchema.parse(req.body);
-  console.log(
-    '[saveProfilePromptsController] Saving prompts for userId:',
-    userId,
-    'Body:',
-    JSON.stringify(parsed, null, 2),
-  );
   const profile = await saveProfilePrompts(userId, parsed);
-  console.log(
-    '[saveProfilePromptsController] Saved profile prompts. New profilePrompts:',
-    JSON.stringify(profile.profilePrompts, null, 2),
-  );
   res.status(200).json({profile});
 });
 
@@ -373,17 +362,8 @@ export const uploadImageController = asyncHandler(async (req, res) => {
 
 export const deleteUserController = asyncHandler(async (req, res) => {
   const userId = req.params.userId || req.body.userId;
-  const {password} = req.body;
-
   if (!userId) {
     return res.status(400).json({error: 'User ID is required'});
-  }
-
-  // SECURITY: Ensure user is only deleting THEIR OWN account
-  if (req.user.id !== userId) {
-    return res
-      .status(403)
-      .json({error: 'You are not authorized to delete this account'});
   }
 
   // Check if user exists
@@ -392,29 +372,63 @@ export const deleteUserController = asyncHandler(async (req, res) => {
     return res.status(404).json({error: 'User not found'});
   }
 
-  // SECURITY: Verify password for local accounts
-  if (user.authProvider !== 'google') {
-    if (!password) {
-      return res
-        .status(400)
-        .json({error: 'Password is required to delete your account'});
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({error: 'Incorrect password'});
+  // Delete profile and associated media
+  const profile = await getProfile(userId);
+  if (profile?.media?.media) {
+    // Delete media files from storage
+    for (const mediaItem of profile.media.media) {
+      if (mediaItem.url) {
+        try {
+          // Extract file path from URL
+          // R2 URLs: https://[bucket].r2.cloudflarestorage.com/[key] or custom domain
+          // Local URLs: http://localhost:3000/api/files/[path]
+          let filePath = null;
+
+          if (mediaItem.url.includes('/api/files/')) {
+            // Local storage URL
+            filePath = new URL(mediaItem.url).pathname.replace(
+              '/api/files/',
+              '',
+            );
+          } else if (
+            mediaItem.url.includes('r2.cloudflarestorage.com') ||
+            mediaItem.url.includes(config.r2.publicBaseUrl)
+          ) {
+            // R2 URL - extract key from URL
+            const urlObj = new URL(mediaItem.url);
+            // R2 public URLs have the key as the pathname
+            filePath = urlObj.pathname.replace(/^\//, ''); // Remove leading slash
+          } else {
+            // Try to extract from any URL format
+            const urlObj = new URL(mediaItem.url);
+            filePath = urlObj.pathname.replace(/^\//, '');
+            // If it contains 'profiles/', use that part
+            const profilesIndex = filePath.indexOf('profiles/');
+            if (profilesIndex !== -1) {
+              filePath = filePath.substring(profilesIndex);
+            }
+          }
+
+          if (filePath) {
+            await storage.deleteObject(filePath);
+            console.log(`Deleted media file: ${filePath}`);
+          }
+        } catch (error) {
+          console.error(`Failed to delete media file: ${mediaItem.url}`, error);
+        }
+      }
     }
   }
 
-  // Perform industry-standard thorough deletion (photos, matches, messages, scores, etc.)
-  const {performThoroughAccountDeletion} = await import(
-    '../services/accountDeletionService.js'
-  );
-  await performThoroughAccountDeletion(userId);
+  // Delete profile
+  await deleteProfile(userId);
+
+  // Delete user
+  await deleteUser(userId);
 
   res.status(200).json({
     success: true,
-    message:
-      'All account data has been deleted successfully as per industry standards.',
+    message: 'User and profile deleted successfully',
   });
 });
 

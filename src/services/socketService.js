@@ -1,8 +1,8 @@
-import {Server} from 'socket.io';
+import { Server } from 'socket.io';
 import Message from '../models/Message.js';
 import Match from '../models/Match.js';
 import Block from '../models/Block.js';
-import {sendPushNotification} from './pushService.js';
+import { sendPushNotification } from './pushService.js';
 
 let io = null;
 
@@ -19,14 +19,12 @@ export function initSocketServer(httpServer) {
     transports: ['websocket', 'polling'],
   });
 
-  io.on('connection', socket => {
+  io.on('connection', (socket) => {
     console.log(`📱 Socket connected: ${socket.id}`);
 
     // Authenticate user and map socket
-    socket.on('authenticate', async ({userId}) => {
+    socket.on('authenticate', ({ userId }) => {
       if (!userId) return;
-
-      const previouslyOnline = isUserOnline(userId);
 
       // Store mapping
       socketUsers.set(socket.id, userId);
@@ -37,22 +35,17 @@ export function initSocketServer(httpServer) {
       userSockets.get(userId).add(socket.id);
 
       console.log(`👤 User ${userId} authenticated on socket ${socket.id}`);
-
-      // If user just came online (wasn't online before this socket), broadcast to matches
-      if (!previouslyOnline) {
-        broadcastUserStatus(userId, 'online');
-      }
     });
 
     // Join a chat room (match-based)
-    socket.on('joinRoom', async ({matchId, userId}) => {
+    socket.on('joinRoom', async ({ matchId, userId }) => {
       if (!matchId || !userId) return;
 
       // Verify user belongs to match
       try {
         // Validate matchId is a valid ObjectId
         if (!/^[0-9a-fA-F]{24}$/.test(matchId)) {
-          console.log(`⚠️ Invalid matchId format in joinRoom: ${matchId}`);
+          console.log(`⚠️ Invalid matchId format: ${matchId}`);
           return;
         }
 
@@ -60,16 +53,6 @@ export function initSocketServer(httpServer) {
         if (match && match.users.includes(userId)) {
           socket.join(matchId);
           console.log(`🚪 Socket ${socket.id} joined room ${matchId}`);
-
-          // Emit current status of the other user to the person who just joined
-          const otherUserId = match.users.find(u => u !== userId);
-          if (otherUserId) {
-            socket.emit('userStatusChanged', {
-              userId: otherUserId,
-              status: isUserOnline(otherUserId) ? 'online' : 'offline',
-              matchId,
-            });
-          }
         } else {
           console.log(`⚠️ User ${userId} not authorized for room ${matchId}`);
         }
@@ -79,7 +62,7 @@ export function initSocketServer(httpServer) {
     });
 
     // Leave a chat room
-    socket.on('leaveRoom', ({matchId}) => {
+    socket.on('leaveRoom', ({ matchId }) => {
       if (matchId) {
         socket.leave(matchId);
         console.log(`🚪 Socket ${socket.id} left room ${matchId}`);
@@ -87,15 +70,14 @@ export function initSocketServer(httpServer) {
     });
 
     // Handle sending messages via socket
-    socket.on('sendMessage', async messageData => {
-      const {matchId, senderId, receiverId, text, mediaUrl, mediaType} =
-        messageData;
+    socket.on('sendMessage', async (messageData) => {
+      const { matchId, senderId, receiverId, text, mediaUrl, mediaType } = messageData;
 
       if (!matchId || !senderId || !receiverId) return;
 
       // Validate matchId is a valid ObjectId
       if (!/^[0-9a-fA-F]{24}$/.test(matchId)) {
-        socket.emit('error', {message: 'Invalid match ID'});
+        socket.emit('error', { message: 'Invalid match ID' });
         return;
       }
 
@@ -103,20 +85,20 @@ export function initSocketServer(httpServer) {
         // Verify match access
         const match = await Match.findById(matchId);
         if (!match || !match.users.includes(senderId)) {
-          socket.emit('error', {message: 'Access denied'});
+          socket.emit('error', { message: 'Access denied' });
           return;
         }
 
         // Check blocks
         const block = await Block.findOne({
           $or: [
-            {blockerId: senderId, blockedId: receiverId},
-            {blockerId: receiverId, blockedId: senderId},
+            { blockerId: senderId, blockedId: receiverId },
+            { blockerId: receiverId, blockedId: senderId },
           ],
         });
 
         if (block) {
-          socket.emit('error', {message: 'Cannot send message - blocked'});
+          socket.emit('error', { message: 'Cannot send message - blocked' });
           return;
         }
 
@@ -144,18 +126,13 @@ export function initSocketServer(httpServer) {
           io.to(matchId).emit('messageStatusUpdate', {
             messageId: message._id,
             status: 'delivered',
-            matchId,
           });
         } else {
           // Send push notification if offline
           try {
             await sendPushNotification(receiverId, {
               title: 'New Message',
-              body: text
-                ? text.length > 50
-                  ? text.substring(0, 50) + '...'
-                  : text
-                : 'Sent you a photo',
+              body: text ? (text.length > 50 ? text.substring(0, 50) + '...' : text) : 'Sent you a photo',
               data: {
                 type: 'message',
                 matchId,
@@ -166,31 +143,31 @@ export function initSocketServer(httpServer) {
             console.error('Push notification error:', pushError);
           }
         }
+
       } catch (error) {
         console.error('Error sending message via socket:', error);
-        socket.emit('error', {message: 'Failed to send message'});
+        socket.emit('error', { message: 'Failed to send message' });
       }
     });
 
     // Handle typing indicator
-    socket.on('typing', async ({matchId, userId}) => {
+    socket.on('typing', async ({ matchId, userId }) => {
       if (!matchId || !userId) return;
 
       // Broadcast to others in the room
-      socket.to(matchId).emit('typing', {matchId, userId});
+      socket.to(matchId).emit('typing', { matchId, userId });
     });
 
     // Handle stop typing
-    socket.on('stopTyping', async ({matchId, userId}) => {
+    socket.on('stopTyping', async ({ matchId, userId }) => {
       if (!matchId || !userId) return;
 
-      socket.to(matchId).emit('stopTyping', {matchId, userId});
+      socket.to(matchId).emit('stopTyping', { matchId, userId });
     });
 
     // Handle message seen
-    socket.on('messageSeen', async ({matchId, userId, messageIds}) => {
-      if (!matchId || !userId || !messageIds || !Array.isArray(messageIds))
-        return;
+    socket.on('messageSeen', async ({ matchId, userId, messageIds }) => {
+      if (!matchId || !userId || !messageIds || !Array.isArray(messageIds)) return;
 
       // Validate matchId is a valid ObjectId
       if (!/^[0-9a-fA-F]{24}$/.test(matchId)) return;
@@ -199,16 +176,16 @@ export function initSocketServer(httpServer) {
         // Update messages in database
         await Message.updateMany(
           {
-            _id: {$in: messageIds},
+            _id: { $in: messageIds },
             receiverId: userId,
-            status: {$ne: 'seen'},
+            status: { $ne: 'seen' },
           },
           {
             $set: {
               status: 'seen',
               seenAt: new Date(),
             },
-          },
+          }
         );
 
         // Notify sender(s) in the room
@@ -218,6 +195,7 @@ export function initSocketServer(httpServer) {
           messageIds,
           seenAt: new Date(),
         });
+
       } catch (error) {
         console.error('Error marking messages seen:', error);
       }
@@ -233,8 +211,6 @@ export function initSocketServer(httpServer) {
           sockets.delete(socket.id);
           if (sockets.size === 0) {
             userSockets.delete(userId);
-            // Last socket of this user disconnected - user is now offline
-            broadcastUserStatus(userId, 'offline');
           }
         }
       }
@@ -243,27 +219,6 @@ export function initSocketServer(httpServer) {
       console.log(`📱 Socket disconnected: ${socket.id}`);
     });
   });
-
-  /**
-   * Broadcast user status (online/offline) to all their matches
-   */
-  async function broadcastUserStatus(userId, status) {
-    try {
-      if (!userId) return;
-
-      const matches = await Match.find({users: userId});
-      matches.forEach(match => {
-        const matchId = match._id.toString();
-        io.to(matchId).emit('userStatusChanged', {
-          userId,
-          status, // 'online' or 'offline'
-          matchId,
-        });
-      });
-    } catch (error) {
-      console.error('Error broadcasting user status:', error);
-    }
-  }
 
   console.log('🔌 Socket.IO server initialized');
   return io;
@@ -288,3 +243,4 @@ export function isUserOnline(userId) {
   const sockets = userSockets.get(userId);
   return sockets && sockets.size > 0;
 }
+

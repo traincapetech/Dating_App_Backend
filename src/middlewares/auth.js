@@ -64,27 +64,6 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    // SECURITY: Get user to check for token revocation (logout from all devices)
-    const user = await findUserById(userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User no longer exists',
-      });
-    }
-
-    // Check if token has been revoked (logout from all devices)
-    if (
-      decoded.tokenVersion &&
-      user.tokenVersion &&
-      decoded.tokenVersion !== user.tokenVersion
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: 'Session has been invalidated. Please log in again.',
-      });
-    }
-
     // Attach user info to request
     req.user = {
       id: userId,
@@ -145,27 +124,6 @@ export const requireAuth = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid token',
-      });
-    }
-
-    // SECURITY: Get user to check for token revocation (logout from all devices)
-    const user = await findUserById(userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User no longer exists or account was deleted.',
-      });
-    }
-
-    // Check if token has been revoked (logout from all devcies)
-    if (
-      decoded.tokenVersion &&
-      user.tokenVersion &&
-      decoded.tokenVersion !== user.tokenVersion
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token has been revoked. Please log in again.',
       });
     }
 

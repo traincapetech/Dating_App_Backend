@@ -1,5 +1,56 @@
 import Match from '../models/Match.js';
+import Message from '../models/Message.js';
 import {getProfile} from '../services/profileService.js';
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Helper to determine the last interaction time for a match
+ * and check if it has expired based on 7 days of inactivity.
+ */
+async function syncMatchExpiration(match) {
+  if (match.status === 'secured' || !match.expiresAt) {
+    return false; // Secured matches never expire
+  }
+
+  // Get latest message for this match
+  const latestMessage = await Message.findOne({matchId: match._id})
+    .sort({timestamp: -1})
+    .select('timestamp');
+
+  const lastInteractionTime = latestMessage
+    ? new Date(latestMessage.timestamp)
+    : new Date(match.createdAt);
+
+  const now = new Date();
+  const isExpired = now - lastInteractionTime > SEVEN_DAYS_MS;
+
+  if (isExpired && match.status === 'active') {
+    match.status = 'expired';
+    match.chatEnabled = false;
+    await match.save();
+    return true;
+  }
+
+  // RECOVERY LOGIC: If it's marked expired but has recent interaction, re-enable it
+  if (!isExpired && match.status === 'expired') {
+    match.status = 'active';
+    match.chatEnabled = true;
+    console.log(`[Expiry Fix] Recovered prematurely expired match: ${match._id}`);
+    await match.save();
+    return false;
+  }
+
+  // Optional: Keep expiresAt field synced with the 7-day rule for legacy reasons or visibility
+  const newExpiresAt = new Date(lastInteractionTime.getTime() + SEVEN_DAYS_MS);
+  if (!match.expiresAt || Math.abs(match.expiresAt - newExpiresAt) > 60000) {
+    // Only update if difference > 1 min to avoid constant saves
+    match.expiresAt = newExpiresAt;
+    await match.save();
+  }
+
+  return false;
+}
 
 export const getUserMatches = async (req, res) => {
   try {
@@ -11,14 +62,26 @@ export const getUserMatches = async (req, res) => {
         .json({success: false, message: 'userId is required'});
     }
 
+    // Include matches that are either active OR were marked as expired 
+    // (so we can re-evaluate them for recovery)
     const allMatches = await Match.find({
       users: userId,
-      chatEnabled: true,
+      $or: [{chatEnabled: true}, {status: 'expired'}],
     }).sort({createdAt: -1});
+
+    // Check expiration and potentially update matches
+    // Note: We process them sequentially to ensure DB consistency during the fetch
+    const activeMatches = [];
+    for (const match of allMatches) {
+      const isExpired = await syncMatchExpiration(match);
+      if (!isExpired) {
+        activeMatches.push(match);
+      }
+    }
 
     // Deduplicate by user pair
     const seenPairs = new Set();
-    const matches = allMatches.filter(match => {
+    const matches = activeMatches.filter(match => {
       const pairKey = [...match.users].sort().join(':');
       if (seenPairs.has(pairKey)) return false;
       seenPairs.add(pairKey);
@@ -77,15 +140,12 @@ export const getMatchById = async (req, res) => {
       return res.status(404).json({success: false, message: 'Match not found'});
     }
 
-    // Check for expiration
-    if (
-      match.status === 'active' &&
-      match.expiresAt &&
-      new Date() > new Date(match.expiresAt)
-    ) {
-      match.status = 'expired';
-      match.chatEnabled = false; // Disable chat
-      await match.save();
+    // Check for expiration using dynamic inactivity logic (7 days)
+    const isExpired = await syncMatchExpiration(match);
+
+    if (isExpired) {
+      // Optional: We could still return the match object but with status: expired
+      // but the existing logic seems to handle it by saving and proceeding.
     }
 
     // Verify user is part of this match
