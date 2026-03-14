@@ -88,7 +88,7 @@ async function incrementDailyLikeCount(userId) {
   const dailyCount = await DailyLikeCount.findOneAndUpdate(
     {userId, date: today},
     {$inc: {count: 1}, lastResetAt: new Date()},
-    {upsert: true, new: true},
+    {upsert: true, returnDocument: 'after'},
   );
 
   return dailyCount.count;

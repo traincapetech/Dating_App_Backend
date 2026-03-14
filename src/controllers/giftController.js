@@ -335,7 +335,7 @@ export const verifyWalletPayment = async (req, res) => {
     const wallet = await Wallet.findOneAndUpdate(
       {userId},
       {$inc: {coinsBalance: amount}},
-      {upsert: true, new: true},
+      {upsert: true, returnDocument: 'after'},
     );
 
     // Log transaction

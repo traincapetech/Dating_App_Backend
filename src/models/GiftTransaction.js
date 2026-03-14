@@ -19,7 +19,13 @@ const giftTransactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['gift_send', 'gift_convert', 'coin_purchase', 'admin_topup'],
+      enum: [
+        'gift_send',
+        'gift_convert',
+        'coin_purchase',
+        'admin_topup',
+        'wallet_topup',
+      ],
       required: true,
     },
     coinAmount: {
@@ -30,6 +36,12 @@ const giftTransactionSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'completed', 'failed'],
       default: 'completed',
+    },
+    paymentInfo: {
+      gateway: String,
+      paymentId: String,
+      orderId: String,
+      signature: String,
     },
     metadata: {
       type: Map,
