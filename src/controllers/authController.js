@@ -6,6 +6,7 @@ import {
   changePassword,
   requestPasswordReset,
   resetPassword,
+  refreshAccessToken,
 } from '../services/authService.js';
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {
@@ -77,4 +78,13 @@ export const logoutFromAllDevicesController = asyncHandler(async (req, res) => {
     success: true,
     message: 'Logged out from all devices successfully',
   });
+});
+
+export const refreshTokens = asyncHandler(async (req, res) => {
+  const {refreshToken} = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({success: false, message: 'Refresh token is required'});
+  }
+  const result = await refreshAccessToken(refreshToken);
+  res.status(200).json(result);
 });

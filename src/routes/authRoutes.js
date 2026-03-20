@@ -8,6 +8,7 @@ import {
   forgotPassword,
   resetPasswordController,
   logoutFromAllDevicesController,
+  refreshTokens,
 } from '../controllers/authController.js';
 import {deleteUserController} from '../controllers/profileController.js';
 import {authenticate} from '../middlewares/auth.js';
@@ -32,5 +33,8 @@ router.post(
   logoutFromAllDevicesController,
 );
 router.delete('/user/:userId', authenticate, deleteUserController);
+
+// Refresh access token using stored refresh token
+router.post('/refresh', authLimiter, refreshTokens);
 
 export default router;

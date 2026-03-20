@@ -154,6 +154,7 @@ export async function getProfile(userId) {
     ...profile,
     name: fullName,
     email: user?.email || '',
+    isVerified: user?.isVerified || false,
     showOnlineStatus: user?.showOnlineStatus !== false, // Defaults to true
     isActiveToday: !!isActiveToday,
     // Extract age from profile if available
@@ -470,8 +471,9 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
       return true;
     });
 
-  // If matching is enabled and we have a user ID, use matching algorithm
-  if (useMatching && excludeUserId) {
+  // Use matching service if matching is requested OR if a distance filter is specified
+  // This ensures that the distance-aware aggregation pipeline is used for geo-filtering
+  if ((useMatching || maxDistance !== null) && excludeUserId) {
     try {
       const {getMatchedProfiles} = await import('./matchingService.js');
       const matchedProfiles = await getMatchedProfiles(excludeUserId, {
@@ -481,10 +483,10 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
         limit,
       });
 
-      // The matchedProfiles already have all the enriched data, so use them directly
+      // The matchedProfiles already have all the enriched data
       enrichedProfiles = matchedProfiles;
     } catch (error) {
-      console.error('Error applying matching algorithm:', error);
+      console.error('Error applying matching/distance algorithm:', error);
       // Fall back to non-matched profiles if matching fails
     }
   }

@@ -79,17 +79,30 @@ export const sendComment = async (req, res) => {
       });
     }
 
-    // Check if already commented on this user (pending comment exists)
-    const existingComment = await ProfileComment.findOne({
+    // Check if already commented ON THIS SPECIFIC CONTENT (pending)
+    const query = {
       senderId,
       receiverId,
       status: 'pending',
-    });
+    };
+
+    if (targetContent?.photoUrl) {
+      query['targetContent.photoUrl'] = targetContent.photoUrl;
+    } else if (targetContent?.photoIndex !== undefined) {
+      query['targetContent.photoIndex'] = targetContent.photoIndex;
+    } else if (targetContent?.promptId) {
+      query['targetContent.promptId'] = targetContent.promptId;
+    } else {
+      // General profile comment
+      query['targetContent.type'] = 'profile';
+    }
+
+    const existingComment = await ProfileComment.findOne(query);
 
     if (existingComment) {
       return res.status(400).json({
         success: false,
-        message: 'You already have a pending comment for this user',
+        message: 'You already have a pending comment for this specific content',
       });
     }
 

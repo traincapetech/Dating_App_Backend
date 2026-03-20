@@ -395,3 +395,30 @@ export const deleteMessage = async (req, res) => {
     });
   }
 };
+
+// Count unique conversations (matches) that have at least one unread message
+export const getUnreadConversationsCount = async (req, res) => {
+  try {
+    const {userId} = req.params;
+    if (!userId) {
+      return res
+        .status(400)
+        .json({success: false, message: 'userId is required'});
+    }
+
+    // Distinct matchIds where this user has at least one unseen message
+    const matchIds = await Message.distinct('matchId', {
+      receiverId: userId,
+      status: {$ne: 'seen'},
+    });
+
+    res.json({success: true, count: matchIds.length});
+  } catch (error) {
+    console.error('Error getting unread conversations count:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting unread conversations count',
+      error: error.message,
+    });
+  }
+};

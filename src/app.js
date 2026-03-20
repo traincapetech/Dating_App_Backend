@@ -16,6 +16,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
+import photoSocialRoutes from './routes/photoSocialRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import streakRoutes from './modules/streak/streak.routes.js';
@@ -82,6 +83,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/boost', boostRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/photo-social', photoSocialRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/support', supportRoutes);
 
@@ -97,6 +99,17 @@ app.get('/', (req, res) => {
       health: '/health',
       api: '/api',
     },
+  });
+});
+
+// Custom 404 handler
+app.use((req, res, next) => {
+  console.log(`[404] Not Found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    error: 'Not Found',
+    message: `The endpoint ${req.originalUrl} does not exist on this server.`,
+    path: req.originalUrl,
+    method: req.method
   });
 });
 

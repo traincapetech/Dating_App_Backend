@@ -60,14 +60,18 @@ export function calculateCompatibilityScore(
     familyPlansMatch: false,
     distance: distance,
     distanceScore: 0,
+    interestsOverlap: 0,
+    starSignMatch: false,
+    educationMatch: false,
+    languageMatch: false,
   };
 
   const currentUser = currentUserProfile;
   const other = otherProfile;
 
-  // 1. Gender/WhoToDate compatibility (Already filtered by DB, but good for scoring checks)
+  // 1. Gender/WhoToDate compatibility (Essential - 30 points)
   maxScore += 30;
-  details.genderMatch = true; // Assumed true if passed DB filter, or check specifically if needed
+  details.genderMatch = true;
   score += 30;
 
   // 2. Dating intention compatibility (20 points)
@@ -107,8 +111,8 @@ export function calculateCompatibilityScore(
     }
   }
 
-  // 4. Lifestyle compatibility (20 points)
-  maxScore += 20;
+  // 4. Lifestyle compatibility (15 points)
+  maxScore += 15;
   let lifestyleMatches = 0;
   const lifestyleFields = [
     'drink',
@@ -138,18 +142,18 @@ export function calculateCompatibilityScore(
   });
 
   if (lifestyleFieldsCount > 0) {
-    const lifestyleScore = (lifestyleMatches / lifestyleFieldsCount) * 20;
+    const lifestyleScore = (lifestyleMatches / lifestyleFieldsCount) * 15;
     score += lifestyleScore;
     details.lifestyleMatch = lifestyleMatches / lifestyleFieldsCount;
   }
 
-  // 5. Family plans compatibility (15 points)
-  maxScore += 15;
+  // 5. Family plans compatibility (10 points)
+  maxScore += 10;
   const userFamilyPlans = currentUser.personalDetails?.familyPlans;
   const otherFamilyPlans = other.personalDetails?.familyPlans;
   if (userFamilyPlans && otherFamilyPlans) {
     if (userFamilyPlans === otherFamilyPlans) {
-      score += 15;
+      score += 10;
       details.familyPlansMatch = true;
     } else if (
       (userFamilyPlans === 'Want children' &&
@@ -157,31 +161,97 @@ export function calculateCompatibilityScore(
       (userFamilyPlans === "Don't want children" &&
         otherFamilyPlans === "Don't want children")
     ) {
-      score += 15;
+      score += 10;
       details.familyPlansMatch = true;
     } else if (
       userFamilyPlans === 'Not sure yet' ||
       otherFamilyPlans === 'Not sure yet'
     ) {
-      score += 8;
+      score += 5;
     }
   }
 
-  // 6. Distance score (bonus points, up to 10 points)
+  // 6. Interests Overlap (25 points) - The "Vibe" factor
+  maxScore += 25;
+  const userInterests = currentUser.lifestyle?.interests || [];
+  const otherInterests = other.lifestyle?.interests || [];
+  if (userInterests.length > 0 && otherInterests.length > 0) {
+    const commonInterests = userInterests.filter(interest =>
+      otherInterests.some(i => i.toLowerCase() === interest.toLowerCase()),
+    );
+    if (commonInterests.length > 0) {
+      // More than 3 common interests is a strong match
+      const overlapScore = Math.min((commonInterests.length / 3) * 25, 25);
+      score += overlapScore;
+      details.interestsOverlap = commonInterests.length;
+    }
+  }
+
+  // 7. Education Match (5 points)
+  maxScore += 5;
+  const userEdu = currentUser.personalDetails?.educationLevel;
+  const otherEdu = other.personalDetails?.educationLevel;
+  if (userEdu && otherEdu && userEdu === otherEdu) {
+    score += 5;
+    details.educationMatch = true;
+  }
+
+  // 8. Language Match (5 points)
+  maxScore += 5;
+  const userLangs = currentUser.personalDetails?.languages || [];
+  const otherLangs = other.personalDetails?.languages || [];
+  if (userLangs.length > 0 && otherLangs.length > 0) {
+    const commonLangs = userLangs.filter(lang =>
+      otherLangs.some(l => l.toLowerCase() === lang.toLowerCase()),
+    );
+    if (commonLangs.length > 0) {
+      score += 5;
+      details.languageMatch = true;
+    }
+  }
+
+  // 9. Star Sign Compatibility (5 points) - Fun factor
+  maxScore += 5;
+  const userSign = currentUser.personalDetails?.starSign?.toLowerCase();
+  const otherSign = other.personalDetails?.starSign?.toLowerCase();
+  if (userSign && otherSign) {
+    // Basic compatibility: same sign or complementary signs
+    const compatibleSigns = {
+      aries: ['leo', 'sagittarius', 'gemini', 'libra'],
+      taurus: ['virgo', 'capricorn', 'cancer', 'scorpio'],
+      gemini: ['libra', 'aquarius', 'aries', 'leo'],
+      cancer: ['scorpio', 'pisces', 'taurus', 'virgo'],
+      leo: ['aries', 'sagittarius', 'gemini', 'libra'],
+      virgo: ['taurus', 'capricorn', 'cancer', 'scorpio'],
+      libra: ['gemini', 'aquarius', 'aries', 'leo'],
+      scorpio: ['cancer', 'pisces', 'taurus', 'virgo'],
+      sagittarius: ['aries', 'leo', 'libra', 'aquarius'],
+      capricorn: ['taurus', 'virgo', 'scorpio', 'pisces'],
+      aquarius: ['gemini', 'libra', 'sagittarius', 'aries'],
+      pisces: ['cancer', 'scorpio', 'taurus', 'capricorn'],
+    };
+
+    if (
+      userSign === otherSign ||
+      compatibleSigns[userSign]?.includes(otherSign)
+    ) {
+      score += 5;
+      details.starSignMatch = true;
+    }
+  }
+
+  // 10. Distance score (bonus points, up to 10 points)
   maxScore += 10;
   if (distance !== null) {
     if (distance < 5) {
       details.distanceScore = 10;
       score += 10;
-    } else if (distance < 10) {
-      details.distanceScore = 8;
-      score += 8;
-    } else if (distance < 20) {
-      details.distanceScore = 5;
-      score += 5;
-    } else if (distance < 50) {
-      details.distanceScore = 2;
-      score += 2;
+    } else if (distance < 15) {
+      details.distanceScore = 7;
+      score += 7;
+    } else if (distance < 30) {
+      details.distanceScore = 4;
+      score += 4;
     }
   }
 
@@ -205,7 +275,7 @@ export function calculateCompatibilityScore(
 export async function getMatchedProfiles(userId, options = {}) {
   const {
     minScore = 0,
-    maxDistance = 100, // Default 100km if not specified
+    maxDistance = null, // No default distance limit unless specified
     sortBy = 'score',
     limit = 50,
   } = options;
@@ -220,20 +290,31 @@ export async function getMatchedProfiles(userId, options = {}) {
   const pipeline = [];
 
   // A. Geo-Spatial Filter ($geoNear must be first)
-  // If user has location, use it. Otherwise, skip geo-filter or use default (but $geoNear requires index)
-  if (currentUserProfile.location && currentUserProfile.location.coordinates) {
+  const viewerCoords = currentUserProfile.location?.coordinates;
+  const hasViewerLocation =
+    viewerCoords && viewerCoords[0] !== 0 && viewerCoords[1] !== 0;
+
+  if (hasViewerLocation) {
     pipeline.push({
       $geoNear: {
         near: currentUserProfile.location,
         distanceField: 'dist.calculated', // Output field for distance
-        maxDistance: (maxDistance || 10000) * 1000, // Convert km to meters
+        // Use provided maxDistance, or a very large default (5000km) if none provided
+        maxDistance: (maxDistance || 5000) * 1000, // Convert km to meters
         distanceMultiplier: 0.001, // Convert meters to km
         spherical: true,
         query: {userId: {$ne: userId}}, // Exclude current user
       },
     });
   } else {
-    // Fallback if user has no location: just exclude self
+    // If a specific distance filter was requested but viewer has no location, we can't filter.
+    // Return empty results to avoid "global leaks" when user expects a filter.
+    if (maxDistance !== null) {
+      console.log(
+        `[getMatchedProfiles] maxDistance ${maxDistance} requested but user ${userId} has no location. Ignoring distance filter.`,
+      );
+    }
+    // Fallback: just exclude self
     pipeline.push({$match: {userId: {$ne: userId}}});
   }
 
@@ -363,6 +444,11 @@ export async function getMatchedProfiles(userId, options = {}) {
           return b.matchPercentage - a.matchPercentage;
       }
     });
+
+  // Mark the top profile as "Most Compatible" if it has a high enough score (e.g. > 80%)
+  if (finalMatches.length > 0 && finalMatches[0].matchPercentage >= 70) {
+    finalMatches[0].isMostCompatible = true;
+  }
 
   if (limit && limit > 0) {
     return finalMatches.slice(0, limit);

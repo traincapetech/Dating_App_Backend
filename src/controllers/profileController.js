@@ -22,9 +22,12 @@ import {
 import {deleteProfile} from '../models/profileModel.js';
 import Profile from '../models/Profile.js';
 import {deleteUser, findUserById, updateUser} from '../models/userModel.js';
+import bcrypt from 'bcryptjs';
 import {storage} from '../storage/index.js';
 import {randomUUID} from 'crypto';
 import {config} from '../config/env.js';
+import Like from '../models/Like.js';
+import ProfileComment from '../models/ProfileComment.js';
 
 export const saveBasicInfoController = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.body.userId;
@@ -74,7 +77,17 @@ export const saveProfilePromptsController = asyncHandler(async (req, res) => {
     return res.status(401).json({error: 'User ID is required'});
   }
   const parsed = profilePromptsSchema.parse(req.body);
+  console.log(
+    '[saveProfilePromptsController] Saving prompts for userId:',
+    userId,
+    'Body:',
+    JSON.stringify(parsed, null, 2),
+  );
   const profile = await saveProfilePrompts(userId, parsed);
+  console.log(
+    '[saveProfilePromptsController] Saved profile prompts. New profilePrompts:',
+    JSON.stringify(profile.profilePrompts, null, 2),
+  );
   res.status(200).json({profile});
 });
 
@@ -362,14 +375,36 @@ export const uploadImageController = asyncHandler(async (req, res) => {
 
 export const deleteUserController = asyncHandler(async (req, res) => {
   const userId = req.params.userId || req.body.userId;
+  const {password} = req.body;
+
   if (!userId) {
     return res.status(400).json({error: 'User ID is required'});
+  }
+
+  // SECURITY: Ensure user is only deleting THEIR OWN account
+  if (req.user.id !== userId) {
+    return res
+      .status(403)
+      .json({error: 'You are not authorized to delete this account'});
   }
 
   // Check if user exists
   const user = await findUserById(userId);
   if (!user) {
     return res.status(404).json({error: 'User not found'});
+  }
+
+  // SECURITY: Verify password for local accounts
+  if (user.authProvider !== 'google') {
+    if (!password) {
+      return res
+        .status(400)
+        .json({error: 'Password is required to delete your account'});
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({error: 'Incorrect password'});
+    }
   }
 
   // Delete profile and associated media
@@ -419,16 +454,16 @@ export const deleteUserController = asyncHandler(async (req, res) => {
       }
     }
   }
-
-  // Delete profile
-  await deleteProfile(userId);
-
-  // Delete user
-  await deleteUser(userId);
+  // Perform industry-standard thorough deletion (photos, matches, messages, scores, etc.)
+  const {performThoroughAccountDeletion} = await import(
+    '../services/accountDeletionService.js'
+  );
+  await performThoroughAccountDeletion(userId);
 
   res.status(200).json({
     success: true,
-    message: 'User and profile deleted successfully',
+    message:
+      'All account data has been deleted successfully as per industry standards.',
   });
 });
 
@@ -487,4 +522,98 @@ export const deleteProfileController = asyncHandler(async (req, res) => {
     success: true,
     message: 'Profile deleted successfully',
   });
+});
+
+export const getProfileInteractionsController = asyncHandler(async (req, res) => {
+  const viewerId = req.user?.id;
+  const targetUserId = req.params.userId;
+
+  if (!targetUserId) {
+    return res.status(400).json({error: 'Target User ID is required'});
+  }
+
+  // Security check: Only the owner of the profile can view their interactions
+  if (viewerId !== targetUserId) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'You can only view interactions for your own profile.',
+    });
+  }
+
+  try {
+    // Note: We only get interactions where the current user is the "receiver"
+    // Fetch total likes
+    const allLikes = await Like.find({ receiverId: targetUserId }).lean();
+    const totalLikes = allLikes.length;
+    
+    // FETCH ALL LIKES and STRICTLY SEPARATE THEM
+    // Rule: photoLikes ONLY contain likes with a specific photoUrl. profileLikes contain the rest.
+    const photoLikes = allLikes.filter(l => l.likedContent?.photoUrl);
+    const profileLikes = allLikes.filter(l => !l.likedContent?.photoUrl);
+
+    // Fetch received comments (icebreakers/profile comments)
+    // We populate basic sender info if possible, but at least return the comments
+    const commentsList = await ProfileComment.find({ receiverId: targetUserId })
+      .sort({ createdAt: -1 }) // Newest first
+      .limit(50) // Reasonable limit to prevent massive payloads
+      .lean();
+
+    // If we wanted to get sender names/photos, we'd need to manually lookup or populate, 
+    // but returning the comments directly works for now if we just want to display the text.
+    // To keep it simple, we will return the senderId so the frontend could theoretically link them,
+    // or we can aggregate. Let's send them as-is to start.
+    
+    // We will extract unique sender IDs to populate their basic profile info
+    const senderIds = [
+      ...photoLikes.map(l => l.senderId),
+      ...profileLikes.map(l => l.senderId),
+      ...commentsList.map(c => c.senderId)
+    ];
+    const uniqueSenderIds = [...new Set(senderIds)];
+
+    let populatedSenders = {};
+    if (uniqueSenderIds.length > 0) {
+      const senderProfiles = await Profile.find(
+        { userId: { $in: uniqueSenderIds } },
+        { userId: 1, 'basicInfo.firstName': 1, 'basicInfo.name': 1, name: 1, photos: 1, media: 1 }
+      ).lean();
+
+      senderProfiles.forEach(p => {
+        populatedSenders[p.userId] = {
+          userId: p.userId,
+          name: p.basicInfo?.firstName || p.basicInfo?.name || p.name || 'User',
+          avatar: p.photos?.[0] || (p.media?.media?.[0]?.url) || null
+        };
+      });
+    }
+
+    // Attach sender info
+    const enrichedPhotoLikes = photoLikes.map(l => ({
+      ...l,
+      sender: populatedSenders[l.senderId] || null
+    }));
+
+    const enrichedProfileLikes = profileLikes.map(l => ({
+      ...l,
+      sender: populatedSenders[l.senderId] || null
+    }));
+
+    const enrichedComments = commentsList.map(c => ({
+      ...c,
+      sender: populatedSenders[c.senderId] || null
+    }));
+
+    res.status(200).json({
+      success: true,
+      interactions: {
+        totalLikes,
+        photoLikes: enrichedPhotoLikes,
+        profileLikes: enrichedProfileLikes,
+        comments: enrichedComments,
+      },
+    });
+  } catch (error) {
+    console.error('[getProfileInteractionsController] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile interactions' });
+  }
 });

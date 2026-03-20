@@ -5,6 +5,7 @@ import {
   markMessagesSeen,
   getLastMessages,
   deleteMessage,
+  getUnreadConversationsCount,
 } from '../controllers/messageController.js';
 import {sanitizeInput} from '../middlewares/sanitizer.js';
 
@@ -24,5 +25,8 @@ router.post('/last-messages', getLastMessages);
 
 // Delete a message
 router.delete('/:messageId', sanitizeInput, deleteMessage);
+
+// Get number of conversations (not messages) with unread messages
+router.get('/unread-conversations/:userId', getUnreadConversationsCount);
 
 export default router;

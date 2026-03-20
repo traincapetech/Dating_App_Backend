@@ -119,66 +119,24 @@ export const likeUser = async (req, res) => {
       });
     }
 
-    // Check if already liked
-    const existingLike = await Like.findOne({senderId, receiverId});
+    // Check if THIS SPECIFIC content is already liked
+    let query = { senderId, receiverId };
+    if (likedContent?.photoUrl) {
+      query['likedContent.photoUrl'] = likedContent.photoUrl;
+    } else {
+      // General profile like check (no photoUrl)
+      query['likedContent.photoUrl'] = { $exists: false };
+    }
+
+    const existingLike = await Like.findOne(query);
+    
     if (existingLike) {
-      // REPAIR LOGIC: Check if this should be a match but isn't
-      const reverseLike = await Like.findOne({
-        senderId: receiverId,
-        receiverId: senderId,
-      });
-
-      if (reverseLike) {
-        const existingMatch = await Match.findOne({
-          users: {$all: [senderId, receiverId]},
-        });
-        if (!existingMatch) {
-          console.log(
-            '[LikeController] Found mutual likes but no match. Repairing...',
-          );
-
-          // Create the missing match
-          const match = await Match.create({users: [senderId, receiverId]});
-
-          // Return request as a SUCCESSFUL MATCH
-          const senderInfo = await getProfileInfo(senderId);
-          const receiverInfo = await getProfileInfo(receiverId);
-
-          // Send notifications (re-send to ensure they get it)
-          sendPushNotification(senderId, {
-            title: "It's a Match! 🎉",
-            body: `You and ${receiverInfo.name} liked each other!`,
-            data: {
-              type: 'match',
-              matchId: match._id.toString(),
-              userId: receiverId,
-            },
-          }).catch(e => console.error(e));
-
-          sendPushNotification(receiverId, {
-            title: "It's a Match! 🎉",
-            body: `You and ${senderInfo.name} liked each other!`,
-            data: {
-              type: 'match',
-              matchId: match._id.toString(),
-              userId: senderId,
-            },
-          }).catch(e => console.error(e));
-
-          return res.json({
-            success: true,
-            isMatch: true, // Force true
-            match,
-            dailyLikeInfo,
-            repaired: true,
-          });
-        }
-      }
-
+      // Toggle off (Unlike) this specific photo or profile like
+      await Like.deleteOne({ _id: existingLike._id });
       return res.json({
         success: true,
-        isMatch: false,
-        alreadyLiked: true,
+        liked: false,
+        message: 'Unliked successfully',
         dailyLikeInfo,
       });
     }
@@ -279,6 +237,7 @@ export const likeUser = async (req, res) => {
 
       return res.json({
         success: true,
+        liked: true,
         isMatch: true,
         match,
         dailyLikeInfo: updatedDailyLikeInfo,
@@ -318,6 +277,7 @@ export const likeUser = async (req, res) => {
 
     res.json({
       success: true,
+      liked: true,
       isMatch: false,
       dailyLikeInfo: updatedDailyLikeInfo,
     });
@@ -345,8 +305,14 @@ export const getLikesReceived = async (req, res) => {
     // Check premium status from subscription model
     const isPremium = (await isUserPremium(userId)) || LIKES_VISIBLE_FREE;
 
-    // Get all likes where this user is the receiver
-    const likes = await Like.find({receiverId: userId}).sort({createdAt: -1});
+    // Get all likes where this user is the receiver AND it is a profile right-swipe (not a photo like)
+    const likes = await Like.find({
+      receiverId: userId,
+      $or: [
+        { likedContent: { $exists: false } },
+        { 'likedContent.type': 'profile' }
+      ]
+    }).sort({createdAt: -1});
 
     // Check which ones are already matched
     const matches = await Match.find({users: userId});
@@ -375,6 +341,7 @@ export const getLikesReceived = async (req, res) => {
     const likesWithProfiles = pendingLikes.map(like => {
       const profile = profiles.find(p => p.userId === like.senderId);
       return {
+        _id: like._id,
         senderId: like.senderId,
         likedAt: like.createdAt,
         userId: like.senderId,
@@ -412,8 +379,14 @@ export const getLikesCount = async (req, res) => {
         .json({success: false, message: 'userId is required'});
     }
 
-    // Get all likes where this user is the receiver
-    const likes = await Like.find({receiverId: userId});
+    // Get all profile right-swipes where this user is the receiver
+    const likes = await Like.find({
+      receiverId: userId,
+      $or: [
+        { likedContent: { $exists: false } },
+        { 'likedContent.type': 'profile' }
+      ]
+    });
 
     // Check which ones are already matched
     let pendingCount = 0;
@@ -466,6 +439,42 @@ export const getDailyLikeInfo = async (req, res) => {
       success: false,
       message: 'Error getting daily like info',
       error: error.message,
+    });
+  }
+};
+
+// Check if a viewer has liked a target user
+export const getLikedStatus = async (req, res) => {
+  console.log(`[LikeController] getLikedStatus - viewerId: ${req.params.viewerId}, targetId: ${req.params.targetId}`);
+  try {
+    const { viewerId, targetId } = req.params;
+
+    if (!viewerId || !targetId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'viewerId and targetId are required' 
+      });
+    }
+
+    // Find ALL likes from this viewer to this target (supports multiple photos)
+    const existingLikes = await Like.find({ senderId: viewerId, receiverId: targetId }).lean();
+    
+    const likedItems = existingLikes.map(like => {
+      return like.likedContent?.photoUrl ? { type: 'photo', photoUrl: like.likedContent.photoUrl } : { type: 'profile' };
+    });
+
+    res.json({
+      success: true,
+      liked: existingLikes.length > 0,
+      likedItems: likedItems, // Return all liked items
+      likedContent: existingLikes.length > 0 ? existingLikes[0].likedContent : null // Kept for backwards compatibility
+    });
+  } catch (error) {
+    console.error('Error checking like status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking like status',
+      error: error.message
     });
   }
 };

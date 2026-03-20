@@ -12,7 +12,11 @@ import {
 import {sendEmailOTP} from './emailService.js';
 
 function generateTokens(user) {
-  const payload = {sub: user.id, email: user.email};
+  const payload = {
+    sub: user.id || user._id,
+    email: user.email,
+    tokenVersion: user.tokenVersion || '0',
+  };
   const accessToken = jwt.sign(payload, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
   });
@@ -21,6 +25,48 @@ function generateTokens(user) {
   });
   return {accessToken, refreshToken};
 }
+
+export async function refreshAccessToken(refreshToken) {
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, config.refreshSecret);
+  } catch (err) {
+    const error = new Error('Invalid or expired refresh token.');
+    error.status = 401;
+    throw error;
+  }
+
+  const userId = decoded.sub || decoded.userId || decoded.id;
+  const user = await findUserById(userId);
+  if (!user) {
+    const error = new Error('User not found.');
+    error.status = 401;
+    throw error;
+  }
+
+  // Check token version (in case of logout-all-devices)
+  if (
+    decoded.tokenVersion &&
+    user.tokenVersion &&
+    decoded.tokenVersion !== user.tokenVersion
+  ) {
+    const error = new Error('Session has been invalidated. Please log in again.');
+    error.status = 401;
+    throw error;
+  }
+
+  const tokens = generateTokens(user);
+  return {
+    tokens,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone || '',
+    },
+  };
+}
+
 
 export async function registerUser({fullName, email, phone, password}) {
   const normalizedEmail = email.trim().toLowerCase();
@@ -67,8 +113,18 @@ export async function authenticateUser({email, password}) {
     throw error;
   }
 
-  const passwordValid = await bcrypt.compare(password, user.password);
+  const passwordValid = user.password
+    ? await bcrypt.compare(password, user.password)
+    : false;
+
   if (!passwordValid) {
+    if (!user.password && user.authProvider === 'google') {
+      const error = new Error(
+        'This account uses Google Sign-In. Please use the Google button to log in.',
+      );
+      error.status = 401;
+      throw error;
+    }
     const error = new Error('Invalid email or password.');
     error.status = 401;
     throw error;

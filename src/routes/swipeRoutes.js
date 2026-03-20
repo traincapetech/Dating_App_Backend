@@ -4,6 +4,7 @@ import {
   getLikesReceived,
   getLikesCount,
   getDailyLikeInfo,
+  getLikedStatus,
 } from '../controllers/likeController.js';
 import {
   passUser,
@@ -30,5 +31,8 @@ router.get('/likes-count/:userId', getLikesCount);
 
 // Daily like info
 router.get('/daily-likes/:userId', getDailyLikeInfo);
+
+// Check liked status
+router.get('/liked-status/:viewerId/:targetId', getLikedStatus);
 
 export default router;

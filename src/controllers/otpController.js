@@ -22,9 +22,25 @@ export const verifyEmailOTPController = asyncHandler(async (req, res) => {
     });
   }
 
+  // Update user verification status
+  try {
+    const {updateUser, findUserByEmail} = await import(
+      '../models/userModel.js'
+    );
+    const user = await findUserByEmail(parsed.email);
+    if (user) {
+      await updateUser(user.id, {isVerified: true});
+    }
+  } catch (userUpdateError) {
+    console.error(
+      'Failed to update user verification status:',
+      userUpdateError,
+    );
+    // Continue anyway as OTP itself was valid
+  }
+
   res.status(200).json({
     success: true,
     message: result.message,
   });
 });
-
