@@ -234,10 +234,14 @@ export const sendMessage = async (req, res) => {
           const pushResult = await sendPushNotification(receiverId, {
             title: pushTitle,
             body: pushBody,
+            isDataOnly: true, // Hint to use Data-Only payload for headless replies
             data: {
-              type: 'message',
-              matchId,
-              senderId,
+              type: 'chat_message',
+              chatId: matchId, // Used by Notifee for grouping and sending replies
+              senderId: senderId,
+              senderName: pushTitle, // Using pushTitle as fallback, ideally fetch actual name
+              messageText: pushBody, // Raw message data for direct native loading
+              timestamp: Date.now().toString(),
             },
           });
           console.log('[Push Debug] Push result:', JSON.stringify(pushResult));

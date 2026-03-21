@@ -83,14 +83,17 @@ export async function sendPushNotification(userId, notification) {
 
     const message = {
       token: tokenDoc.deviceToken,
-      notification: {
-        title: notification.title,
-        body: notification.body,
-      },
       data: notification.data ? Object.fromEntries(
         Object.entries(notification.data).map(([k, v]) => [k, String(v)])
       ) : {},
-      android: {
+    };
+
+    if (!notification.isDataOnly) {
+      message.notification = {
+        title: notification.title,
+        body: notification.body,
+      };
+      message.android = {
         priority: 'high',
         notification: {
           channelId: 'messages',
@@ -98,8 +101,8 @@ export async function sendPushNotification(userId, notification) {
           defaultSound: true,
           defaultVibrateTimings: true,
         },
-      },
-      apns: {
+      };
+      message.apns = {
         payload: {
           aps: {
             alert: {
@@ -110,8 +113,11 @@ export async function sendPushNotification(userId, notification) {
             badge: 1,
           },
         },
-      },
-    };
+      };
+    } else {
+      // Ensure data-only messages still get high priority delivery
+      message.android = { priority: 'high' };
+    }
 
     const response = await firebaseAdmin.messaging().send(message);
     console.log(`📬 Push notification sent to ${userId}:`, response);
