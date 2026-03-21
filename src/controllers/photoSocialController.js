@@ -73,9 +73,6 @@ export const addSocialComment = async (req, res) => {
   const { photoId, photoUrl, targetUserId, text } = req.body;
   const senderId = req.user.id;
 
-  console.log("[PhotoSocial] REQ USER:", req.user);
-  console.log("[PhotoSocial] REQ BODY:", req.body);
-
   if (!photoId || !targetUserId || !text) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
@@ -90,6 +87,10 @@ export const addSocialComment = async (req, res) => {
       text
     });
 
+    // Populate sender details for immediate UI display
+    const populatedComment = await PhotoInteraction.findById(newComment._id)
+      .populate('senderId', 'fullName name photo basicInfo');
+
     const stats = await getInteractionCounts(targetUserId, photoId);
 
     const io = getIO();
@@ -101,6 +102,8 @@ export const addSocialComment = async (req, res) => {
         photoUrl,
         type: 'comment',
         senderId,
+        senderName: req.user.firstName || req.user.fullName || req.user.name || 'Someone',
+        senderPhoto: req.user.photo || '', 
         text,
         createdAt: newComment.createdAt,
         counts: stats
@@ -113,7 +116,11 @@ export const addSocialComment = async (req, res) => {
       data: { type: 'SOCIAL_PHOTO_REACTION', photoId, action: 'comment' }
     }).catch(err => console.error('[PhotoSocial] Push Notify Error:', err));
 
-    return res.json({ success: true, comment: newComment, counts: stats });
+    return res.json({ 
+      success: true, 
+      comment: populatedComment, 
+      counts: stats 
+    });
   } catch (error) {
     console.error('[PhotoSocial] AddComment Error:', error);
     res.status(500).json({ success: false, message: 'Failed to post comment' });
@@ -154,14 +161,22 @@ export const getPhotoDetails = async (req, res) => {
     const comments = await PhotoInteraction.find(query)
       .sort({ createdAt: -1, _id: -1 })
       .limit(parseInt(limit))
-      .populate('senderId', 'name photo');
+      .populate('senderId', 'fullName name photo');
+
+    // ❗ Map populated sender details for frontend (User model uses fullName)
+    const processedComments = comments.map(c => {
+      const doc = c.toObject();
+      if (doc.senderId) {
+        doc.senderId.name = doc.senderId.fullName || doc.senderId.name || 'Unknown';
+      }
+      return doc;
+    });
 
     // ❗ PRIVACY RULE: Non-owners only see THEIR OWN comments
-    const secureComments = comments.filter(c => {
+    const secureComments = processedComments.filter(c => {
       if (isOwner) return true;
-      // Use string comparison for safety with ObjectIds
-      return c.senderId._id.toString() === viewerId.toString();
-    }).map(c => c.toObject());
+      return c.senderId?._id?.toString() === viewerId.toString();
+    });
 
     return res.json({
       success: true,
