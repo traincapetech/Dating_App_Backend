@@ -185,6 +185,14 @@ export const likeUser = async (req, res) => {
         match = await Match.create({
           users: [senderId, receiverId],
         });
+      } else {
+        // If it existing, re-enable chat in case they were unmatched before
+        if (!match.chatEnabled || match.status !== 'active') {
+          match.chatEnabled = true;
+          match.status = 'active';
+          await match.save();
+          console.log(`[Re-Match Fix] Re-enabled chat for match: ${match._id}`);
+        }
       }
 
       // Get profile info for both users (for notifications)

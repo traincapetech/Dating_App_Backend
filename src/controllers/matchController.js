@@ -241,11 +241,17 @@ export const createMatch = async (req, res) => {
     }
 
     // Check if match already exists
-    const existingMatch = await Match.findOne({
+    let existingMatch = await Match.findOne({
       users: {$all: [userA, userB]},
     });
 
     if (existingMatch) {
+      // If it was unmatched or expired, re-enable it
+      if (!existingMatch.chatEnabled || existingMatch.status !== 'active') {
+        existingMatch.chatEnabled = true;
+        existingMatch.status = 'active';
+        await existingMatch.save();
+      }
       return res.json({success: true, match: existingMatch, existing: true});
     }
 
