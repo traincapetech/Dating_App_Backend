@@ -6,6 +6,7 @@ import notificationRoutes from './notificationRoutes.js';
 import gdprRoutes from './gdprRoutes.js';
 import giftRoutes from './giftRoutes.js';
 import streakRoutes from '../modules/streak/streak.routes.js';
+import icebreakerRoutes from './icebreakerRoutes.js';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/notifications', notificationRoutes);
 router.use('/gdpr', gdprRoutes);
 router.use('/gifts', giftRoutes);
 router.use('/streak', streakRoutes);
+router.use('/icebreaker', icebreakerRoutes);
 
 export default router;
