@@ -224,11 +224,16 @@ export const sendMessage = async (req, res) => {
           `[Push Debug] Attempting push notification to ${receiverId}`,
         );
         try {
-          // Fetch sender details for a better notification UX
+          // Fetch sender name from User model (fullName)
           const User = (await import('../models/User.js')).default;
-          const sender = await User.findById(senderId).select('name profilePhotos');
-          const senderName = sender?.name || 'New Message';
-          const senderPhoto = sender?.profilePhotos?.[0]?.url || '';
+          const Profile = (await import('../models/Profile.js')).default;
+          
+          const sender = await User.findById(senderId).select('fullName');
+          const profile = await Profile.findOne({ userId: senderId }).select('media');
+          
+          const senderName = sender?.fullName || 'New Message';
+          // Extract first image URL from media array
+          const senderPhoto = profile?.media?.media?.find(m => m.type === 'image' || m.type === 'photo')?.url || '';
 
           const pushBody = text
             ? text.length > 50
