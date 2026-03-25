@@ -36,7 +36,9 @@ async function syncMatchExpiration(match) {
   if (!isExpired && match.status === 'expired') {
     match.status = 'active';
     match.chatEnabled = true;
-    console.log(`[Expiry Fix] Recovered prematurely expired match: ${match._id}`);
+    console.log(
+      `[Expiry Fix] Recovered prematurely expired match: ${match._id}`,
+    );
     await match.save();
     return false;
   }
@@ -62,7 +64,7 @@ export const getUserMatches = async (req, res) => {
         .json({success: false, message: 'userId is required'});
     }
 
-    // Include matches that are either active OR were marked as expired 
+    // Include matches that are either active OR were marked as expired
     // (so we can re-evaluate them for recovery)
     const allMatches = await Match.find({
       users: userId,

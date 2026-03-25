@@ -122,7 +122,7 @@ export const getProfileController = asyncHandler(async (req, res) => {
     }
   }
 
-  const profile = await getProfile(targetUserId);
+  const profile = await getProfile(targetUserId, viewerId);
   if (!profile) {
     return res.status(404).json({error: 'Profile not found'});
   }

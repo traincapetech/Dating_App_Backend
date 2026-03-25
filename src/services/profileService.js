@@ -8,6 +8,7 @@ import {getUsers} from '../models/userModel.js';
 import Like from '../models/Like.js';
 import Pass from '../models/Pass.js';
 import Match from '../models/Match.js';
+import Message from '../models/Message.js';
 
 function computeAge(dob) {
   if (!dob) return null;
@@ -117,16 +118,33 @@ export async function saveMedia(userId, media) {
   return upsertProfile(userId, profileData);
 }
 
-export async function getProfile(userId) {
+export async function getProfile(userId, viewerId = null) {
   const profile = await findProfileByUserId(userId);
   if (!profile) {
     return null;
   }
 
-  // Fetch stats from other models
-  const [likesCount, matchesCount] = await Promise.all([
+  // Fetch stats and interaction status if viewerId is provided
+  const [likesCount, matchesCount, interaction] = await Promise.all([
     Like.countDocuments({receiverId: userId}),
     Match.countDocuments({users: userId}),
+    viewerId && viewerId !== userId ? (async () => {
+      const [likeSent, match, message] = await Promise.all([
+        Like.findOne({ senderId: viewerId, receiverId: userId }),
+        Match.findOne({ users: { $all: [viewerId, userId] } }),
+        Message.findOne({
+          $or: [
+            { senderId: viewerId, receiverId: userId },
+            { senderId: userId, receiverId: viewerId }
+          ]
+        })
+      ]);
+      return {
+        isLiked: !!likeSent,
+        isMatched: !!match,
+        hasChat: !!message
+      };
+    })() : Promise.resolve(null)
   ]);
 
   // Enrich profile with user data and formatted fields (similar to getAllProfiles)
@@ -179,6 +197,8 @@ export async function getProfile(userId) {
       matches: matchesCount,
       views: profile.views || 0, // Fallback to 0 if not tracked
     },
+    // Interaction status with viewer
+    interaction: interaction || { isLiked: false, isMatched: false, hasChat: false }
   };
 }
 

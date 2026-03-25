@@ -96,7 +96,7 @@ export async function sendPushNotification(userId, notification) {
       message.android = {
         priority: 'high',
         notification: {
-          channelId: 'messages',
+          channelId: 'messages_priority',
           priority: 'high',
           defaultSound: true,
           defaultVibrateTimings: true,
@@ -111,13 +111,24 @@ export async function sendPushNotification(userId, notification) {
             },
             sound: 'default',
             badge: 1,
+            'mutable-content': 1,
           },
         },
       };
     } else {
       // Ensure data-only messages still get high priority delivery
-      message.android = { priority: 'high' };
+      message.android = { 
+        priority: 'high',
+      };
     }
+
+    // Always set high priority for messages sent from server
+    // This allows background handlers to wake up reliably
+    message.android = {
+      ...message.android,
+      priority: 'high',
+      ttl: 3600 * 24, // 1 day
+    };
 
     const response = await firebaseAdmin.messaging().send(message);
     console.log(`📬 Push notification sent to ${userId}:`, response);

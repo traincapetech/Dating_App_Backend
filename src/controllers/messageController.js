@@ -224,7 +224,12 @@ export const sendMessage = async (req, res) => {
           `[Push Debug] Attempting push notification to ${receiverId}`,
         );
         try {
-          const pushTitle = 'New Message'; // You might want to fetch sender name here
+          // Fetch sender details for a better notification UX
+          const User = (await import('../models/User.js')).default;
+          const sender = await User.findById(senderId).select('name profilePhotos');
+          const senderName = sender?.name || 'New Message';
+          const senderPhoto = sender?.profilePhotos?.[0]?.url || '';
+
           const pushBody = text
             ? text.length > 50
               ? text.substring(0, 50) + '...'
@@ -232,15 +237,16 @@ export const sendMessage = async (req, res) => {
             : 'Sent you a photo';
 
           const pushResult = await sendPushNotification(receiverId, {
-            title: pushTitle,
+            title: senderName,
             body: pushBody,
-            isDataOnly: true, // Hint to use Data-Only payload for headless replies
+            isDataOnly: true, // Keep data-only so Notifee handles the conversation UI
             data: {
               type: 'chat_message',
-              chatId: matchId, // Used by Notifee for grouping and sending replies
+              chatId: matchId,
               senderId: senderId,
-              senderName: pushTitle, // Using pushTitle as fallback, ideally fetch actual name
-              messageText: pushBody, // Raw message data for direct native loading
+              senderName: senderName,
+              senderPhoto: senderPhoto,
+              messageText: pushBody,
               timestamp: Date.now().toString(),
             },
           });
