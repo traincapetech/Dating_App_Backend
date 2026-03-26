@@ -127,18 +127,33 @@ export const getAllSubscriptionsController = asyncHandler(async (req, res) => {
   const {status, userId, page = 1, limit = 50} = req.query;
   const subscriptions = await getSubscriptions();
 
-  let filtered = subscriptions;
+  // Sort by created date (newest first)
+  const sorted = subscriptions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  // Enrich with user details for the admin panel
+  const enriched = await Promise.all(
+    sorted.map(async sub => {
+      const user = await findUserById(sub.userId);
+      return {
+        ...sub,
+        userId: user ? {
+          id: user.id || user._id,
+          fullName: user.fullName || user.name,
+          email: user.email,
+        } : { id: sub.userId }
+      };
+    })
+  );
+
+  let filtered = enriched;
 
   if (status) {
     filtered = filtered.filter(sub => sub.status === status);
   }
 
   if (userId) {
-    filtered = filtered.filter(sub => sub.userId === userId);
+    filtered = filtered.filter(sub => (sub.userId?.id || sub.userId) === userId);
   }
-
-  // Sort by created date (newest first)
-  filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   // Pagination
   const startIndex = (page - 1) * limit;

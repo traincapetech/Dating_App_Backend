@@ -5,24 +5,25 @@
 
 import ProfileComment from '../models/ProfileComment.js';
 import Match from '../models/Match.js';
+import User from '../models/User.js';
+import Profile from '../models/Profile.js';
 import {sendPushNotification} from '../services/pushService.js';
 import {storage} from '../storage/index.js';
 import {isUserPremium} from '../models/Subscription.js';
 import eventEmitter from '../modules/streak/eventEmitter.js';
-
-const PROFILES_PATH = 'data/profiles.json';
+import { resolveDisplayName } from '../utils/nameUtils.js';
 
 // Helper to get profile info
 async function getProfileInfo(userId) {
   try {
-    const profiles = await storage.readJson(PROFILES_PATH, []);
-    const profile = profiles.find(p => p.userId === userId);
-    const users = await storage.readJson('data/users.json', []);
-    const user = users.find(u => u._id === userId || u.id === userId);
+    const [profile, user] = await Promise.all([
+      Profile.findOne({userId}),
+      User.findById(userId),
+    ]);
 
     return {
-      name: profile?.basicInfo?.firstName || profile?.name || 'Someone',
-      photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+      name: resolveDisplayName(profile, user),
+      photo: profile?.media?.media?.[0]?.url || null,
       email: user?.email || null,
     };
   } catch (error) {
@@ -176,20 +177,19 @@ export const getReceivedComments = async (req, res) => {
       status: status === 'all' ? {$exists: true} : status,
     }).sort({createdAt: -1});
 
-    // Get profile info for each sender
-    const profiles = await storage.readJson(PROFILES_PATH, []);
-
     const commentsWithProfiles = await Promise.all(
       comments.map(async comment => {
-        const profile = profiles.find(p => p.userId === comment.senderId);
+        const [profile, user] = await Promise.all([
+          Profile.findOne({userId: comment.senderId}),
+          User.findById(comment.senderId),
+        ]);
+
         return {
           ...comment.toObject(),
           senderProfile: {
-            name: profile?.basicInfo?.firstName || profile?.name || 'Unknown',
-            age:
-              profile?.personalDetails?.age || profile?.basicInfo?.age || null,
-            photo:
-              profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+            name: resolveDisplayName(profile, user),
+            age: profile?.basicInfo?.age || null,
+            photo: profile?.media?.media?.[0]?.url || null,
           },
         };
       }),

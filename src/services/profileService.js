@@ -5,6 +5,7 @@ import {
   getProfiles,
 } from '../models/profileModel.js';
 import {getUsers} from '../models/userModel.js';
+import { resolveDisplayName } from '../utils/nameUtils.js';
 import Like from '../models/Like.js';
 import Pass from '../models/Pass.js';
 import Match from '../models/Match.js';
@@ -151,14 +152,7 @@ export async function getProfile(userId, viewerId = null) {
   const users = await getUsers();
   const user = users.find(u => (u._id || u.id) === profile.userId);
 
-  // Combine firstName and lastName if fullName is not available
-  const fullName =
-    user?.fullName ||
-    (profile.basicInfo?.firstName && profile.basicInfo?.lastName
-      ? `${profile.basicInfo.firstName} ${profile.basicInfo.lastName}`.trim()
-      : profile.basicInfo?.firstName ||
-        profile.basicInfo?.lastName ||
-        'Unknown');
+  const displayName = resolveDisplayName(profile, user);
 
   const ageFromDob = computeAge(profile.basicInfo?.dob);
 
@@ -170,7 +164,7 @@ export async function getProfile(userId, viewerId = null) {
 
   return {
     ...profile,
-    name: fullName,
+    name: displayName,
     email: user?.email || '',
     isVerified: user?.isVerified || false,
     showOnlineStatus: user?.showOnlineStatus !== false, // Defaults to true
@@ -360,14 +354,7 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     })
     .map(profile => {
       const user = users.find(u => (u._id || u.id) === profile.userId);
-      // Combine firstName and lastName if fullName is not available
-      const fullName =
-        user?.fullName ||
-        (profile.basicInfo?.firstName && profile.basicInfo?.lastName
-          ? `${profile.basicInfo.firstName} ${profile.basicInfo.lastName}`.trim()
-          : profile.basicInfo?.firstName ||
-            profile.basicInfo?.lastName ||
-            'Unknown');
+      const displayName = resolveDisplayName(profile, user);
 
       const ageFromDob = computeAge(profile.basicInfo?.dob);
 
@@ -379,7 +366,7 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
 
       return {
         ...profile,
-        name: fullName,
+        name: displayName,
         email: user?.email || '',
         isActiveToday: !!isActiveToday,
         // Extract age from profile if available
@@ -425,11 +412,31 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
       }
       return isAllowed;
     })
-    .filter(profile => profile.photos.length > 0) // Only show profiles with photos
-    // Apply advanced filters (premium feature)
-    .filter(profile => {
-      if (!filters) return true;
+    .filter(profile => profile.photos.length > 0); // Only show profiles with photos
 
+  // Use matching service if matching is requested OR if a distance filter is specified
+  // This ensures that the distance-aware aggregation pipeline is used for geo-filtering
+  if ((useMatching || maxDistance !== null) && excludeUserId) {
+    try {
+      const {getMatchedProfiles} = await import('./matchingService.js');
+      const matchedProfiles = await getMatchedProfiles(excludeUserId, {
+        minScore,
+        maxDistance,
+        sortBy,
+        limit,
+      });
+
+      // The matchedProfiles already have all the enriched data
+      enrichedProfiles = matchedProfiles;
+    } catch (error) {
+      console.error('Error applying matching/distance algorithm:', error);
+      // Fall back to non-matched profiles if matching fails
+    }
+  }
+
+  // Apply advanced filters (premium feature)
+  if (filters) {
+    enrichedProfiles = enrichedProfiles.filter(profile => {
       // Education level filter
       if (filters.educationLevel) {
         const profileEducation = profile.personalDetails?.educationLevel;
@@ -490,25 +497,6 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
 
       return true;
     });
-
-  // Use matching service if matching is requested OR if a distance filter is specified
-  // This ensures that the distance-aware aggregation pipeline is used for geo-filtering
-  if ((useMatching || maxDistance !== null) && excludeUserId) {
-    try {
-      const {getMatchedProfiles} = await import('./matchingService.js');
-      const matchedProfiles = await getMatchedProfiles(excludeUserId, {
-        minScore,
-        maxDistance,
-        sortBy,
-        limit,
-      });
-
-      // The matchedProfiles already have all the enriched data
-      enrichedProfiles = matchedProfiles;
-    } catch (error) {
-      console.error('Error applying matching/distance algorithm:', error);
-      // Fall back to non-matched profiles if matching fails
-    }
   }
 
   return enrichedProfiles;

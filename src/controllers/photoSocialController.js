@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import PhotoInteraction from '../models/PhotoInteraction.js';
 import { getIO } from '../services/socketService.js';
 import { sendPushNotification } from '../services/pushService.js';
+import Profile from '../models/Profile.js';
+import User from '../models/User.js';
+import { resolveDisplayName } from '../utils/nameUtils.js';
 
 /**
  * Atomic Toggle Like with Idempotency
@@ -55,9 +58,13 @@ export const toggleSocialLike = async (req, res) => {
     }
 
     if (action === 'liked') {
+      const senderProfile = await Profile.findOne({ userId: senderId });
+      const senderUser = await User.findById(senderId);
+      const senderDisplayName = resolveDisplayName(senderProfile, senderUser);
+
       await sendPushNotification(targetUserId, {
         title: 'New Photo Like 💖',
-        body: `${req.user.firstName || req.user.name || 'Someone'} liked your photo!`,
+        body: `${senderDisplayName} liked your photo!`,
         data: { type: 'SOCIAL_PHOTO_REACTION', photoId, action: 'like' }
       }).catch(err => console.error('[PhotoSocial] Push Notify Error:', err));
     }
@@ -93,6 +100,18 @@ export const addSocialComment = async (req, res) => {
 
     const stats = await getInteractionCounts(targetUserId, photoId);
 
+    // Resolve sender display name for events and notifications
+    const senderProfile = await Profile.findOne({ userId: senderId });
+    const senderUser = await User.findById(senderId);
+    const senderDisplayName = resolveDisplayName(senderProfile, senderUser);
+
+    // Enrich the returned populated comment object with the resolved name and photo
+    const commentWithResolvedName = populatedComment.toObject();
+    if (commentWithResolvedName.senderId) {
+      commentWithResolvedName.senderId.name = senderDisplayName;
+      commentWithResolvedName.senderId.photo = senderProfile?.media?.media?.[0]?.url || senderProfile?.photos?.[0] || commentWithResolvedName.senderId.photo || '';
+    }
+
     const io = getIO();
     if (io) {
       io.to(`profile_social:${targetUserId}`).emit('photo:interaction', {
@@ -102,8 +121,8 @@ export const addSocialComment = async (req, res) => {
         photoUrl,
         type: 'comment',
         senderId,
-        senderName: req.user.firstName || req.user.fullName || req.user.name || 'Someone',
-        senderPhoto: req.user.photo || '', 
+        senderName: senderDisplayName,
+        senderPhoto: senderProfile?.media?.media?.[0]?.url || senderProfile?.photos?.[0] || '',
         text,
         createdAt: newComment.createdAt,
         counts: stats
@@ -112,13 +131,13 @@ export const addSocialComment = async (req, res) => {
 
     await sendPushNotification(targetUserId, {
       title: 'New Photo Comment 💬',
-      body: `${req.user.firstName || req.user.name || 'Someone'} commented on your photo: "${text.substring(0, 30)}..."`,
+      body: `${senderDisplayName} commented on your photo: "${text.substring(0, 30)}..."`,
       data: { type: 'SOCIAL_PHOTO_REACTION', photoId, action: 'comment' }
     }).catch(err => console.error('[PhotoSocial] Push Notify Error:', err));
 
     return res.json({ 
       success: true, 
-      comment: populatedComment, 
+      comment: commentWithResolvedName, 
       counts: stats 
     });
   } catch (error) {
@@ -131,9 +150,6 @@ export const getPhotoDetails = async (req, res) => {
   const { photoId } = req.params;
   const { cursor, limit = 20 } = req.query;
   const viewerId = req.user.id;
-
-  console.log("[PhotoSocial] REQ USER:", req.user);
-  console.log("[PhotoSocial] REQ PARAMS:", req.params);
 
   try {
     const firstInter = await PhotoInteraction.findOne({ photoId });
@@ -163,11 +179,21 @@ export const getPhotoDetails = async (req, res) => {
       .limit(parseInt(limit))
       .populate('senderId', 'fullName name photo');
 
-    // ❗ Map populated sender details for frontend (User model uses fullName)
+    // ❗ Map populated sender details for frontend and resolve name from Profile
+    const senderIds = comments.map(c => c.senderId?._id?.toString() || c.senderId?.toString()).filter(id => !!id);
+    const senderProfiles = await Profile.find({ userId: { $in: senderIds } });
+
     const processedComments = comments.map(c => {
       const doc = c.toObject();
       if (doc.senderId) {
-        doc.senderId.name = doc.senderId.fullName || doc.senderId.name || 'Unknown';
+        // Robust identity retrieval: Use .id (virtual) if _id was removed by transform, fallback to raw senderId
+        const senderIdStr = doc.senderId.id || doc.senderId._id || (typeof doc.senderId === 'string' ? doc.senderId : null);
+        const profile = senderProfiles.find(p => p.userId === senderIdStr);
+        
+        const displayName = resolveDisplayName(profile, doc.senderId);
+        
+        doc.senderId.name = displayName;
+        doc.senderId.photo = profile?.media?.media?.[0]?.url || profile?.photos?.[0] || doc.senderId.photo || '';
       }
       return doc;
     });
@@ -175,7 +201,8 @@ export const getPhotoDetails = async (req, res) => {
     // ❗ PRIVACY RULE: Non-owners only see THEIR OWN comments
     const secureComments = processedComments.filter(c => {
       if (isOwner) return true;
-      return c.senderId?._id?.toString() === viewerId.toString();
+      const commentSenderId = c.senderId?.id || c.senderId?._id || (typeof c.senderId === 'string' ? c.senderId : null);
+      return commentSenderId?.toString() === viewerId.toString();
     });
 
     return res.json({

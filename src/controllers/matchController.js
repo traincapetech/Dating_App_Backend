@@ -1,6 +1,8 @@
 import Match from '../models/Match.js';
 import Message from '../models/Message.js';
 import {getProfile} from '../services/profileService.js';
+import User from '../models/User.js';
+import { resolveDisplayName } from '../utils/nameUtils.js';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -95,6 +97,18 @@ export const getUserMatches = async (req, res) => {
       matches.map(async match => {
         const theirId = match.users.find(u => u !== userId);
         const theirProfile = await getProfile(theirId);
+        const theirUser = await (async () => {
+          try {
+            const User = (await import('../models/User.js')).default;
+            return await User.findById(theirId);
+          } catch (e) {
+            return null;
+          }
+        })();
+
+        const profileName = `${theirProfile?.basicInfo?.firstName || ''} ${
+          theirProfile?.basicInfo?.lastName || ''
+        }`.trim();
 
         return {
           _id: match._id,
@@ -103,8 +117,7 @@ export const getUserMatches = async (req, res) => {
           chatEnabled: match.chatEnabled,
           callEnabled: match.callEnabled,
           theirId,
-          theirName:
-            theirProfile?.basicInfo?.firstName || theirProfile?.name || null,
+          theirName: resolveDisplayName(theirProfile, theirUser),
           theirPhoto:
             theirProfile?.media?.media?.[0]?.url ||
             theirProfile?.photos?.[0] ||
@@ -156,7 +169,21 @@ export const getMatchById = async (req, res) => {
     }
 
     const theirId = userId ? match.users.find(u => u !== userId) : null;
-    const theirProfile = theirId ? await getProfile(theirId) : null;
+    const [theirProfile, theirUser] = await Promise.all([
+      theirId ? getProfile(theirId) : Promise.resolve(null),
+      theirId
+        ? (async () => {
+            try {
+              const User = (await import('../models/User.js')).default;
+              return await User.findById(theirId);
+            } catch (e) {
+              return null;
+            }
+          })()
+        : Promise.resolve(null),
+    ]);
+
+    const theirName = resolveDisplayName(theirProfile, theirUser);
 
     res.json({
       success: true,
@@ -167,8 +194,7 @@ export const getMatchById = async (req, res) => {
         chatEnabled: match.chatEnabled,
         callEnabled: match.callEnabled,
         theirId,
-        theirName:
-          theirProfile?.basicInfo?.firstName || theirProfile?.name || null,
+        theirName,
         theirPhoto:
           theirProfile?.media?.media?.[0]?.url ||
           theirProfile?.photos?.[0] ||
@@ -272,15 +298,13 @@ export const createMatch = async (req, res) => {
 
       // Helper function to get profile info (same as likeController)
       const getProfileInfo = async userId => {
-        const profile = await Profile.findOne({userId});
-        const user = await User.findById(userId);
+        const [profile, user] = await Promise.all([
+          Profile.findOne({userId}),
+          User.findById(userId),
+        ]);
 
         return {
-          name:
-            profile?.basicInfo?.firstName ||
-            user?.fullName ||
-            user?.name ||
-            'Someone',
+          name: resolveDisplayName(profile, user),
           photo: profile?.media?.media?.[0]?.url || null,
           email: user?.email,
         };

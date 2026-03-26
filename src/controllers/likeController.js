@@ -11,12 +11,17 @@ import {isUserPremium} from '../models/Subscription.js';
 import Profile from '../models/Profile.js';
 import User from '../models/User.js';
 import eventEmitter from '../modules/streak/eventEmitter.js';
+import { resolveDisplayName } from '../utils/nameUtils.js';
 
 // Helper to get profile name
 async function getProfileName(userId) {
   try {
-    const profile = await Profile.findOne({userId});
-    return profile?.basicInfo?.firstName || profile?.name || 'Someone';
+    const [profile, user] = await Promise.all([
+      Profile.findOne({userId}),
+      User.findById(userId),
+    ]);
+
+    return resolveDisplayName(profile, user);
   } catch (error) {
     return 'Someone';
   }
@@ -25,13 +30,15 @@ async function getProfileName(userId) {
 // Helper to get profile info for notifications
 async function getProfileInfo(userId) {
   try {
-    const profile = await Profile.findOne({userId});
-    const user = await User.findOne({_id: userId});
+    const [profile, user] = await Promise.all([
+      Profile.findOne({userId}),
+      User.findById(userId),
+    ]);
 
     return {
-      name: profile?.basicInfo?.firstName || profile?.name || 'Someone',
-      photo: profile?.photos?.[0] || null,
-      email: profile?.email || null,
+      name: resolveDisplayName(profile, user),
+      photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
+      email: user?.email || null,
     };
   } catch (error) {
     return {name: 'Someone', photo: null, email: null};
@@ -40,7 +47,7 @@ async function getProfileInfo(userId) {
 
 // Configuration for premium features
 // Set to false to require premium for seeing who liked you
-const LIKES_VISIBLE_FREE = true; // Change to false when you want to monetize
+const LIKES_VISIBLE_FREE = false; // Change to false when you want to monetize
 
 // Daily like limit configuration
 const DAILY_LIKE_LIMIT = 50; // Free tier limit
@@ -342,18 +349,23 @@ export const getLikesReceived = async (req, res) => {
       });
     }
 
-    // Get profile info for each liker
+    // Get profile and user info for each liker
     const likerIds = pendingLikes.map(l => l.senderId);
-    const profiles = await Profile.find({userId: {$in: likerIds}});
+    const [profiles, users] = await Promise.all([
+      Profile.find({userId: {$in: likerIds}}),
+      User.find({_id: {$in: likerIds}}),
+    ]);
 
     const likesWithProfiles = pendingLikes.map(like => {
       const profile = profiles.find(p => p.userId === like.senderId);
+      const user = users.find(u => u._id === like.senderId);
+
       return {
         _id: like._id,
         senderId: like.senderId,
         likedAt: like.createdAt,
         userId: like.senderId,
-        name: profile?.basicInfo?.firstName || profile?.name || 'Unknown',
+        name: resolveDisplayName(profile, user),
         age: profile?.personalDetails?.age || profile?.basicInfo?.age || null,
         photo: profile?.media?.media?.[0]?.url || profile?.photos?.[0] || null,
         comment: like.likedContent?.comment,

@@ -401,11 +401,15 @@ export async function getMatchedProfiles(userId, options = {}) {
 
       const hasBoost = await hasActiveBoost(profile.userId);
 
+      const profileName = `${profile.basicInfo?.firstName || ''} ${
+        profile.basicInfo?.lastName || ''
+      }`.trim();
+      const displayName = profileName || profile.user?.fullName || 'Unknown';
+
       return {
         ...profile,
         // Map fields for frontend
-        name:
-          profile.user?.fullName || profile.basicInfo?.firstName || 'Unknown',
+        name: displayName,
         email: profile.user?.email || '',
         id: profile._id, // Ensure ID is mapped
         age:
