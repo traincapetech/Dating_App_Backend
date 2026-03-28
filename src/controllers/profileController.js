@@ -221,6 +221,15 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
   const sortBy = req.query.sortBy || 'score'; // 'score', 'distance', 'recent'
   const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
 
+  // Accept live GPS coordinates from the app (overrides stale DB location)
+  const liveLocation =
+    req.query.lat && req.query.lng
+      ? {
+          type: 'Point',
+          coordinates: [parseFloat(req.query.lng), parseFloat(req.query.lat)],
+        }
+      : null;
+
   // Advanced filters (premium feature)
   const filters = {};
   if (req.query.educationLevel) {
@@ -254,6 +263,7 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
     maxDistance,
     sortBy,
     limit,
+    liveLocation,
     filters: Object.keys(filters).length > 0 ? filters : null,
   };
 

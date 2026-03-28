@@ -127,29 +127,17 @@ export const sendMessage = async (req, res) => {
       if (abuseCheck.isAbusive) {
         // Log abuse attempt
         console.warn(
-          `[Chat Abuse] User ${senderId} sent abusive message: ${abuseCheck.reason}`,
+          `[Chat Abuse] User ${senderId} sent abusive message (${abuseCheck.reason}): ${text}`,
         );
 
-        // Optionally flag user or block message
-        // For now, we'll allow but flag the message
-        // In production, you might want to block or warn the user
-
-        // Create a report automatically for high severity
-        if (abuseCheck.severity === 'high') {
-          const Report = (await import('../models/Report.js')).default;
-          try {
-            await Report.create({
-              reporterId: receiverId, // Receiver reports the sender
-              reportedId: senderId,
-              matchId,
-              reason: 'harassment',
-              description: `Auto-flagged: ${abuseCheck.reason}`,
-              status: 'pending',
-            });
-          } catch (reportError) {
-            console.error('Error creating auto-report:', reportError);
-          }
-        }
+        // STOPS the message from being sent if it's abusive
+        return res.status(400).json({
+          success: false,
+          message:
+            abuseCheck.message ||
+            'Message blocked: Inappropriate content detected.',
+          reason: abuseCheck.reason,
+        });
       }
     }
 

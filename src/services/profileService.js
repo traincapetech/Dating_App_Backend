@@ -209,6 +209,18 @@ export async function updateProfileData(userId, updates) {
           ...updates.basicInfo,
         }
       : existing?.basicInfo || {},
+    
+    // Sync GeoJSON location field if coordinates are provided in basicInfo.locationDetails
+    location: (updates.basicInfo?.locationDetails?.lng !== undefined && updates.basicInfo?.locationDetails?.lat !== undefined)
+      ? {
+          type: 'Point',
+          coordinates: [
+            parseFloat(updates.basicInfo.locationDetails.lng),
+            parseFloat(updates.basicInfo.locationDetails.lat)
+          ]
+        }
+      : (existing?.location || { type: 'Point', coordinates: [0, 0] }),
+
     // Deep merge datingPreferences
     datingPreferences: updates.datingPreferences
       ? {
@@ -424,6 +436,7 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
         maxDistance,
         sortBy,
         limit,
+        liveLocation: options.liveLocation || null,
       });
 
       // The matchedProfiles already have all the enriched data

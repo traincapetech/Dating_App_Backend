@@ -5,6 +5,7 @@ import {
   getLikesCount,
   getDailyLikeInfo,
   getLikedStatus,
+  rejectLike,
 } from '../controllers/likeController.js';
 import {
   passUser,
@@ -28,6 +29,7 @@ router.post('/reset-passes', resetPasses);
 // Likes received
 router.get('/likes/:userId', getLikesReceived);
 router.get('/likes-count/:userId', getLikesCount);
+router.post('/likes/reject', rejectLike);
 
 // Daily like info
 router.get('/daily-likes/:userId', getDailyLikeInfo);

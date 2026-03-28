@@ -275,9 +275,10 @@ export function calculateCompatibilityScore(
 export async function getMatchedProfiles(userId, options = {}) {
   const {
     minScore = 0,
-    maxDistance = null, // No default distance limit unless specified
+    maxDistance = null,
     sortBy = 'score',
     limit = 50,
+    liveLocation = null,
   } = options;
 
   // 1. Get current user's profile to understand preferences
@@ -290,20 +291,24 @@ export async function getMatchedProfiles(userId, options = {}) {
   const pipeline = [];
 
   // A. Geo-Spatial Filter ($geoNear must be first)
+  // Prefer live GPS from request; fall back to what's stored in the profile
   const viewerCoords = currentUserProfile.location?.coordinates;
-  const hasViewerLocation =
+  const hasStoredLocation =
     viewerCoords && viewerCoords[0] !== 0 && viewerCoords[1] !== 0;
 
-  if (hasViewerLocation) {
+  const locationForQuery =
+    liveLocation ||
+    (hasStoredLocation ? currentUserProfile.location : null);
+
+  if (locationForQuery) {
     pipeline.push({
       $geoNear: {
-        near: currentUserProfile.location,
-        distanceField: 'dist.calculated', // Output field for distance
-        // Use provided maxDistance, or a very large default (5000km) if none provided
-        maxDistance: (maxDistance || 5000) * 1000, // Convert km to meters
-        distanceMultiplier: 0.001, // Convert meters to km
+        near: locationForQuery,
+        distanceField: 'dist.calculated',
+        maxDistance: (maxDistance || 5000) * 1000, // km → meters
+        distanceMultiplier: 0.001,                  // meters → km
         spherical: true,
-        query: {userId: {$ne: userId}}, // Exclude current user
+        query: {userId: {$ne: userId}},
       },
     });
   } else {

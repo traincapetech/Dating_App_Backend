@@ -1,209 +1,181 @@
-/**
- * Moderation Service
- * Handles content moderation, abuse detection, and safety features
- */
+import { Filter } from 'bad-words';
 
-// Basic profanity filter keywords (expandable)
-const PROFANITY_KEYWORDS = [
-  // Add your list of inappropriate words here
-  // This is a basic implementation - consider using a library like 'bad-words' for production
+const filter = new Filter();
+
+/* ---------------- NORMALIZATION ---------------- */
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')   // remove symbols
+    .replace(/\s+/g, '');
+}
+
+/* ---------------- CUSTOM WORDS ---------------- */
+const CUSTOM_KEYWORDS = [
+  'scam','fake','spam','onlyfans','telegram','whatsapp','cashapp','venmo','paypal',
+  'sugarbaby','sugardaddy','sendmoney','moneytransfer'
 ];
 
-// Suspicious patterns for fake profile detection
-const SUSPICIOUS_PATTERNS = {
-  // Too many similar photos
-  duplicatePhotos: (photos) => {
-    if (!photos || photos.length < 2) return false;
-    // Check if photos are too similar (basic check)
-    return false; // Implement image similarity check if needed
-  },
+const HINGLISH_ABUSE = [
+  'bhenchod','madarchod','chutiya','randi','gandu','kamina','harami','bhadva','saala'
+];
 
-  // Suspicious bio patterns
-  suspiciousBio: (bio) => {
-    if (!bio) return false;
-    const lowerBio = bio.toLowerCase();
+const BODY_SHAMING = [
+  'moti','mota','fat','ugly','badsoorat','kaali','kaala','skinny','hathi','bhains','chakka','hijra'
+];
 
-    // Check for common fake profile indicators
-    const indicators = [
-      'add me on snap',
-      'add me on instagram',
-      'follow me on',
-      'click here',
-      'free money',
-      'bitcoin',
-      'crypto',
-      'investment',
-    ];
+filter.addWords(...CUSTOM_KEYWORDS, ...HINGLISH_ABUSE, ...BODY_SHAMING);
 
-    return indicators.some(indicator => lowerBio.includes(indicator));
-  },
+/* ---------------- CHAT MODERATION ---------------- */
 
-  // Too few photos
-  insufficientPhotos: (photos) => {
-    return !photos || photos.length < 2;
-  },
-
-  // Suspicious age
-  suspiciousAge: (age) => {
-    return age < 18 || age > 100;
-  },
-};
-
-/**
- * Check message for abuse/inappropriate content
- */
 export function detectChatAbuse(text) {
-  if (!text) return { isAbusive: false, reason: null };
+  if (!text) return { isAbusive: false };
 
-  const lowerText = text.toLowerCase();
+  const normalized = normalize(text);
 
-  // Check for profanity
-  const hasProfanity = PROFANITY_KEYWORDS.some(keyword =>
-    lowerText.includes(keyword.toLowerCase())
-  );
+  /* 1. PROFANITY */
+  const hasProfanity =
+    filter.isProfane(text) ||
+    HINGLISH_ABUSE.some(w => normalized.includes(w));
 
   if (hasProfanity) {
-    return { isAbusive: true, reason: 'profanity', severity: 'medium' };
+    return {
+      isAbusive: true,
+      reason: 'profanity',
+      severity: 'medium',
+      action: 'warn_or_block',
+      message: 'Inappropriate language detected',
+    };
   }
 
-  // Check for harassment patterns
-  const harassmentPatterns = [
+  /* 2. SEXUAL / HARASSMENT */
+  const sexualPatterns = [
     /send.*nude/i,
-    /send.*pic/i,
-    /meet.*now/i,
+    /nudes?/i,
+    /sex/i,
+    /hookup/i,
     /come.*over/i,
   ];
 
-  const hasHarassment = harassmentPatterns.some(pattern => pattern.test(text));
-  if (hasHarassment) {
-    return { isAbusive: true, reason: 'harassment', severity: 'high' };
+  if (sexualPatterns.some(p => p.test(text))) {
+    return {
+      isAbusive: true,
+      reason: 'sexual_content',
+      severity: 'high',
+      action: 'block',
+      message: 'Sexual or inappropriate request detected',
+    };
   }
 
-  // Check for spam patterns
-  const spamPatterns = [
-    /http[s]?:\/\//i, // URLs
-    /www\./i,
-    /bit\.ly|tinyurl|short\.link/i, // Short links
+  /* 3. BODY SHAMING */
+  if (BODY_SHAMING.some(w => normalized.includes(w))) {
+    return {
+      isAbusive: true,
+      reason: 'hate_speech',
+      severity: 'high',
+      action: 'block',
+    };
+  }
+
+  /* 4. SCAM / MONEY */
+  const scamPatterns = [
+    /send.*money/i,
+    /pay.*me/i,
+    /upi/i,
+    /bank/i,
+    /investment/i,
+    /crypto/i,
   ];
 
-  const hasSpam = spamPatterns.some(pattern => pattern.test(text));
-  if (hasSpam) {
-    return { isAbusive: true, reason: 'spam', severity: 'medium' };
+  if (scamPatterns.some(p => p.test(text))) {
+    return {
+      isAbusive: true,
+      reason: 'scam',
+      severity: 'high',
+      action: 'block',
+    };
   }
 
-  return { isAbusive: false, reason: null };
+  /* 5. SPAM / LINKS */
+  const spamPatterns = [
+    /http[s]?:\/\//i,
+    /www\./i,
+    /bit\.ly|tinyurl/i,
+    /telegram|whatsapp|snapchat/i,
+  ];
+
+  if (spamPatterns.some(p => p.test(text))) {
+    return {
+      isAbusive: true,
+      reason: 'spam',
+      severity: 'medium',
+      action: 'warn',
+    };
+  }
+
+  return { isAbusive: false };
 }
 
-/**
- * Analyze profile for fake profile indicators
- */
+/* ---------------- PROFILE DETECTION ---------------- */
+
 export function detectFakeProfile(profile) {
+  let score = 0;
   const flags = [];
-  let riskScore = 0;
 
-  // Check bio
-  if (profile.basicInfo?.bio || profile.profilePrompts?.aboutMe?.answer) {
-    const bio = profile.basicInfo?.bio || profile.profilePrompts?.aboutMe?.answer;
-    if (SUSPICIOUS_PATTERNS.suspiciousBio(bio)) {
-      flags.push('suspicious_bio');
-      riskScore += 30;
-    }
+  const bio = profile.basicInfo?.bio || '';
+
+  if (/instagram|snapchat|telegram/i.test(bio)) {
+    flags.push('external_redirect');
+    score += 30;
   }
 
-  // Check photos
-  const photos = profile.media?.media || [];
-  if (SUSPICIOUS_PATTERNS.insufficientPhotos(photos)) {
-    flags.push('insufficient_photos');
-    riskScore += 20;
+  if (!profile.media?.media || profile.media.media.length < 2) {
+    flags.push('low_photos');
+    score += 20;
   }
 
-  // Check age
-  if (profile.basicInfo?.dob) {
-    const dob = new Date(profile.basicInfo.dob);
-    const age = new Date().getFullYear() - dob.getFullYear();
-    if (SUSPICIOUS_PATTERNS.suspiciousAge(age)) {
-      flags.push('suspicious_age');
-      riskScore += 25;
-    }
+  if (!bio) {
+    flags.push('empty_bio');
+    score += 10;
   }
 
-  // Check for empty profile
-  if (!profile.basicInfo?.bio && !profile.profilePrompts?.aboutMe?.answer && photos.length === 0) {
-    flags.push('empty_profile');
-    riskScore += 15;
-  }
-
-  // Determine if fake
-  const isFake = riskScore >= 50;
+  const isFake = score >= 50;
 
   return {
     isFake,
-    riskScore,
+    score,
     flags,
-    recommendation: isFake ? 'flag_for_review' : riskScore >= 30 ? 'monitor' : 'approved',
+    recommendation:
+      score >= 50 ? 'flag'
+      : score >= 30 ? 'review'
+      : 'ok',
   };
 }
 
-/**
- * Moderate image (basic implementation)
- * In production, integrate with AWS Rekognition, Google Cloud Vision, or similar
- */
+/* ---------------- IMAGE MODERATION ---------------- */
+
 export async function moderateImage(imageUrl) {
-  // Basic implementation - in production, use ML service
-  // For now, return a placeholder that can be extended
-
-  // TODO: Integrate with image moderation service
-  // Example: AWS Rekognition, Google Cloud Vision API, or Cloudinary Moderation
-
+  // Placeholder (replace with real API later)
   return {
-    isSafe: true, // Default to safe until moderation service is integrated
-    confidence: 0.95,
-    categories: {
-      explicit: false,
-      suggestive: false,
-      violence: false,
-      hate: false,
-    },
-    moderationService: 'none', // 'aws_rekognition', 'google_vision', 'cloudinary', etc.
+    isSafe: true,
+    provider: 'mock',
   };
 }
 
-/**
- * Auto-review profile based on moderation checks
- */
+/* ---------------- AUTO REVIEW ---------------- */
+
 export async function autoReviewProfile(profile) {
-  const fakeProfileCheck = detectFakeProfile(profile);
+  const result = detectFakeProfile(profile);
 
-  // If high risk, flag for manual review
-  if (fakeProfileCheck.isFake || fakeProfileCheck.riskScore >= 50) {
-    return {
-      status: 'flagged',
-      reason: 'auto_flagged',
-      flags: fakeProfileCheck.flags,
-      riskScore: fakeProfileCheck.riskScore,
-      requiresManualReview: true,
-    };
+  if (result.score >= 50) {
+    return { status: 'blocked', ...result };
   }
 
-  // If medium risk, mark as pending review
-  if (fakeProfileCheck.riskScore >= 30) {
-    return {
-      status: 'pending',
-      reason: 'auto_pending',
-      flags: fakeProfileCheck.flags,
-      riskScore: fakeProfileCheck.riskScore,
-      requiresManualReview: true,
-    };
+  if (result.score >= 30) {
+    return { status: 'pending', ...result };
   }
 
-  // Low risk, auto-approve
-  return {
-    status: 'approved',
-    reason: 'auto_approved',
-    flags: [],
-    riskScore: fakeProfileCheck.riskScore,
-    requiresManualReview: false,
-  };
+  return { status: 'approved', ...result };
 }
 
 export default {
@@ -212,4 +184,3 @@ export default {
   moderateImage,
   autoReviewProfile,
 };
-

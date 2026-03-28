@@ -47,7 +47,7 @@ async function getProfileInfo(userId) {
 
 // Configuration for premium features
 // Set to false to require premium for seeing who liked you
-const LIKES_VISIBLE_FREE = false; // Change to false when you want to monetize
+const LIKES_VISIBLE_FREE = true; // Change to false when you want to monetize
 
 // Daily like limit configuration
 const DAILY_LIKE_LIMIT = 50; // Free tier limit
@@ -136,16 +136,29 @@ export const likeUser = async (req, res) => {
     }
 
     const existingLike = await Like.findOne(query);
-    
+
     if (existingLike) {
-      // Toggle off (Unlike) this specific photo or profile like
-      await Like.deleteOne({ _id: existingLike._id });
-      return res.json({
-        success: true,
-        liked: false,
-        message: 'Unliked successfully',
-        dailyLikeInfo,
-      });
+      if (likedContent?.photoUrl) {
+        // Photo like: toggle off (unlike)
+        await Like.deleteOne({ _id: existingLike._id });
+        return res.json({
+          success: true,
+          liked: false,
+          message: 'Unliked successfully',
+          dailyLikeInfo,
+        });
+      } else {
+        // Profile swipe: a pending request already exists — do NOT toggle/delete
+        // Silently return as already liked so the UI stays consistent
+        return res.json({
+          success: true,
+          liked: true,
+          alreadyLiked: true,
+          isMatch: false,
+          message: 'Match request already pending',
+          dailyLikeInfo,
+        });
+      }
     }
 
     // Prepare like data with optional likedContent
@@ -409,16 +422,13 @@ export const getLikesCount = async (req, res) => {
     });
 
     // Check which ones are already matched
-    let pendingCount = 0;
-    for (const like of likes) {
-      const mutualLike = await Like.findOne({
-        senderId: userId,
-        receiverId: like.senderId,
-      });
-      if (!mutualLike) {
-        pendingCount++;
-      }
-    }
+    const matches = await Match.find({users: userId});
+    const matchedUserIds = matches.map(m => m.users.find(id => id !== userId));
+
+    // Filter out already matched users (they're in matches now)
+    const pendingCount = likes.filter(
+      l => !matchedUserIds.includes(l.senderId),
+    ).length;
 
     res.json({
       success: true,
@@ -495,6 +505,49 @@ export const getLikedStatus = async (req, res) => {
       success: false,
       message: 'Error checking like status',
       error: error.message
+    });
+  }
+};
+
+// Reject a match request (removes the incoming like)
+export const rejectLike = async (req, res) => {
+  try {
+    const {userId, likerId} = req.body;
+
+    if (!userId || !likerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId and likerId are required',
+      });
+    }
+
+    // Delete the incoming like (only profile/general swipe likes)
+    const result = await Like.deleteOne({
+      senderId: likerId,
+      receiverId: userId,
+      $or: [
+        { likedContent: { $exists: false } },
+        { 'likedContent.type': 'profile' }
+      ]
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Match request not found or already dismissed',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Match request dismissed',
+    });
+  } catch (error) {
+    console.error('Error rejecting like:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error rejecting like',
+      error: error.message,
     });
   }
 };
