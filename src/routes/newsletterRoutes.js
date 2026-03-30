@@ -17,7 +17,7 @@ router.post('/subscribe', authLimiter, subscribe);
 router.use(verifyAdminToken);
 
 // Get list of all subscribers
-router.get('/', getSubscribers);
+router.get('/subscribers', getSubscribers);
 
 // Send a broadcast newsletter
 router.post('/send', sendNewsletter);

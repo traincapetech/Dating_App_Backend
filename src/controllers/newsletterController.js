@@ -6,8 +6,8 @@
 import Newsletter from '../models/Newsletter.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { z } from 'zod';
-import nodemailer from 'nodemailer';
 import { config } from '../config/env.js';
+import SibApiV3Sdk from 'sib-api-v3-sdk';
 
 // Validation schema for subscription
 const subscribeSchema = z.object({
@@ -72,69 +72,69 @@ export const getSubscribers = asyncHandler(async (req, res) => {
 });
 
 /**
- * Send a broadcast email to all active subscribers
+ * Send a broadcast email to specific audience segments
  * POST /api/newsletter/send
  * (Admin only)
  */
 export const sendNewsletter = asyncHandler(async (req, res) => {
-  const { subject, content, html } = req.body;
+  const { from, subject, content, html, emails, segment } = req.body;
 
-  if (!subject || (!content && !html)) {
+  if (!subject || (!content && !html) || !emails || !Array.isArray(emails) || emails.length === 0) {
     return res.status(400).json({
       success: false,
-      message: 'Subject and content are required',
+      message: 'Subject, content/html, and a valid array of emails are required',
     });
   }
 
-  const activeSubscribers = await Newsletter.find({ status: 'active' });
-
-  if (activeSubscribers.length === 0) {
+  if (emails.length > 50) {
     return res.status(400).json({
       success: false,
-      message: 'No active subscribers found',
+      message: 'Maximum 50 recipients allowed per batch according to current settings',
     });
   }
 
-  // Configure transporter (using Brevo/config settings)
-  const transporter = nodemailer.createTransport({
-    host: config.email.host,
-    port: config.email.port,
-    secure: config.email.secure,
-    auth: {
-      user: config.email.user,
-      pass: config.email.pass,
-    },
-  });
+  // Initialize Brevo API
+  const defaultClient = SibApiV3Sdk.ApiClient.instance;
+  const apiKey = defaultClient.authentications['api-key'];
+  apiKey.apiKey = process.env.BREVO_API_KEY || config.email.pass;
 
-  // In a real production app, you'd use a queue/worker (Bull, etc.)
-  // and a proper ESP like SendGrid/Brevo's transactional API for bulk
-  // For now, we'll do it sequentially for simplicity
-  const results = {
-    total: activeSubscribers.length,
-    success: 0,
-    failed: 0,
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+  // Brevo email configuration
+  sendSmtpEmail.subject = subject;
+  sendSmtpEmail.htmlContent = html || content;
+  sendSmtpEmail.textContent = content || '';
+  
+  // Hardcoded sender per requirements
+  sendSmtpEmail.sender = { 
+    name: "Pryvo Team", 
+    email: "pryvo@traincapetech.in" 
   };
+  
+  // Brevo requires 'to' to be an array of objects
+  sendSmtpEmail.to = emails.map(email => ({ email }));
 
-  const emailPromises = activeSubscribers.map(sub => {
-    return transporter.sendMail({
-      from: `"Pryvo Newsletter" <${config.email.user}>`,
-      to: sub.email,
-      subject: subject,
-      text: content,
-      html: html || content,
-    }).then(() => {
-      results.success++;
-    }).catch(err => {
-      console.error(`Failed to send newsletter to ${sub.email}:`, err.message);
-      results.failed++;
+  try {
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    res.status(200).json({
+      success: true,
+      message: `Newsletter broadcast complete. Sent to ${emails.length} subscribers in segment: ${segment || 'Custom'}.`,
+      messageId: data.messageId,
     });
-  });
-
-  await Promise.all(emailPromises);
-
-  res.status(200).json({
-    success: true,
-    message: `Newsletter broadcast complete. Sent to ${results.success} subscribers, ${results.failed} failed.`,
-    results,
-  });
+  } catch (error) {
+    console.error('Brevo API Error:', error.response ? error.response.text : error.message);
+    let errorMessage = error.message;
+    if (error.response && error.response.text) {
+      try {
+        errorMessage = JSON.parse(error.response.text).message;
+      } catch (e) {
+        errorMessage = error.response.text;
+      }
+    }
+    res.status(400).json({
+      success: false,
+      message: `Failed to send newsletter via Brevo: ${errorMessage}`,
+    });
+  }
 });
