@@ -54,7 +54,7 @@ const BODY_SHAMING = [
 ];
 
 
-filter.addWords(...CUSTOM_KEYWORDS, ...HINGLISH_ABUSE, ...BODY_SHAMING);
+filter.addWords(...HINGLISH_ABUSE, ...BODY_SHAMING);
 
 /* ---------------- CHAT MODERATION ---------------- */
 
