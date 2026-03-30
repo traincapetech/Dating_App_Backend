@@ -27,7 +27,7 @@ const HINGLISH_ABUSE = [
 
   // Marathi (very common in Maharashtra)
   'bhosdya', 'bhosadya', 'gandya', 'gandyaala', 'lavdya', 'lavdyacha', 'chutya', 
-  , 'aai chi gand', 'aai chi chut', 'zhavyacha', 
+  'aai chi gand', 'aai chi chut', 'zhavyacha', 
   'pudya', 'pudyacha', 'baylya', 'bayle', 'maderchod', 'bhenchodya', 'randichya',
 
   // Bengali (common in West Bengal & Bangladesh)
