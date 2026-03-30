@@ -9,51 +9,61 @@ import { z } from 'zod';
 import { config } from '../config/env.js';
 import SibApiV3Sdk from 'sib-api-v3-sdk';
 
-// Validation schema for subscription
-const subscribeSchema = z.object({
-  email: z.string().email('Invalid email address'),
+export const subscribe = asyncHandler(async (req, res) => {
+  const { email, source, isPremium } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  // Upsert: Find and update or create
+  const subscriber = await Newsletter.findOneAndUpdate(
+    { email: email.toLowerCase() },
+    { 
+      status: 'active',
+      source: source || 'landing_page',
+      isPremium: isPremium || false,
+      subscribedAt: new Date(),
+      metadata: {
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Successfully subscribed to the newsletter!',
+    subscriber
+  });
 });
 
 /**
- * Subscribe to newsletter
- * POST /api/newsletter/subscribe
+ * Unsubscribe from newsletter
+ * POST /api/newsletter/unsubscribe
  */
-export const subscribe = asyncHandler(async (req, res) => {
-  const { email } = subscribeSchema.parse(req.body);
-
-  // Check if already subscribed
-  const existing = await Newsletter.findOne({ email });
-  if (existing) {
-    if (existing.status === 'active') {
-      return res.status(400).json({
-        success: false,
-        message: 'This email is already subscribed',
-      });
-    } else {
-      // Re-activate
-      existing.status = 'active';
-      existing.subscribedAt = new Date();
-      await existing.save();
-      return res.status(200).json({
-        success: true,
-        message: 'Successfully re-subscribed to our newsletter!',
-      });
-    }
+export const unsubscribe = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
   }
 
-  // Create new subscription
-  await Newsletter.create({
-    email,
-    metadata: {
-      source: req.body.source || 'landing_page',
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
+  const subscriber = await Newsletter.findOneAndUpdate(
+    { email: email.toLowerCase() },
+    { 
+      status: 'unsubscribed',
+      unsubscribedAt: new Date() 
     },
-  });
+    { new: true }
+  );
 
-  res.status(201).json({
+  if (!subscriber) {
+    return res.status(404).json({ success: false, message: 'Subscriber not found' });
+  }
+
+  res.status(200).json({
     success: true,
-    message: 'Thank you for subscribing to our newsletter!',
+    message: 'Successfully unsubscribed.',
   });
 });
 

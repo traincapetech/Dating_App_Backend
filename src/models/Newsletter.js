@@ -19,6 +19,10 @@ const NewsletterSchema = new mongoose.Schema({
     enum: ['active', 'unsubscribed'],
     default: 'active',
   },
+  source: {
+    type: String,
+    default: 'landing_page',
+  },
   subscribedAt: {
     type: Date,
     default: Date.now,
@@ -26,8 +30,11 @@ const NewsletterSchema = new mongoose.Schema({
   unsubscribedAt: {
     type: Date,
   },
+  isPremium: {
+    type: Boolean,
+    default: false,
+  },
   metadata: {
-    source: { type: String, default: 'landing_page' },
     ip: { type: String },
     userAgent: { type: String },
   },
