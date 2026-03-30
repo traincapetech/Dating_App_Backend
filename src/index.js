@@ -81,6 +81,10 @@ const startServer = async () => {
         const cronModule = await import('node-cron');
         const cron = cronModule.default;
 
+        // Initialize Notification Scheduler
+        const { scheduleNotifications } = await import('./jobs/notificationJob.js');
+        scheduleNotifications();
+
         // Setup subscription expiry cron (runs daily at midnight)
         cron.schedule('0 0 * * *', async () => {
           console.log('[Cron] Running subscription expiry check...');

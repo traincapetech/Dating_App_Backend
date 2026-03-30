@@ -1,128 +1,105 @@
-import {asyncHandler} from '../utils/asyncHandler.js';
-import {
-  registerTokenSchema,
-  unregisterTokenSchema,
-} from '../validators/notificationValidators.js';
-import {
-  registerToken,
-  unregisterToken,
-} from '../models/notificationTokenModel.js';
-import {updateUser, findUserById} from '../models/userModel.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
+import { sendNotification } from '../services/notificationService.js';
 
-export const registerTokenController = asyncHandler(async (req, res) => {
-  const parsed = registerTokenSchema.parse(req.body);
-  const token = await registerToken(
-    parsed.userId,
-    parsed.token,
-    parsed.platform || 'unknown',
-  );
-  res.status(200).json({
-    success: true,
-    message: 'Notification token registered successfully',
-    token,
-  });
-});
+/**
+ * Controller to save FCM token for a user
+ * POST /api/notifications/token
+ */
+export const saveFcmToken = async (req, res) => {
+  const { fcmToken, platform } = req.body;
+  const userId = req.user.id;
 
-export const unregisterTokenController = asyncHandler(async (req, res) => {
-  const parsed = unregisterTokenSchema.parse(req.body);
-  await unregisterToken(parsed.userId);
-  res.status(200).json({
-    success: true,
-    message: 'Notification token unregistered successfully',
-  });
-});
-
-// Get notification preferences for a user
-export const getNotificationPreferencesController = asyncHandler(async (req, res) => {
-  const {userId} = req.params;
-
-  if (!userId) {
-    return res.status(400).json({
-      success: false,
-      message: 'User ID is required',
-    });
+  if (!fcmToken) {
+    return res.status(400).json({ success: false, message: 'FCM token required' });
   }
 
-  const user = await findUserById(userId);
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fcmToken, lastActive: new Date() },
+      { new: true }
+    );
 
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
-
-  // Default preferences if not set
-  const defaultPreferences = {
-    pushEnabled: true,
-    newMatches: true,
-    newMessages: true,
-    newLikes: true,
-    profileViews: false,
-    superLikes: true,
-  };
-
-  const preferences = user.notificationPreferences || defaultPreferences;
-
-  res.status(200).json({
-    success: true,
-    preferences,
-  });
-});
-
-// Update notification preferences for a user
-export const updateNotificationPreferencesController = asyncHandler(async (req, res) => {
-  const {userId} = req.params;
-  const {preferences} = req.body;
-
-  if (!userId) {
-    return res.status(400).json({
-      success: false,
-      message: 'User ID is required',
-    });
-  }
-
-  if (!preferences || typeof preferences !== 'object') {
-    return res.status(400).json({
-      success: false,
-      message: 'Preferences object is required',
-    });
-  }
-
-  // Validate preferences structure
-  const validKeys = [
-    'pushEnabled',
-    'newMatches',
-    'newMessages',
-    'newLikes',
-    'profileViews',
-    'superLikes',
-  ];
-
-  const validatedPreferences = {};
-  for (const key of validKeys) {
-    if (preferences.hasOwnProperty(key)) {
-      validatedPreferences[key] = Boolean(preferences[key]);
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
+
+    res.json({ success: true, message: 'FCM token updated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating FCM token' });
+  }
+};
+
+/**
+ * Controller to send or schedule a manual notification (Admin Only)
+ * POST /api/notifications/send
+ */
+export const sendAdminNotification = async (req, res) => {
+  const { title, body, audience, userIds, type, data, scheduledAt } = req.body;
+  const adminId = req.admin.id;
+
+  if (!title || !body || !audience) {
+    return res.status(400).json({ success: false, message: 'Title, body, and audience are required' });
   }
 
-  const user = await findUserById(userId);
+  try {
+    // If it's scheduled for future, just create the DB entry and return
+    if (scheduledAt && new Date(scheduledAt) > new Date()) {
+      const scheduledLog = await Notification.create({
+        title,
+        body,
+        audience,
+        userIds,
+        type: type || 'normal',
+        data,
+        scheduledAt,
+        status: 'pending',
+        createdBy: adminId,
+      });
 
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
+      return res.json({
+        success: true,
+        message: 'Notification scheduled successfully',
+        id: scheduledLog._id,
+      });
+    }
+
+    // Otherwise, send immediately
+    const result = await sendNotification({
+      title,
+      body,
+      audience,
+      userIds,
+      type: type || 'normal',
+      data,
+      createdBy: adminId,
     });
+
+    res.json({
+      success: true,
+      message: 'Notification sent successfully',
+      stats: result.stats,
+    });
+
+  } catch (error) {
+    console.error('❌ Admin notification error:', error.message);
+    res.status(500).json({ success: false, message: 'Error sending notification' });
   }
+};
 
-  // Update user with notification preferences
-  const updatedUser = await updateUser(userId, {
-    notificationPreferences: validatedPreferences,
-  });
+/**
+ * Fetch notification analytics (Admin Only)
+ * GET /api/notifications/stats
+ */
+export const getNotificationStats = async (req, res) => {
+  try {
+    const stats = await Notification.find({})
+      .sort({ createdAt: -1 })
+      .limit(10); // Last 10 notification job results
 
-  res.status(200).json({
-    success: true,
-    message: 'Notification preferences updated successfully',
-    preferences: updatedUser.notificationPreferences || validatedPreferences,
-  });
-});
+    res.json({ success: true, stats });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching stats' });
+  }
+};

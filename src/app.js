@@ -20,6 +20,7 @@ import photoSocialRoutes from './routes/photoSocialRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import streakRoutes from './modules/streak/streak.routes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import {
   generalLimiter,
   swipeLimiter,
@@ -86,6 +87,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/photo-social', photoSocialRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});

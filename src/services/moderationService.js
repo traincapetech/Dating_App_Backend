@@ -11,18 +11,48 @@ function normalize(text) {
 }
 
 /* ---------------- CUSTOM WORDS ---------------- */
-const CUSTOM_KEYWORDS = [
-  'scam','fake','spam','onlyfans','telegram','whatsapp','cashapp','venmo','paypal',
-  'sugarbaby','sugardaddy','sendmoney','moneytransfer'
-];
-
 const HINGLISH_ABUSE = [
-  'bhenchod','madarchod','chutiya','randi','gandu','kamina','harami','bhadva','saala'
+  // Existing ones (kept as is)
+  'bhenchod', 'behenchod', 'madarchod', 'madharchod', 'chutiya','randi','gandu','kamina','harami','bhadva','saala', 
+  'lodu', 'loda', 'lode', 'bhosdike', 'bsdk', 'bhosdk', 'bosdk', 'saali','bkl','behen ke land',
+  'maa ke laude','chhinar','choot','chut','chooche','bhund','gendu','maa ki aankh','lodi','laudi','raand', 
+  'gandwi','jhantu','jhant','bawri gend','baap ka lund','dadichod','nanichod','aand bhat','aand','tatte',
+
+  // More Hindi / Hinglish (very common)
+  'bc', 'mc', 'chutiyapa', 'chutiyapanti', 'bakchod', 'bakchodi', 'bhosdiwala', 'bhosdiwale', 
+  'maa ki chut', 'terimaa', 'teri maa', 'teri behen', 'behen ke chode', 'maa ke bhosde', 
+  'lund', 'launda', 'lavda', 'lavde', 'lavdu', 'chod', 'chud', 'chudwa', 'chudwane', 
+  'gand', 'gaand', 'gaandu', 'gaandfat', 'pel', 'pelu', 'pelunga', 'thok', 'thokunga', 
+  'haramkhor', 'haramzada', 'kutti', 'kuttiya', 'suvar', 'suar', 'suar ke bachche',
+
+  // Marathi (very common in Maharashtra)
+  'bhosdya', 'bhosadya', 'gandya', 'gandyaala', 'lavdya', 'lavdyacha', 'chutya', 
+  , 'aai chi gand', 'aai chi chut', 'zhavyacha', 
+  'pudya', 'pudyacha', 'baylya', 'bayle', 'maderchod', 'bhenchodya', 'randichya',
+
+  // Bengali (common in West Bengal & Bangladesh)
+  'bhodro', 'bhodrolok', 'khankir chele', 'khanki', 'khankir pola', 'magi', 'magir pola', 
+  'chodna', 'chod', 'beshya', 'beshya putro', 'tor maa re', 'tor bon re', 'salaa', 
+  'bal', 'bal chera', 'baler', 'fuchka', 'fuchki', 'dhon', 'dhoner', 'gud', 'guder',
+
+  // Bihari / Nihari / Eastern UP-Bihar style (very raw & common)
+  'bhen ke launda',  'betichod', 'beti chod', 
+  'sasura', 'sasur', 'sasur ke', 'lounda', 'loundiya', 
+  'goar', 'goar ke', 'thokwa', 'pelwa', 'maarwa', 'chhinarwa', 'randiwa',
+
+  // South Indian style (Tamil/Telugu/Kannada/Malayalam mix - phonetic)
+  'punda', 'pundamavale', 'thayoli', 'thayoliya', 'ooli', 'oolimavan', 'panni', 'panni da', 
+  'mayir', 'mayiru', 'thenga', 'thengachi', 'naaye', 'naayee', 'kutta', 'kuttiya', 
+  'kandapayale', 'loosu', 'loosu payale', 'dengu', 'dengra', 'dengina', 'gudda', 'guddu',
+
+  // Mixed / Pan-India viral ones
+  'fuckiya', 'fuck chod', 'asshole', 'bastard', 'sala', 'sali', 'chamanchutiya', 
 ];
 
 const BODY_SHAMING = [
-  'moti','mota','fat','ugly','badsoorat','kaali','kaala','skinny','hathi','bhains','chakka','hijra'
+  'moti','mota','fat','ugly','badsoorat','kaali','kaala','skinny','hathi','bhains','chakka','hijra','kinnar'
 ];
+
 
 filter.addWords(...CUSTOM_KEYWORDS, ...HINGLISH_ABUSE, ...BODY_SHAMING);
 

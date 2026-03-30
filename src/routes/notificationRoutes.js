@@ -1,18 +1,37 @@
-import {Router} from 'express';
-import {
-  registerTokenController,
-  unregisterTokenController,
-  getNotificationPreferencesController,
-  updateNotificationPreferencesController,
+import express from 'express';
+import { 
+  saveFcmToken, 
+  sendAdminNotification, 
+  getNotificationStats 
 } from '../controllers/notificationController.js';
+import { requireAuth } from '../middlewares/auth.js';
+import { verifyAdminToken, requirePermission } from '../middlewares/adminAuth.js';
 
-const router = Router();
+const router = express.Router();
 
-router.post('/register', registerTokenController);
-router.post('/unregister', unregisterTokenController);
-router.get('/preferences/:userId', getNotificationPreferencesController);
-router.put('/preferences/:userId', updateNotificationPreferencesController);
+/**
+ * User Routes
+ */
+// POST /api/notifications/token - Save user FCM token
+router.post('/token', requireAuth, saveFcmToken);
+
+/**
+ * Admin Routes
+ */
+// POST /api/notifications/send - Send immediate or scheduled notification
+router.post(
+  '/send', 
+  verifyAdminToken, 
+  requirePermission('manage_notifications'), 
+  sendAdminNotification
+);
+
+// GET /api/notifications/stats - Get notification history and stats
+router.get(
+  '/stats', 
+  verifyAdminToken, 
+  requirePermission('view_analytics'), 
+  getNotificationStats
+);
 
 export default router;
-
-
