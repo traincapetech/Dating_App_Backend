@@ -1,6 +1,7 @@
 import express from 'express';
 import { 
   saveFcmToken, 
+  removeFcmToken,
   sendAdminNotification, 
   getNotificationStats 
 } from '../controllers/notificationController.js';
@@ -15,6 +16,9 @@ const router = express.Router();
 // POST /api/notifications/token - Save user FCM token
 router.post('/token', requireAuth, saveFcmToken);
 router.post('/register', requireAuth, saveFcmToken);
+
+// POST /api/notifications/unregister - Remove user FCM token
+router.post('/unregister', requireAuth, removeFcmToken);
 
 /**
  * Admin Routes

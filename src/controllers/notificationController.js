@@ -7,17 +7,19 @@ import { sendNotification } from '../services/notificationService.js';
  * POST /api/notifications/token
  */
 export const saveFcmToken = async (req, res) => {
-  const { fcmToken, platform } = req.body;
+  const { fcmToken, token, platform } = req.body;
   const userId = req.user.id;
 
-  if (!fcmToken) {
+  const finalToken = fcmToken || token;
+
+  if (!finalToken) {
     return res.status(400).json({ success: false, message: 'FCM token required' });
   }
 
   try {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { fcmToken, lastActive: new Date() },
+      { fcmToken: finalToken, lastActive: new Date() },
       { new: true }
     );
 
@@ -28,6 +30,22 @@ export const saveFcmToken = async (req, res) => {
     res.json({ success: true, message: 'FCM token updated successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error updating FCM token' });
+  }
+};
+
+/**
+ * Controller to remove FCM token (when user logs out or disables notifications)
+ * POST /api/notifications/unregister
+ */
+export const removeFcmToken = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // Unset the fcmToken from the user
+    await User.findByIdAndUpdate(userId, { $unset: { fcmToken: 1 } });
+    res.json({ success: true, message: 'FCM token removed successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error removing FCM token' });
   }
 };
 
