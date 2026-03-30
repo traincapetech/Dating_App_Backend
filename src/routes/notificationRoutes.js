@@ -14,6 +14,7 @@ const router = express.Router();
  */
 // POST /api/notifications/token - Save user FCM token
 router.post('/token', requireAuth, saveFcmToken);
+router.post('/register', requireAuth, saveFcmToken);
 
 /**
  * Admin Routes
