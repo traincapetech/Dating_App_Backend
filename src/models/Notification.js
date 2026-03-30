@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['normal', 'persistent'],
+      enum: ['normal', 'persistent', 'timer'],
       default: 'normal',
     },
     audience: {
