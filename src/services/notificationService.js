@@ -46,15 +46,26 @@ export const sendNotification = async (notificationData) => {
     notificationLog.status = 'sending';
     await notificationLog.save();
 
+    // FCM requires all data values to be strings
+    const stringifiedData = {};
+    if (data) {
+      Object.keys(data).forEach(key => {
+        if (data[key] !== undefined && data[key] !== null) {
+          stringifiedData[key] = String(data[key]);
+        }
+      });
+    }
+
     // 4. Firebase Messaging Payload
     const message = {
       notification: {
         title,
         body,
+        ...(data?.imageUrl ? { imageUrl: data.imageUrl } : {}),
       },
       data: {
-        ...data,
-        type, // e.g., 'persistent'
+        ...stringifiedData,
+        type, // e.g., 'persistent' or 'timer'
         click_action: "OPEN_APP",
       },
     };
