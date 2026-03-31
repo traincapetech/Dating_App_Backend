@@ -232,7 +232,7 @@ export const sendMessage = async (req, res) => {
           const pushResult = await sendPushNotification(receiverId, {
             title: senderName,
             body: pushBody,
-            isDataOnly: false, // Set to false so standard notification appears if background handler is not active
+            isDataOnly: true, // Data-only so background handler (backgroundHandler.js) renders the notification w/ Reply action via Notifee
             data: {
               type: 'chat_message',
               chatId: matchId,

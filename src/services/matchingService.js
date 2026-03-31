@@ -299,60 +299,44 @@ export async function getMatchedProfiles(userId, options = {}) {
   const locationForQuery =
     liveLocation ||
     (hasStoredLocation ? currentUserProfile.location : null);
+  
+  const isGlobal = currentUserProfile.datingPreferences?.global === true;
 
-  if (locationForQuery) {
+  if (locationForQuery && !isGlobal) {
     pipeline.push({
       $geoNear: {
         near: locationForQuery,
         distanceField: 'dist.calculated',
-        maxDistance: (maxDistance || 5000) * 1000, // km → meters
-        distanceMultiplier: 0.001,                  // meters → km
+        maxDistance: (maxDistance || 50) * 1000, 
+        distanceMultiplier: 0.001,                 
         spherical: true,
         query: {userId: {$ne: userId}},
       },
     });
   } else {
-    // If a specific distance filter was requested but viewer has no location, we can't filter.
-    // Return empty results to avoid "global leaks" when user expects a filter.
-    if (maxDistance !== null) {
-      console.log(
-        `[getMatchedProfiles] maxDistance ${maxDistance} requested but user ${userId} has no location. Ignoring distance filter.`,
-      );
+    // If no location or global mode is enabled, skip the distance restriction
+    if (isGlobal) {
+      console.log(`[getMatchedProfiles] User ${userId} has Global enabled. Skipping distance filter.`);
     }
-    // Fallback: just exclude self
     pipeline.push({$match: {userId: {$ne: userId}}});
   }
 
   // B. Gender Filter
-  const userGender = currentUserProfile.basicInfo?.gender;
-  const userWhoToDate = currentUserProfile.datingPreferences?.whoToDate || [
-    'Everyone',
-  ];
-
-  const genderMap = {
-    Man: 'Men',
-    Woman: 'Women',
-    'Non Binary': 'Nonbinary People',
-  };
-  const reverseGenderMap = {
-    Men: 'Man',
-    Women: 'Woman',
-    'Nonbinary People': 'Non Binary',
-  };
-
+  const userGender = currentUserProfile.basicInfo?.gender || 'Woman';
+  const userWhoToDate = currentUserProfile.datingPreferences?.whoToDate || ['Everyone'];
   const genderQueries = [];
 
-  // Who does user want to date?
-  if (!userWhoToDate.includes('Everyone')) {
+  // Target's Gender check (Only if user is specific)
+  if (!userWhoToDate.includes('Everyone') && userWhoToDate.length > 0) {
     const preferredGenders = userWhoToDate.map(g => reverseGenderMap[g] || g);
     genderQueries.push({'basicInfo.gender': {$in: preferredGenders}});
   }
 
-  // Who wants to date the user?
-  // We need profiles where `datingPreferences.whoToDate` includes user's gender mapped (or Everyone)
-  const myGenderMapped = genderMap[userGender];
-  if (myGenderMapped) {
-    genderQueries.push({
+  // Reciprocal check: Ensure target likes user's gender
+  // For 'Everyone' users, we loosened this to allow more profiles to appear
+  const myGenderMapped = genderMap[userGender] || 'Women';
+  if (!userWhoToDate.includes('Everyone')) {
+     genderQueries.push({
       $or: [
         {'datingPreferences.whoToDate': 'Everyone'},
         {'datingPreferences.whoToDate': myGenderMapped},
@@ -362,6 +346,18 @@ export async function getMatchedProfiles(userId, options = {}) {
 
   if (genderQueries.length > 0) {
     pipeline.push({$match: {$and: genderQueries}});
+  }
+
+  // Execute Aggregation
+  let potentialMatches = await Profile.aggregate(pipeline);
+
+  // FALLBACK: If 0 results because of location/distance, search again GLOBALLY
+  if (potentialMatches.length === 0 && !isGlobal) {
+    const fallbackPipeline = pipeline.filter(stage => !stage.$geoNear);
+    if (fallbackPipeline.length < pipeline.length) {
+       console.log(`[getMatchedProfiles] No local matches. Retrying globally for user ${userId}...`);
+       potentialMatches = await Profile.aggregate(fallbackPipeline);
+    }
   }
 
   // C. Age Filter (if configured)
@@ -388,6 +384,11 @@ export async function getMatchedProfiles(userId, options = {}) {
 
   // Execute Aggregation
   const potentialMatches = await Profile.aggregate(pipeline);
+  const fs = await import('fs');
+  fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `[${new Date().toISOString()}] getMatchedProfiles for ${userId}: Found ${potentialMatches.length} matches. Pipeline: ${JSON.stringify(pipeline)}\n`);
+  if (potentialMatches.length > 0) {
+    fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `First match data: ${JSON.stringify({gender: potentialMatches[0].basicInfo?.gender, whoToDate: potentialMatches[0].datingPreferences?.whoToDate})}\n`);
+  }
 
   // 3. Post-process: Scoring and additional filtering (Age, etc.)
   const processedMatches = await Promise.all(

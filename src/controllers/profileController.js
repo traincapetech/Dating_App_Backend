@@ -268,6 +268,16 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
   };
 
   const profiles = await getAllProfiles(excludeUserId, options);
+  const profileSummary = (profiles || []).map(p => ({
+    name: p.name,
+    photos: p.photos?.length || 0,
+    dist: p.distance
+  }));
+  console.log(`[Discover API] Response size: ${profiles?.length || 0}. Profiles:`, JSON.stringify(profileSummary));
+  
+  const fs = await import('fs');
+  fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `[${new Date().toISOString()}] Discover Result for ${excludeUserId}: Count ${profiles?.length}. Data: ${JSON.stringify(profileSummary)}\n`);
+  
   res.status(200).json({profiles});
 });
 

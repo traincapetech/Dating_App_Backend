@@ -307,6 +307,10 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     filters = null,
   } = options;
 
+  console.log(`[getAllProfiles] Called for ${excludeUserId} with useMatching=${useMatching}, maxDistance=${maxDistance}`);
+  const fs = await import('fs');
+  fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `[${new Date().toISOString()}] getAllProfiles for ${excludeUserId}: useMatching=${useMatching}, maxDistance=${maxDistance}\n`);
+
   const profiles = await getProfiles();
   const users = await getUsers();
 
