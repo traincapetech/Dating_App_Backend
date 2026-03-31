@@ -232,7 +232,7 @@ export const sendMessage = async (req, res) => {
           const pushResult = await sendPushNotification(receiverId, {
             title: senderName,
             body: pushBody,
-            isDataOnly: true, // Keep data-only so Notifee handles the conversation UI
+            isDataOnly: false, // Set to false so standard notification appears if background handler is not active
             data: {
               type: 'chat_message',
               chatId: matchId,

@@ -300,6 +300,7 @@ export function emitToUser(userId, event, data) {
 
 // Helper to check if user is online
 export function isUserOnline(userId) {
-  const sockets = userSockets.get(userId);
-  return sockets && sockets.size > 0;
+  if (!userId) return false;
+  const sockets = userSockets.get(userId.toString());
+  return !!(sockets && sockets.size > 0);
 }
