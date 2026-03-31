@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
 
+/**
+ * Notification model for logging and scheduling push notifications.
+ */
 const notificationSchema = new mongoose.Schema(
   {
     title: {
@@ -12,22 +15,41 @@ const notificationSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    /**
+     * Notification categories.
+     * "timer" is used for real-time interaction countdowns.
+     */
     type: {
       type: String,
-      enum: ['normal', 'persistent', 'timer'],
+      enum: ['normal', 'persistent', 'timer', 'promo', 'announcement'],
       default: 'normal',
     },
+    /**
+     * Targeting audience.
+     */
     audience: {
       type: String,
-      enum: ['all', 'premium', 'free', 'custom'],
+      enum: ['all', 'premium', 'free', 'custom', 'Premium', 'Free'], // Supporting both cases seen in diffs
       required: true,
     },
+    /**
+     * List of target user IDs (for audience='custom').
+     */
     userIds: [{
-      type: String, // Matching existing UUID string ID system
+      type: String, // Matching UUID string ID system
     }],
+    /**
+     * Flexible JSON object for the payload data.
+     * For type="timer", this contains { type, endTime, actionText }.
+     */
     data: {
-      type: Map,
-      of: String,
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    /** High priority flag for FCM */
+    isHighPriority: {
+      type: Boolean,
+      default: false,
     },
     scheduledAt: {
       type: Date,
@@ -39,6 +61,10 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'scheduled', 'sending', 'sent', 'failed'],
       default: 'pending',
+    },
+    recipientCount: {
+      type: Number,
+      default: 0,
     },
     stats: {
       totalSent: { type: Number, default: 0 },
@@ -55,9 +81,10 @@ const notificationSchema = new mongoose.Schema(
   },
 );
 
-// Index for scheduler
+// Index for scheduler and filtering
 notificationSchema.index({ status: 1, scheduledAt: 1 });
+notificationSchema.index({ type: 1 });
 
-const Notification = mongoose.model('Notification', notificationSchema);
+const Notification = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
 
 export default Notification;

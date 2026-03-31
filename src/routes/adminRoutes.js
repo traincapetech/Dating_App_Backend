@@ -19,6 +19,8 @@ import {
   getPendingProfilesController,
   moderateProfileController,
   getFlaggedProfilesController,
+  broadcastNotificationController,
+  getNotificationLogsController,
 } from '../controllers/adminController.js';
 import {verifyAdminToken, requirePermission, requireAnyPermission} from '../middlewares/adminAuth.js';
 
@@ -59,6 +61,20 @@ router.put('/reports/:reportId/status', requirePermission('view_reports'), updat
 router.get('/profiles/pending', requirePermission('moderate_content'), getPendingProfilesController);
 router.get('/profiles/flagged', requirePermission('moderate_content'), getFlaggedProfilesController);
 router.post('/profiles/:profileId/moderate', requirePermission('moderate_content'), moderateProfileController);
+
+// Broadcast Push Notifications
+// Uses 'send_notifications' permission – add this to admin roles as needed.
+// Falls back to 'manage_users' so existing super-admins can send immediately.
+router.post(
+  '/notifications/broadcast',
+  requireAnyPermission(['send_notifications', 'manage_users']),
+  broadcastNotificationController,
+);
+router.get(
+  '/notifications',
+  requireAnyPermission(['send_notifications', 'view_analytics', 'manage_users']),
+  getNotificationLogsController,
+);
 
 export default router;
 

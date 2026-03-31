@@ -5,6 +5,8 @@ import {getSubscriptions, findSubscriptionById, updateSubscription, isUserPremiu
 import {getUsers, findUserById, updateUser, deleteUser} from '../models/userModel.js';
 import {processRefund} from '../services/paymentService.js';
 import {getAllPlans} from '../config/subscriptionPlans.js';
+import {broadcastPushNotification} from '../services/pushService.js';
+import Notification from '../models/Notification.js';
 
 // Admin Login
 export const adminLoginController = asyncHandler(async (req, res) => {
@@ -742,3 +744,185 @@ export const getFlaggedProfilesController = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== BROADCAST PUSH NOTIFICATIONS ====================
+
+/**
+ * POST /admin/notifications/broadcast
+ *
+ * Body:
+ * {
+ *   title: string,
+ *   body: string,
+ *   type: 'general' | 'timer' | 'promo' | 'announcement',
+ *   audience: 'all' | 'Premium' | 'Free' | 'custom',
+ *   customUserIds?: string[],   // required when audience === 'custom'
+ *   isHighPriority?: boolean,
+ *   data?: {
+ *     type?: string,
+ *     endTime?: string,         // Unix ms timestamp string – required for type=timer
+ *     actionText?: string,
+ *     [key: string]: any,
+ *   }
+ * }
+ */
+export const broadcastNotificationController = asyncHandler(async (req, res) => {
+  const {
+    title,
+    body,
+    type = 'general',
+    audience = 'all',
+    customUserIds = [],
+    isHighPriority = false,
+    data = {},
+  } = req.body;
+
+  // ── Validate required fields ──────────────────────────────────────────────
+  if (!title || !body) {
+    return res.status(400).json({
+      success: false,
+      message: 'title and body are required',
+    });
+  }
+
+  const validTypes = ['general', 'timer', 'promo', 'announcement'];
+  if (!validTypes.includes(type)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid type. Must be one of: ${validTypes.join(', ')}`,
+    });
+  }
+
+  // ── Timer-specific validation ─────────────────────────────────────────────
+  if (type === 'timer') {
+    const endTime = data?.endTime;
+    if (!endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'data.endTime is required for timer notifications',
+      });
+    }
+    const endMs = Number(endTime);
+    if (isNaN(endMs)) {
+      return res.status(400).json({
+        success: false,
+        message: 'data.endTime must be a valid Unix timestamp string (milliseconds)',
+      });
+    }
+    if (endMs <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'data.endTime is in the past – timer notifications must have a future endTime',
+      });
+    }
+  }
+
+  // ── Custom audience validation ────────────────────────────────────────────
+  if (audience === 'custom' && (!Array.isArray(customUserIds) || customUserIds.length === 0)) {
+    return res.status(400).json({
+      success: false,
+      message: 'customUserIds array is required when audience is "custom"',
+    });
+  }
+
+  // ── Resolve target user IDs from audience selector ────────────────────────
+  let targetUserIds = null; // null = broadcast to ALL registered tokens
+
+  if (audience !== 'all') {
+    if (audience === 'custom') {
+      targetUserIds = customUserIds.map(String);
+    } else {
+      // 'Premium' or 'Free'
+      const allUsers = await getUsers();
+      const filtered = allUsers.filter(user => {
+        if (audience === 'Premium') return user.isPremium === true;
+        if (audience === 'Free')    return !user.isPremium;
+        return false;
+      });
+      targetUserIds = filtered.map(u => String(u.id || u._id));
+
+      if (targetUserIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: `No ${audience} users found – nothing sent`,
+          recipientCount: 0,
+        });
+      }
+    }
+  }
+
+  // ── Build notification payload (imageUrl intentionally excluded) ──────────
+  const notification = {
+    title,
+    body,
+    type,
+    isHighPriority: Boolean(isHighPriority),
+    // For timer type force data-only delivery so background handlers render
+    // the countdown themselves rather than relying on a system tray alert.
+    isDataOnly: type === 'timer',
+    data: {
+      ...data,
+      // Ensure type discriminator is always present in the data block
+      type,
+    },
+  };
+
+  // ── Dispatch ──────────────────────────────────────────────────────────────
+  const result = await broadcastPushNotification(notification, targetUserIds);
+
+  // ── Log to database ───────────────────────────────────────────────────────
+  try {
+    await Notification.create({
+      title,
+      body,
+      type,
+      audience,
+      isHighPriority: Boolean(isHighPriority),
+      data,
+      recipientCount: result.successCount,
+      sentBy: req.adminId,
+    });
+  } catch (dbError) {
+    // Non-fatal – the push has already been sent; just log the DB error
+    console.error('Failed to log notification to DB:', dbError.message);
+  }
+
+  // ── Respond ───────────────────────────────────────────────────────────────
+  if (result.reason === 'timer_expired') {
+    return res.status(400).json({
+      success: false,
+      message: 'Broadcast aborted – timer endTime has already passed',
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: `Broadcast dispatched to ${result.successCount} device(s)`,
+    recipientCount: result.successCount,
+    failureCount: result.failureCount,
+  });
+});
+
+/**
+ * GET /admin/notifications
+ * Returns a paginated log of all broadcast notifications.
+ */
+export const getNotificationLogsController = asyncHandler(async (req, res) => {
+  const {page = 1, limit = 50} = req.query;
+  const skip = (page - 1) * limit;
+
+  const [logs, total] = await Promise.all([
+    Notification.find({}).sort({createdAt: -1}).skip(skip).limit(parseInt(limit)).lean(),
+    Notification.countDocuments({}),
+  ]);
+
+  return res.status(200).json({
+    success: true,
+    notifications: logs,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
+});

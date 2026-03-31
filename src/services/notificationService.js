@@ -3,8 +3,29 @@ import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import NotificationToken from '../models/notificationTokenModel.js';
 
+/**
+ * Calculates current TTL for timer notifications.
+ * @param {string|number} endTime 
+ * @returns {number} TTL in milliseconds
+ */
+const getTimerTTL = (endTime) => {
+  const endMs = Number(endTime);
+  if (isNaN(endMs)) return 3600 * 24 * 1000; // 24h default
+  const remaining = endMs - Date.now();
+  return Math.max(remaining, 60000); // Min 1 min
+};
+
 export const sendNotification = async (notificationData) => {
-  const { title, body, audience, userIds = [], type = 'normal', data = {}, createdBy } = notificationData;
+  const { 
+    title, 
+    body, 
+    audience, 
+    userIds = [], 
+    type = 'normal', 
+    data = {}, 
+    createdBy,
+    isHighPriority = false 
+  } = notificationData;
 
   // 1. Create a log entry in DB
   const notificationLog = await Notification.create({
@@ -14,6 +35,7 @@ export const sendNotification = async (notificationData) => {
     userIds,
     type,
     data,
+    isHighPriority: isHighPriority || type === 'timer',
     status: 'pending',
     createdBy: createdBy || 'system',
   });
@@ -21,19 +43,28 @@ export const sendNotification = async (notificationData) => {
   try {
     // 2. Fetch audience users
     let query = {};
-    if (audience === 'premium') {
+    if (audience === 'premium' || audience === 'Premium') {
       query.isPremium = true;
-    } else if (audience === 'free') {
+    } else if (audience === 'free' || audience === 'Free') {
       query.isPremium = false;
     } else if (audience === 'custom' && userIds.length > 0) {
       query._id = { $in: userIds };
     }
 
     // 3. Collect active FCM tokens
+    // Note: We use User.fcmToken as primary, but could fallback to NotificationToken model
     const users = await User.find(query).select('fcmToken _id').lean();
-    const tokens = users
+    let tokens = users
       .map(u => u.fcmToken)
       .filter(t => t && t.length > 0);
+
+    // If User collection has no tokens, try the dedicated NotificationToken model
+    if (tokens.length === 0 && (audience === 'all' || audience === 'custom')) {
+      const tokenDocs = audience === 'all' 
+        ? await NotificationToken.find({}).lean()
+        : await NotificationToken.find({ userId: { $in: userIds } }).lean();
+      tokens = tokenDocs.map(d => d.deviceToken).filter(t => t);
+    }
 
     if (tokens.length === 0) {
       notificationLog.status = 'sent';
@@ -46,7 +77,7 @@ export const sendNotification = async (notificationData) => {
     notificationLog.status = 'sending';
     await notificationLog.save();
 
-    // FCM requires all data values to be strings
+    // 4. Prepare Payload
     const stringifiedData = {};
     if (data) {
       Object.keys(data).forEach(key => {
@@ -56,22 +87,61 @@ export const sendNotification = async (notificationData) => {
       });
     }
 
-    // 4. Firebase Messaging Payload
-    const message = {
-      notification: {
+    // Timer-specific requirements: high priority and data-only for background handlers
+    const isTimer = type === 'timer';
+    const forceHighPriority = isHighPriority || isTimer;
+    const ttl = isTimer && data.endTime ? getTimerTTL(data.endTime) : (3600 * 24 * 1000);
+
+    const messageTemplate = {
+      data: {
+        ...stringifiedData,
+        title, // Ensure text is present in data block for data-only messages
+        body,
+        type,
+        click_action: "OPEN_APP",
+      },
+      android: {
+        priority: forceHighPriority ? 'high' : 'normal',
+        ttl: ttl,
+        // Carry data explicitly in android block for background handlers
+        data: {
+          ...stringifiedData,
+          title,
+          body,
+          type,
+        }
+      },
+      apns: {
+        payload: {
+          ...stringifiedData,
+          title,
+          body,
+          type,
+          aps: isTimer ? {
+            'content-available': 1 // Silent/Background push for timer handlers
+          } : {
+            alert: { title, body },
+            sound: 'default',
+            badge: 1,
+          }
+        },
+        headers: {
+          'apns-priority': forceHighPriority ? '10' : '5',
+          'apns-expiration': String(Math.floor((Date.now() + ttl) / 1000))
+        }
+      }
+    };
+
+    // Standard notification title/body (only if not timer data-only)
+    if (!isTimer) {
+      messageTemplate.notification = {
         title,
         body,
         ...(data?.imageUrl ? { imageUrl: data.imageUrl } : {}),
-      },
-      data: {
-        ...stringifiedData,
-        type, // e.g., 'persistent' or 'timer'
-        click_action: "OPEN_APP",
-      },
-    };
+      };
+    }
 
-    // FCM Multicast sends to multiple tokens efficiently
-    // We chunk them because FCM supports up to 500 per sendMulticast call
+    // 5. Firebase Messaging Multicast
     const CHUNK_SIZE = 500;
     let totalSuccess = 0;
     let totalFailed = 0;
@@ -81,13 +151,12 @@ export const sendNotification = async (notificationData) => {
       const chunk = tokens.slice(i, i + CHUNK_SIZE);
       const response = await admin.messaging().sendEachForMulticast({
         tokens: chunk,
-        ...message,
+        ...messageTemplate,
       });
 
       totalSuccess += response.successCount;
       totalFailed += response.failureCount;
 
-      // Handle invalid tokens
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           const error = resp.error;
@@ -101,19 +170,19 @@ export const sendNotification = async (notificationData) => {
       });
     }
 
-    // 5. Cleanup invalid tokens in background
+    // 6. Cleanup invalid tokens
     if (invalidTokens.length > 0) {
       await User.updateMany(
         { fcmToken: { $in: invalidTokens } },
         { $unset: { fcmToken: 1 } }
       );
-      // Also cleanup NotificationToken model if used there
       await NotificationToken.deleteMany({ deviceToken: { $in: invalidTokens } });
     }
 
-    // 6. Final Log Update
+    // 7. Final Log Update
     notificationLog.status = 'sent';
     notificationLog.sentAt = new Date();
+    notificationLog.recipientCount = totalSuccess; // Update our custom field
     notificationLog.stats = {
       totalSent: tokens.length,
       success: totalSuccess,
