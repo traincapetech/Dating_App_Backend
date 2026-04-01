@@ -409,15 +409,20 @@ export async function getMatchedProfiles(userId, options = {}) {
       // `calculateCompatibilityScore` expects standard profile structure.
       // Aggregation result is POJO, which is fine.
 
-      const distance = profile.dist?.calculated || null;
+      let matchResult;
+      try {
+        const distance = profile.dist?.calculated || null;
+        matchResult = calculateCompatibilityScore(
+          currentUserProfile.toObject ? currentUserProfile.toObject() : currentUserProfile,
+          profile,
+          distance,
+        );
+      } catch (err) {
+        console.error(`[getMatchedProfiles] Error calculating score for ${profile.userId}:`, err.message);
+        matchResult = { score: 0, percentage: 0, details: {} };
+      }
 
-      const matchResult = calculateCompatibilityScore(
-        currentUserProfile.toObject(),
-        profile,
-        distance,
-      );
-
-      const hasBoost = await hasActiveBoost(profile.userId);
+      const hasBoost = await hasActiveBoost(profile.userId).catch(() => false);
 
       const profileName = `${profile.basicInfo?.firstName || ''} ${
         profile.basicInfo?.lastName || ''
