@@ -408,10 +408,12 @@ export async function getMatchedProfiles(userId, options = {}) {
 
   // Execute Aggregation
   potentialMatches = await Profile.aggregate(pipeline);
-  const fs = await import('fs');
-  fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `[${new Date().toISOString()}] getMatchedProfiles for ${userId}: Found ${potentialMatches.length} matches. Pipeline: ${JSON.stringify(pipeline)}\n`);
+  console.log(`[getMatchedProfiles] user ${userId}: Found ${potentialMatches.length} matches.`);
   if (potentialMatches.length > 0) {
-    fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `First match data: ${JSON.stringify({gender: potentialMatches[0].basicInfo?.gender, whoToDate: potentialMatches[0].datingPreferences?.whoToDate})}\n`);
+    console.log(`[getMatchedProfiles] First match:`, {
+      gender: potentialMatches[0].basicInfo?.gender,
+      whoToDate: potentialMatches[0].datingPreferences?.whoToDate
+    });
   }
 
   // 3. Post-process: Scoring and additional filtering (Age, etc.)

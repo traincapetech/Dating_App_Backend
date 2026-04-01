@@ -275,8 +275,8 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
   }));
   console.log(`[Discover API] Response size: ${profiles?.length || 0}. Profiles:`, JSON.stringify(profileSummary));
   
-  const fs = await import('fs');
-  fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `[${new Date().toISOString()}] Discover Result for ${excludeUserId}: Count ${profiles?.length}. Data: ${JSON.stringify(profileSummary)}\n`);
+  // Safe logging for production
+  console.log(`[Discover] Result for ${excludeUserId}: Count ${profiles?.length}. Data: ${JSON.stringify(profileSummary)}`);
   
   res.status(200).json({profiles});
 });
