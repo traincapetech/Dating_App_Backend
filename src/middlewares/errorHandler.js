@@ -1,4 +1,5 @@
 export function errorHandler(err, req, res, _next) {
+  console.error(`[Fatal Error] ${req.method} ${req.url}:`, err);
   if (err.name === 'ZodError') {
     const details = err.errors?.map(item => ({
       path: item.path.join('.'),
