@@ -324,16 +324,28 @@ export async function getMatchedProfiles(userId, options = {}) {
   // B. Gender Filter
   const userGender = currentUserProfile.basicInfo?.gender || 'Woman';
   const userWhoToDate = currentUserProfile.datingPreferences?.whoToDate || ['Everyone'];
+  
+  const genderMap = {
+    Man: 'Men',
+    Woman: 'Women',
+    'Non Binary': 'Nonbinary People',
+  };
+  const reverseGenderMap = {
+    Men: 'Man',
+    Women: 'Woman',
+    'Nonbinary People': 'Non Binary',
+  };
+
   const genderQueries = [];
 
-  // Target's Gender check (Only if user is specific)
+  // 1. Target's Gender check (Who you want to date)
   if (!userWhoToDate.includes('Everyone') && userWhoToDate.length > 0) {
     const preferredGenders = userWhoToDate.map(g => reverseGenderMap[g] || g);
     genderQueries.push({'basicInfo.gender': {$in: preferredGenders}});
   }
 
-  // Reciprocal check: Ensure target likes user's gender
-  // For 'Everyone' users, we loosened this to allow more profiles to appear
+  // 2. Reciprocal check (Who wants to date YOU)
+  // For 'Everyone' users, we loosened this to ensure you see people immediately
   const myGenderMapped = genderMap[userGender] || 'Women';
   if (!userWhoToDate.includes('Everyone')) {
      genderQueries.push({
@@ -383,7 +395,7 @@ export async function getMatchedProfiles(userId, options = {}) {
   pipeline.push({$unwind: {path: '$user', preserveNullAndEmptyArrays: true}});
 
   // Execute Aggregation
-  const potentialMatches = await Profile.aggregate(pipeline);
+  potentialMatches = await Profile.aggregate(pipeline);
   const fs = await import('fs');
   fs.appendFileSync('/Users/a/Desktop/Pryvo/server/debug.log', `[${new Date().toISOString()}] getMatchedProfiles for ${userId}: Found ${potentialMatches.length} matches. Pipeline: ${JSON.stringify(pipeline)}\n`);
   if (potentialMatches.length > 0) {
