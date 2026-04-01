@@ -361,7 +361,19 @@ export async function getMatchedProfiles(userId, options = {}) {
   }
 
   // Execute Aggregation
-  let potentialMatches = await Profile.aggregate(pipeline);
+  let potentialMatches = [];
+  try {
+    potentialMatches = await Profile.aggregate(pipeline);
+  } catch (aggErr) {
+    console.error('[getMatchedProfiles] Aggregation Failed, trying simple match fallback:', aggErr.message);
+    const simpleFallback = pipeline.filter(stage => !stage.$geoNear);
+    try {
+      potentialMatches = await Profile.aggregate(simpleFallback);
+    } catch (fallbackErr) {
+      console.error('[getMatchedProfiles] Fatal fallback error:', fallbackErr.message);
+      return [];
+    }
+  }
 
   // FALLBACK: If 0 results because of location/distance, search again GLOBALLY
   if (potentialMatches.length === 0 && !isGlobal) {
