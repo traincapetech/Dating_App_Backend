@@ -124,10 +124,31 @@ export const getProfileController = asyncHandler(async (req, res) => {
 
   const profile = await getProfile(targetUserId, viewerId);
   if (!profile) {
+    if (viewerId === targetUserId) {
+      // User is viewing their own profile, but it hasn't been created yet (e.g. skipped onboarding)
+      // Return an empty template rather than 404 avoiding frontend crash
+      return res.status(200).json({
+        profile: {
+          userId: viewerId,
+          basicInfo: {},
+          personalDetails: {},
+          datingPreferences: {},
+          lifestyle: {},
+          profilePrompts: {},
+          media: { media: [] },
+          photos: [],
+          interests: [],
+          bio: '',
+          stats: { likes: 0, matches: 0, views: 0 },
+          interaction: { isLiked: false, isMatched: false, hasChat: false }
+        }
+      });
+    }
     return res.status(404).json({error: 'Profile not found'});
   }
   res.status(200).json({profile});
 });
+
 
 export const updateProfileController = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.body.userId;

@@ -52,7 +52,11 @@ router.post('/media', authenticate, saveMediaController);
 router.post('/upload-image', authenticate, uploadImageController);
 router.get('/discover', authenticate, getAllProfilesController);
 router.get('/:userId', authenticate, getProfileController);
-router.get('/:userId/interactions', authenticate, getProfileInteractionsController);
+router.get(
+  '/:userId/interactions',
+  authenticate,
+  getProfileInteractionsController,
+);
 router.put('/update', authenticate, sanitizeInput, updateProfileController);
 router.put(
   '/settings/online-status',

@@ -21,7 +21,7 @@ const notificationSchema = new mongoose.Schema(
      */
     type: {
       type: String,
-      enum: ['normal', 'persistent', 'timer', 'promo', 'announcement'],
+      enum: ['normal', 'persistent', 'timer', 'promo', 'announcement', 'full_screen'],
       default: 'normal',
     },
     /**
@@ -40,7 +40,7 @@ const notificationSchema = new mongoose.Schema(
     }],
     /**
      * Flexible JSON object for the payload data.
-     * For type="timer", this contains { type, endTime, actionText }.
+     * For type="timer" or "full_screen", this contains { type, endTime, actionText }.
      */
     data: {
       type: mongoose.Schema.Types.Mixed,

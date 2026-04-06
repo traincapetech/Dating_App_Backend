@@ -87,10 +87,10 @@ export const sendNotification = async (notificationData) => {
       });
     }
 
-    // Timer-specific requirements: high priority and data-only for background handlers
-    const isTimer = type === 'timer';
-    const forceHighPriority = isHighPriority || isTimer;
-    const ttl = isTimer && data.endTime ? getTimerTTL(data.endTime) : (3600 * 24 * 1000);
+    // Timer/full_screen requirements: high priority and data-only for background handlers
+    const isDataOnly = type === 'timer' || type === 'full_screen';
+    const forceHighPriority = isHighPriority || isDataOnly;
+    const ttl = isDataOnly && data.endTime ? getTimerTTL(data.endTime) : (3600 * 24 * 1000);
 
     const messageTemplate = {
       data: {
@@ -105,7 +105,7 @@ export const sendNotification = async (notificationData) => {
         ttl: ttl,
         // Carry data explicitly in android block for background handlers
         data: {
-          ...stringifiedData,
+          ...stringifiedData, // type is spread from stringifiedData but overridden below
           title,
           body,
           type,
@@ -117,7 +117,7 @@ export const sendNotification = async (notificationData) => {
           title,
           body,
           type,
-          aps: isTimer ? {
+          aps: isDataOnly ? {
             'content-available': 1 // Silent/Background push for timer handlers
           } : {
             alert: { title, body },
@@ -132,8 +132,8 @@ export const sendNotification = async (notificationData) => {
       }
     };
 
-    // Standard notification title/body (only if not timer data-only)
-    if (!isTimer) {
+    // Standard notification title/body (only if not data-only)
+    if (!isDataOnly) {
       messageTemplate.notification = {
         title,
         body,

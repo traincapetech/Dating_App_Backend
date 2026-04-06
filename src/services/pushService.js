@@ -78,7 +78,7 @@ function buildMessage(deviceToken, notification) {
 
   // For timer notifications we always force data-only delivery so the 
   // background handler can render the countdown itself.
-  const forceDataOnly = type === 'timer' || isDataOnly;
+  const forceDataOnly = type === 'timer' || type === 'live' || isDataOnly;
   const priority = isHighPriority || type === 'timer' ? 'high' : 'normal';
 
   const message = {
