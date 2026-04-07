@@ -6,13 +6,14 @@ import NotificationToken from '../models/notificationTokenModel.js';
 /**
  * Calculates current TTL for timer notifications.
  * @param {string|number} endTime 
- * @returns {number} TTL in milliseconds
+ * @returns {number} TTL in seconds
  */
 const getTimerTTL = (endTime) => {
   const endMs = Number(endTime);
-  if (isNaN(endMs)) return 3600 * 24 * 1000; // 24h default
+  if (isNaN(endMs)) return 3600 * 24; // 24h default in seconds
   const remaining = endMs - Date.now();
-  return Math.max(remaining, 60000); // Min 1 min
+  // Return remaining time in seconds, minimum 60 seconds
+  return Math.max(Math.floor(remaining / 1000), 60);
 };
 
 export const sendNotification = async (notificationData) => {
@@ -90,7 +91,7 @@ export const sendNotification = async (notificationData) => {
     // Timer/full_screen requirements: high priority and data-only for background handlers
     const isDataOnly = type === 'timer' || type === 'full_screen';
     const forceHighPriority = isHighPriority || isDataOnly;
-    const ttl = isDataOnly && data.endTime ? getTimerTTL(data.endTime) : (3600 * 24 * 1000);
+    const ttl = isDataOnly && data.endTime ? getTimerTTL(data.endTime) : (3600 * 24);
 
     const messageTemplate = {
       data: {
@@ -127,7 +128,7 @@ export const sendNotification = async (notificationData) => {
         },
         headers: {
           'apns-priority': forceHighPriority ? '10' : '5',
-          'apns-expiration': String(Math.floor((Date.now() + ttl) / 1000))
+          'apns-expiration': String(Math.floor(Date.now() / 1000) + ttl)
         }
       }
     };
