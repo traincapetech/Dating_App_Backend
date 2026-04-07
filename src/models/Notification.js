@@ -21,7 +21,7 @@ const notificationSchema = new mongoose.Schema(
      */
     type: {
       type: String,
-      enum: ['normal', 'persistent', 'timer', 'promo', 'announcement', 'full_screen'],
+      enum: ['normal', 'persistent', 'timer', 'promo', 'announcement', 'general', 'full_screen'],
       default: 'normal',
     },
     /**
@@ -29,7 +29,7 @@ const notificationSchema = new mongoose.Schema(
      */
     audience: {
       type: String,
-      enum: ['all', 'premium', 'free', 'custom', 'Premium', 'Free'], // Supporting both cases seen in diffs
+      enum: ['all', 'premium', 'free', 'custom', 'Premium', 'Free'],
       required: true,
     },
     /**
@@ -75,6 +75,9 @@ const notificationSchema = new mongoose.Schema(
       type: String, // Admin ID
       required: true,
     },
+    sentBy: {
+        type: String, // Alias for createdBy if needed
+    }
   },
   {
     timestamps: true,

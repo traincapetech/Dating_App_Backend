@@ -15,6 +15,7 @@ const MatchSchema = new mongoose.Schema({
   },
   chatEnabled: {type: Boolean, default: true},
   callEnabled: {type: Boolean, default: true},
+  lastMessageAt: {type: Date, default: Date.now},
 });
 
 export default mongoose.model('Match', MatchSchema);

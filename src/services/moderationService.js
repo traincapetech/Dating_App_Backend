@@ -11,6 +11,11 @@ function normalize(text) {
 }
 
 /* ---------------- CUSTOM WORDS ---------------- */
+const CUSTOM_KEYWORDS = [
+  'scam','fake','spam','onlyfans','telegram','whatsapp','cashapp','venmo','paypal',
+  'sugarbaby','sugardaddy','sendmoney','moneytransfer'
+];
+
 const HINGLISH_ABUSE = [
   // Existing ones (kept as is)
   'bhenchod', 'behenchod', 'madarchod', 'madharchod', 'chutiya','randi','gandu','kamina','harami','bhadva','saala', 
@@ -53,8 +58,7 @@ const BODY_SHAMING = [
   'moti','mota','fat','ugly','badsoorat','kaali','kaala','skinny','hathi','bhains','chakka','hijra','kinnar'
 ];
 
-
-filter.addWords(...HINGLISH_ABUSE, ...BODY_SHAMING);
+filter.addWords(...CUSTOM_KEYWORDS, ...HINGLISH_ABUSE, ...BODY_SHAMING);
 
 /* ---------------- CHAT MODERATION ---------------- */
 
@@ -117,7 +121,7 @@ export function detectChatAbuse(text) {
     /crypto/i,
   ];
 
-  if (scamPatterns.some(p => p.test(text))) {
+  if (scamPatterns.some(p => p.test(text)) || CUSTOM_KEYWORDS.some(w => normalized.includes(w))) {
     return {
       isAbusive: true,
       reason: 'scam',

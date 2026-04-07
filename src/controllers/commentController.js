@@ -177,23 +177,30 @@ export const getReceivedComments = async (req, res) => {
       status: status === 'all' ? {$exists: true} : status,
     }).sort({createdAt: -1});
 
-    const commentsWithProfiles = await Promise.all(
-      comments.map(async comment => {
-        const [profile, user] = await Promise.all([
-          Profile.findOne({userId: comment.senderId}),
-          User.findById(comment.senderId),
-        ]);
+    const commentsWithProfiles = (
+      await Promise.all(
+        comments.map(async comment => {
+          const [profile, user] = await Promise.all([
+            Profile.findOne({userId: comment.senderId}),
+            User.findById(comment.senderId),
+          ]);
 
-        return {
-          ...comment.toObject(),
-          senderProfile: {
-            name: resolveDisplayName(profile, user),
-            age: profile?.basicInfo?.age || null,
-            photo: profile?.media?.media?.[0]?.url || null,
-          },
-        };
-      }),
-    );
+          // PAUSE RULE: Hide comments if the sender has paused their profile
+          if (profile?.isPaused || profile?.isHidden) {
+            return null;
+          }
+
+          return {
+            ...comment.toObject(),
+            senderProfile: {
+              name: resolveDisplayName(profile, user),
+              age: profile?.basicInfo?.age || null,
+              photo: profile?.media?.media?.[0]?.url || null,
+            },
+          };
+        }),
+      )
+    ).filter(Boolean);
 
     res.json({
       success: true,
@@ -393,15 +400,27 @@ export const getUnreadCommentCount = async (req, res) => {
       });
     }
 
-    const count = await ProfileComment.countDocuments({
+    const comments = await ProfileComment.find({
       receiverId: userId,
       status: 'pending',
       isRead: false,
     });
 
+    const senderIds = comments.map(c => c.senderId);
+    const activeProfiles = await Profile.find({
+      userId: {$in: senderIds},
+      isPaused: {$ne: true},
+      isHidden: {$ne: true},
+    }).select('userId');
+
+    const activeSenderIds = activeProfiles.map(p => p.userId);
+    const visibleCount = comments.filter(c =>
+      activeSenderIds.includes(c.senderId),
+    ).length;
+
     res.json({
       success: true,
-      count,
+      count: visibleCount,
     });
   } catch (error) {
     console.error('Error getting unread count:', error);

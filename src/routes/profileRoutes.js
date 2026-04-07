@@ -15,6 +15,7 @@ import {
   pauseProfileController,
   updateOnlineStatusController,
   getProfileInteractionsController,
+  deleteImageController,
 } from '../controllers/profileController.js';
 import {sanitizeInput} from '../middlewares/sanitizer.js';
 import {authenticate} from '../middlewares/auth.js';
@@ -50,6 +51,7 @@ router.post(
 );
 router.post('/media', authenticate, saveMediaController);
 router.post('/upload-image', authenticate, uploadImageController);
+router.post('/delete-image', authenticate, deleteImageController);
 router.get('/discover', authenticate, getAllProfilesController);
 router.get('/:userId', authenticate, getProfileController);
 router.get(

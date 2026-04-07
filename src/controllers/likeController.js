@@ -140,7 +140,7 @@ export const likeUser = async (req, res) => {
     if (existingLike) {
       if (likedContent?.photoUrl) {
         // Photo like: toggle off (unlike)
-        await Like.deleteOne({ _id: existingLike._id });
+        await Like.deleteOne({_id: existingLike._id});
         return res.json({
           success: true,
           liked: false,
@@ -206,12 +206,25 @@ export const likeUser = async (req, res) => {
           users: [senderId, receiverId],
         });
       } else {
-        // If it existing, re-enable chat in case they were unmatched before
+        // If existing, re-enable chat and reset timestamps to restart the 7-day timer (Requirement #2)
         if (!match.chatEnabled || match.status !== 'active') {
           match.chatEnabled = true;
           match.status = 'active';
+          match.createdAt = new Date(); // Reset timer start
+          match.lastMessageAt = null; // Clear old interactions
           await match.save();
-          console.log(`[Re-Match Fix] Re-enabled chat for match: ${match._id}`);
+          
+          // 🛡️ Cleanup duplicates (Requirement #2: Prevent duplicate historical entries)
+          // This removes any other match documents between the same users to keep state unique
+          const cleanup = await Match.deleteMany({
+            _id: { $ne: match._id },
+            users: { $all: [senderId, receiverId] }
+          });
+          
+          if (cleanup.deletedCount > 0) {
+            console.log(`[Re-Match Fix] Purged ${cleanup.deletedCount} duplicate historical matches.`);
+          }
+          console.log(`[Re-Match Fix] Re-activated match & reset timer: ${match._id}`);
         }
       }
 
@@ -342,25 +355,17 @@ export const getLikesReceived = async (req, res) => {
       ]
     }).sort({createdAt: -1});
 
-    // Check which ones are already matched
-    const matches = await Match.find({users: userId});
+    // Check which ones are already matched (only active/secured — expired must NOT suppress new likes)
+    const matches = await Match.find({
+      users: userId,
+      status: {$in: ['active', 'secured']},
+    });
     const matchedUserIds = matches.map(m => m.users.find(id => id !== userId));
 
-    // Filter out already matched users (they're in matches now)
+    // Filter out actively matched users (they're in the Chat section)
     const pendingLikes = likes.filter(
       l => !matchedUserIds.includes(l.senderId),
     );
-
-    if (!isPremium && !LIKES_VISIBLE_FREE) {
-      // Return count only for non-premium users
-      return res.json({
-        success: true,
-        count: pendingLikes.length,
-        likes: [],
-        isPremiumRequired: true,
-        message: 'Upgrade to Premium to see who liked you!',
-      });
-    }
 
     // Get profile and user info for each liker
     const likerIds = pendingLikes.map(l => l.senderId);
@@ -369,7 +374,16 @@ export const getLikesReceived = async (req, res) => {
       User.find({_id: {$in: likerIds}}),
     ]);
 
-    const likesWithProfiles = pendingLikes.map(like => {
+    // Filter out paused profiles (NON-VISIBLE across platform)
+    const activeLikerIds = profiles
+      .filter(p => !p.isPaused && !p.isHidden)
+      .map(p => p.userId);
+
+    const visiblePendingLikes = pendingLikes.filter(l =>
+      activeLikerIds.includes(l.senderId),
+    );
+
+    const likesWithProfiles = visiblePendingLikes.map(like => {
       const profile = profiles.find(p => p.userId === like.senderId);
       const user = users.find(u => u._id === like.senderId);
 
@@ -389,7 +403,7 @@ export const getLikesReceived = async (req, res) => {
       success: true,
       count: likesWithProfiles.length,
       likes: likesWithProfiles,
-      isPremiumRequired: false,
+      isPremiumRequired: !isPremium,
     });
   } catch (error) {
     console.error('Error getting likes received:', error);
@@ -421,18 +435,32 @@ export const getLikesCount = async (req, res) => {
       ]
     });
 
-    // Check which ones are already matched
-    const matches = await Match.find({users: userId});
+    // Check which ones are already matched (only active/secured — expired must NOT suppress new likes)
+    const matches = await Match.find({
+      users: userId,
+      status: {$in: ['active', 'secured']},
+    });
     const matchedUserIds = matches.map(m => m.users.find(id => id !== userId));
 
-    // Filter out already matched users (they're in matches now)
-    const pendingCount = likes.filter(
-      l => !matchedUserIds.includes(l.senderId),
+    // Filter out actively matched users
+    const pendingLikes = likes.filter(l => !matchedUserIds.includes(l.senderId));
+
+    // Filter out paused profiles
+    const likerIds = pendingLikes.map(l => l.senderId);
+    const activeProfiles = await Profile.find({
+      userId: {$in: likerIds},
+      isPaused: {$ne: true},
+      isHidden: {$ne: true},
+    }).select('userId');
+
+    const activeLikerIds = activeProfiles.map(p => p.userId);
+    const visiblePendingCount = pendingLikes.filter(l =>
+      activeLikerIds.includes(l.senderId),
     ).length;
 
     res.json({
       success: true,
-      count: pendingCount,
+      count: visiblePendingCount,
     });
   } catch (error) {
     console.error('Error getting likes count:', error);

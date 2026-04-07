@@ -1,5 +1,5 @@
 import firebaseAdmin from '../config/firebase.js';
-import { findTokenByUserId, unregisterToken } from '../models/notificationTokenModel.js';
+import { findTokenByUserId, unregisterToken, getTokensByUserIds } from '../models/notificationTokenModel.js';
 
 /**
  * Calculate seconds-to-live for a notification.
@@ -46,7 +46,7 @@ function serializeData(data) {
 }
 
 /**
- * Build an FCM message object according to the new timer push specifications.
+ * Build an FCM message object according to the specifications.
  * 
  * Timer-type notifications use a *data-only* strategy so Android / iOS 
  * background handlers receive the payload even when the app is closed.
@@ -76,10 +76,10 @@ function buildMessage(deviceToken, notification) {
   const serializedData = serializeData(data);
   const ttl = resolveTtlSeconds(type, data?.endTime);
 
-  // For timer notifications we always force data-only delivery so the 
-  // background handler can render the countdown itself.
-  const forceDataOnly = type === 'timer' || type === 'live' || isDataOnly;
-  const priority = isHighPriority || type === 'timer' ? 'high' : 'normal';
+  // For timer/full_screen notifications we always force data-only delivery so the 
+  // background handler can render the view itself.
+  const forceDataOnly = type === 'timer' || type === 'full_screen' || type === 'live' || isDataOnly;
+  const priority = isHighPriority || type === 'timer' || type === 'full_screen' ? 'high' : 'normal';
 
   const message = {
     token: deviceToken,
@@ -286,12 +286,12 @@ export async function broadcastPushNotification(notification, targetUserIds = nu
 }
 
 /**
- * Deprecated alias for broadcastPushNotification.
- * Included for backward compatibility across the codebase.
+ * Send a push notification to multiple users.
  * 
  * @param {string[]} userIds 
  * @param {object} notification 
  */
 export async function sendPushToMultiple(userIds, notification) {
+  // Using broadcastPushNotification which is optimized for multiple tokens
   return broadcastPushNotification(notification, userIds);
 }

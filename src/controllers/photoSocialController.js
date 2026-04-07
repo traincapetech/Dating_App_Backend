@@ -160,6 +160,15 @@ export const getPhotoDetails = async (req, res) => {
     const targetUserId = firstInter.targetUserId;
     const isOwner = viewerId === targetUserId;
 
+    // ❗ PAUSE RULE: Hide photos if owner is paused
+    const ownerProfile = await Profile.findOne({userId: targetUserId});
+    if (ownerProfile?.isPaused && !isOwner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Owner profile is paused and currently non-visible.',
+      });
+    }
+
     // 📊 Fetch Aggregated Counts
     let counts = await getInteractionCounts(targetUserId, photoId);
 
@@ -183,20 +192,34 @@ export const getPhotoDetails = async (req, res) => {
     const senderIds = comments.map(c => c.senderId?._id?.toString() || c.senderId?.toString()).filter(id => !!id);
     const senderProfiles = await Profile.find({ userId: { $in: senderIds } });
 
-    const processedComments = comments.map(c => {
-      const doc = c.toObject();
-      if (doc.senderId) {
-        // Robust identity retrieval: Use .id (virtual) if _id was removed by transform, fallback to raw senderId
-        const senderIdStr = doc.senderId.id || doc.senderId._id || (typeof doc.senderId === 'string' ? doc.senderId : null);
-        const profile = senderProfiles.find(p => p.userId === senderIdStr);
-        
-        const displayName = resolveDisplayName(profile, doc.senderId);
-        
-        doc.senderId.name = displayName;
-        doc.senderId.photo = profile?.media?.media?.[0]?.url || profile?.photos?.[0] || doc.senderId.photo || '';
-      }
-      return doc;
-    });
+    const processedComments = comments
+      .map(c => {
+        const doc = c.toObject();
+        if (doc.senderId) {
+          // Robust identity retrieval: Use .id (virtual) if _id was removed by transform, fallback to raw senderId
+          const senderIdStr =
+            doc.senderId.id ||
+            doc.senderId._id ||
+            (typeof doc.senderId === 'string' ? doc.senderId : null);
+          const profile = senderProfiles.find(p => p.userId === senderIdStr);
+
+          // ❗ PAUSE RULE: Hide specific comment if sender is paused (unless viewing own comment)
+          if (profile?.isPaused && senderIdStr !== viewerId) {
+            return null;
+          }
+
+          const displayName = resolveDisplayName(profile, doc.senderId);
+
+          doc.senderId.name = displayName;
+          doc.senderId.photo =
+            profile?.media?.media?.[0]?.url ||
+            profile?.photos?.[0] ||
+            doc.senderId.photo ||
+            '';
+        }
+        return doc;
+      })
+      .filter(Boolean);
 
     // ❗ PRIVACY RULE: Non-owners only see THEIR OWN comments
     const secureComments = processedComments.filter(c => {
@@ -227,6 +250,12 @@ export const getProfileSocialStats = async (req, res) => {
 
   try {
     const isOwner = userId === viewerId;
+
+    // ❗ PAUSE RULE: Hide stats if target profile is paused
+    const targetProfile = await Profile.findOne({userId});
+    if (targetProfile?.isPaused && !isOwner) {
+      return res.json({success: true, stats: {}});
+    }
 
     const stats = await PhotoInteraction.aggregate([
       { $match: { targetUserId: userId } },

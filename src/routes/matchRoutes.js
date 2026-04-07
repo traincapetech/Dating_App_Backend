@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getUserMatches,
+  getPreviousInteractions,
   getMatchById,
   createMatch,
   unmatch,
@@ -11,6 +12,9 @@ const router = express.Router();
 
 // Get all matches for a user
 router.get('/:userId', getUserMatches);
+
+// Get expired matches for "Previous Interactions"
+router.get('/:userId/previous', getPreviousInteractions);
 
 // Get a specific match by ID
 router.get('/detail/:matchId', getMatchById);

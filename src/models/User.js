@@ -57,6 +57,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    onboardingStep: {
+      type: String,
+      enum: ['BASIC_INFO', 'MEDIA', 'COMPLETE'],
+      // Optional — missing means legacy user; derive from profile data
+    },
     tokenVersion: {
       type: String,
       default: '0',

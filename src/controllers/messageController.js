@@ -176,6 +176,11 @@ export const sendMessage = async (req, res) => {
       status: 'sent',
     });
 
+    // Update Match.lastMessageAt for sorting
+    await Match.findByIdAndUpdate(matchId, {
+      lastMessageAt: new Date(),
+    });
+
     // Real-time delivery handling
     const io = getIO();
     if (io) {

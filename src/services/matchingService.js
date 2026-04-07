@@ -310,7 +310,11 @@ export async function getMatchedProfiles(userId, options = {}) {
         maxDistance: (maxDistance || 50) * 1000, 
         distanceMultiplier: 0.001,                 
         spherical: true,
-        query: {userId: {$ne: userId}},
+        query: {
+          userId: {$ne: userId},
+          isPaused: {$ne: true},
+          isHidden: {$ne: true},
+        }, // Exclude current user and paused/hidden users
       },
     });
   } else {
@@ -318,7 +322,14 @@ export async function getMatchedProfiles(userId, options = {}) {
     if (isGlobal) {
       console.log(`[getMatchedProfiles] User ${userId} has Global enabled. Skipping distance filter.`);
     }
-    pipeline.push({$match: {userId: {$ne: userId}}});
+    // Fallback: exclude self and paused/hidden users
+    pipeline.push({
+      $match: {
+        userId: {$ne: userId},
+        isPaused: {$ne: true},
+        isHidden: {$ne: true},
+      },
+    });
   }
 
   // B. Gender Filter

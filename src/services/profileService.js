@@ -318,7 +318,7 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     const [likes, passes, matches] = await Promise.all([
       Like.find({senderId: excludeUserId}, 'receiverId'),
       Pass.find({userId: excludeUserId}, 'passedUserId'),
-      Match.find({users: excludeUserId}, 'users'),
+      Match.find({users: excludeUserId, status: {$ne: 'expired'}}, 'users'),
     ]);
     swipedUserIds = [
       ...likes.map(l => l.receiverId),
