@@ -25,7 +25,7 @@ export function deriveOnboardingStepFromProfile(profile) {
 
   const b = profile.basicInfo || {};
 
-  // Check if core basic info fields are filled
+  // 1. BASIC_INFO → DATING_PREFERENCES
   const hasName = b.firstName || b.name;
   const hasDob = b.dob || b.birthDate;
   const hasGender = !!b.gender;
@@ -38,7 +38,27 @@ export function deriveOnboardingStepFromProfile(profile) {
   const basicInfoComplete = hasName && hasDob && hasGender && hasLocation;
   if (!basicInfoComplete) return 'BASIC_INFO';
 
-  // Check if they have at least 1 photo
+  // 2. DATING_PREFERENCES → PERSONAL_DETAILS
+  const dp = profile.datingPreferences || {};
+  const datingPrefsComplete = dp.whoToDate?.length > 0;
+  if (!datingPrefsComplete) return 'DATING_PREFERENCES';
+
+  // 3. PERSONAL_DETAILS → LIFESTYLE
+  const pd = profile.personalDetails || {};
+  const personalDetailsComplete = pd.height || pd.jobTitle || pd.educationLevel;
+  if (!personalDetailsComplete) return 'PERSONAL_DETAILS';
+
+  // 4. LIFESTYLE → PROFILE_PROMPTS
+  const ls = profile.lifestyle || {};
+  const lifestyleComplete = ls.drink || ls.smokeTobacco || ls.interests?.length > 0;
+  if (!lifestyleComplete) return 'LIFESTYLE';
+
+  // 5. PROFILE_PROMPTS → MEDIA
+  const pp = profile.profilePrompts || {};
+  const promptsComplete = pp.aboutMe?.answer || pp.bio || Object.keys(pp).length > 2; // heuristic
+  if (!promptsComplete) return 'PROFILE_PROMPTS';
+
+  // 6. MEDIA → COMPLETE
   const mediaCount =
     profile.media?.media?.filter(m => m?.url)?.length ||
     profile.photos?.length ||

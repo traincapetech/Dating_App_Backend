@@ -28,6 +28,34 @@ import {randomUUID} from 'crypto';
 import {config} from '../config/env.js';
 import Like from '../models/Like.js';
 import ProfileComment from '../models/ProfileComment.js';
+import multer from 'multer';
+
+// Multer instance with memory storage (files land in req.file.buffer)
+export const uploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: {fileSize: 20 * 1024 * 1024}, // 20 MB max
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  },
+}).single('image');
+
+// Helper to keep User.onboardingStep in sync with Profile state
+const syncOnboardingStep = async (userId, profile) => {
+  try {
+    const {deriveOnboardingStepFromProfile} = await import('../utils/onboardingUtils.js');
+    const newStep = deriveOnboardingStepFromProfile(profile);
+    await updateUser(userId, {onboardingStep: newStep});
+    console.log(`[Onboarding Sync] Updated step to ${newStep} for ${userId}`);
+    return newStep;
+  } catch (err) {
+    console.warn('[Onboarding Sync] Failed to update step:', err.message);
+    return null;
+  }
+};
 
 export const saveBasicInfoController = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.body.userId;
@@ -36,6 +64,7 @@ export const saveBasicInfoController = asyncHandler(async (req, res) => {
   }
   const parsed = basicInfoSchema.parse(req.body);
   const profile = await saveBasicInfo(userId, parsed);
+  await syncOnboardingStep(userId, profile);
   res.status(200).json({profile});
 });
 
@@ -47,6 +76,7 @@ export const saveDatingPreferencesController = asyncHandler(
     }
     const parsed = datingPreferencesSchema.parse(req.body);
     const profile = await saveDatingPreferences(userId, parsed);
+    await syncOnboardingStep(userId, profile);
     res.status(200).json({profile});
   },
 );
@@ -58,6 +88,7 @@ export const savePersonalDetailsController = asyncHandler(async (req, res) => {
   }
   const parsed = personalDetailsSchema.parse(req.body);
   const profile = await savePersonalDetails(userId, parsed);
+  await syncOnboardingStep(userId, profile);
   res.status(200).json({profile});
 });
 
@@ -68,6 +99,7 @@ export const saveLifestyleController = asyncHandler(async (req, res) => {
   }
   const parsed = lifestyleSchema.parse(req.body);
   const profile = await saveLifestyle(userId, parsed);
+  await syncOnboardingStep(userId, profile);
   res.status(200).json({profile});
 });
 
@@ -77,17 +109,8 @@ export const saveProfilePromptsController = asyncHandler(async (req, res) => {
     return res.status(401).json({error: 'User ID is required'});
   }
   const parsed = profilePromptsSchema.parse(req.body);
-  console.log(
-    '[saveProfilePromptsController] Saving prompts for userId:',
-    userId,
-    'Body:',
-    JSON.stringify(parsed, null, 2),
-  );
   const profile = await saveProfilePrompts(userId, parsed);
-  console.log(
-    '[saveProfilePromptsController] Saved profile prompts. New profilePrompts:',
-    JSON.stringify(profile.profilePrompts, null, 2),
-  );
+  await syncOnboardingStep(userId, profile);
   res.status(200).json({profile});
 });
 
@@ -98,6 +121,7 @@ export const saveMediaController = asyncHandler(async (req, res) => {
   }
   const parsed = mediaUploadSchema.parse(req.body);
   const profile = await saveMedia(userId, parsed);
+  await syncOnboardingStep(userId, profile);
   res.status(200).json({profile});
 });
 
@@ -160,15 +184,7 @@ export const updateProfileController = asyncHandler(async (req, res) => {
   );
 
   const profile = await updateProfileData(userId, parsed);
-
-  console.log(
-    '[updateProfileController] Saved profile basicInfo:',
-    JSON.stringify(profile?.basicInfo, null, 2),
-  );
-  console.log(
-    '[updateProfileController] Saved profile lifestyle:',
-    JSON.stringify(profile?.lifestyle, null, 2),
-  );
+  await syncOnboardingStep(userId, profile);
 
   res.status(200).json({profile});
 });
@@ -281,89 +297,52 @@ export const uploadImageController = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Log storage configuration
-    console.log('[Image Upload] Storage driver:', config.storageDriver);
-    console.log('[Image Upload] R2 configured:', {
-      accountId: config.r2.accountId ? 'Set' : 'NOT SET',
-      accessKeyId: config.r2.accessKeyId ? 'Set' : 'NOT SET',
-      secretAccessKey: config.r2.secretAccessKey ? 'Set' : 'NOT SET',
-      bucket: config.r2.bucket || 'NOT SET',
-      prefix: config.r2.prefix || '(none)',
-      publicBaseUrl: config.r2.publicBaseUrl || 'NOT SET',
-    });
-
     let imageBuffer;
     let fileName;
     let contentType;
 
     if (req.file) {
-      // If using multer (file upload middleware)
+      // ✅ Multipart upload via multer (preferred - from FormData)
       imageBuffer = req.file.buffer;
-      fileName = req.file.originalname;
-      contentType = req.file.mimetype;
+      fileName = req.file.originalname || `photo_${Date.now()}.jpg`;
+      contentType = req.file.mimetype || 'image/jpeg';
+      console.log('[Image Upload] Received multipart file:', {fileName, contentType, size: imageBuffer.length});
     } else if (req.body.imageUri) {
-      // If image is sent as base64 data URI
-      const base64Data = req.body.imageUri.replace(
-        /^data:image\/\w+;base64,/,
-        '',
-      );
+      // Legacy: base64 data URI in JSON body
+      const base64Data = req.body.imageUri.replace(/^data:image\/\w+;base64,/, '');
       imageBuffer = Buffer.from(base64Data, 'base64');
       fileName = req.body.fileName || `image_${Date.now()}.jpg`;
       contentType = req.body.contentType || 'image/jpeg';
+      console.log('[Image Upload] Received base64 body:', {fileName, contentType, size: imageBuffer.length});
     }
 
-    console.log('[Image Upload] Image details:', {
-      fileName,
-      contentType,
-      bufferSize: imageBuffer?.length || 0,
-      userId,
-    });
+    if (!imageBuffer || imageBuffer.length === 0) {
+      return res.status(400).json({error: 'Image buffer is empty or invalid'});
+    }
 
     // Generate unique file path
-    const fileExtension = fileName.split('.').pop();
+    const fileExtension = fileName.split('.').pop().split('?')[0] || 'jpg';
     const filePath = `profiles/${userId}/images/${randomUUID()}.${fileExtension}`;
 
     console.log('[Image Upload] Uploading to path:', filePath);
-    console.log(
-      '[Image Upload] Storage driver being used:',
-      config.storageDriver,
-    );
 
-    // Upload to storage (R2 or local)
-    await storage.writeFile(filePath, imageBuffer, {
-      contentType,
-    });
+    await storage.writeFile(filePath, imageBuffer, {contentType});
 
-    console.log('[Image Upload] File uploaded successfully to:', filePath);
-
-    // Get public URL
     const publicUrl =
       storage.getPublicUrl(filePath) ||
-      `${
-        process.env.API_BASE_URL || 'http://localhost:3000'
-      }/api/files/${filePath}`;
+      `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/files/${filePath}`;
 
-    console.log('[Image Upload] Public URL:', publicUrl);
+    console.log('[Image Upload] Success. Public URL:', publicUrl);
 
     res.status(200).json({
       success: true,
       url: publicUrl,
       message: 'Image uploaded successfully',
-      storageDriver: config.storageDriver,
       filePath,
     });
   } catch (error) {
-    console.error('[Image Upload] Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      code: error.code,
-    });
-    res.status(500).json({
-      error: 'Failed to upload image',
-      message: error.message,
-      storageDriver: config.storageDriver,
-    });
+    console.error('[Image Upload] Error:', error.message);
+    res.status(500).json({error: error.message || 'Image upload failed'});
   }
 });
 

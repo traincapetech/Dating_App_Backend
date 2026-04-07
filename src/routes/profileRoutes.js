@@ -10,6 +10,7 @@ import {
   updateProfileController,
   getAllProfilesController,
   uploadImageController,
+  uploadMiddleware,
   deleteUserController,
   deleteProfileController,
   pauseProfileController,
@@ -50,7 +51,7 @@ router.post(
   saveProfilePromptsController,
 );
 router.post('/media', authenticate, saveMediaController);
-router.post('/upload-image', authenticate, uploadImageController);
+router.post('/upload-image', authenticate, uploadMiddleware, uploadImageController);
 router.post('/delete-image', authenticate, deleteImageController);
 router.get('/discover', authenticate, getAllProfilesController);
 router.get('/:userId', authenticate, getProfileController);
