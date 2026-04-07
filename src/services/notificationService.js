@@ -88,8 +88,8 @@ export const sendNotification = async (notificationData) => {
       });
     }
 
-    // Timer/full_screen requirements: high priority and data-only for background handlers
-    const isDataOnly = type === 'timer' || type === 'full_screen';
+    // Special requirements: high priority and data-only for background handlers
+    const isDataOnly = ['timer', 'live', 'full_screen'].includes(type);
     const forceHighPriority = isHighPriority || isDataOnly;
     const ttl = isDataOnly && data.endTime ? getTimerTTL(data.endTime) : (3600 * 24);
 

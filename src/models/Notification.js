@@ -21,7 +21,7 @@ const notificationSchema = new mongoose.Schema(
      */
     type: {
       type: String,
-      enum: ['normal', 'persistent', 'timer', 'promo', 'announcement', 'general', 'full_screen'],
+      enum: ['normal', 'persistent', 'timer', 'live', 'promo', 'announcement', 'general', 'full_screen'],
       default: 'normal',
     },
     /**
