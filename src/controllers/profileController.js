@@ -712,5 +712,4 @@ export const deleteImageController = asyncHandler(async (req, res) => {
     console.error('[Delete Image] Error:', error);
     res.status(500).json({ error: 'Failed to delete image from storage' });
   }
-  }
 });
