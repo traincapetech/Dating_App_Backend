@@ -124,26 +124,6 @@ export const getProfileController = asyncHandler(async (req, res) => {
 
   const profile = await getProfile(targetUserId, viewerId);
   if (!profile) {
-    if (viewerId === targetUserId) {
-      // User is viewing their own profile, but it hasn't been created yet (e.g. skipped onboarding)
-      // Return an empty template rather than 404 avoiding frontend crash
-      return res.status(200).json({
-        profile: {
-          userId: viewerId,
-          basicInfo: {},
-          personalDetails: {},
-          datingPreferences: {},
-          lifestyle: {},
-          profilePrompts: {},
-          media: { media: [] },
-          photos: [],
-          interests: [],
-          bio: '',
-          stats: { likes: 0, matches: 0, views: 0 },
-          interaction: { isLiked: false, isMatched: false, hasChat: false }
-        }
-      });
-    }
     return res.status(404).json({error: 'Profile not found'});
   }
 
@@ -157,7 +137,6 @@ export const getProfileController = asyncHandler(async (req, res) => {
 
   res.status(200).json({profile});
 });
-
 
 export const updateProfileController = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.body.userId;
@@ -251,15 +230,6 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
   const sortBy = req.query.sortBy || 'score'; // 'score', 'distance', 'recent'
   const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
 
-  // Accept live GPS coordinates from the app (overrides stale DB location)
-  const liveLocation =
-    req.query.lat && req.query.lng
-      ? {
-          type: 'Point',
-          coordinates: [parseFloat(req.query.lng), parseFloat(req.query.lat)],
-        }
-      : null;
-
   // Advanced filters (premium feature)
   const filters = {};
   if (req.query.educationLevel) {
@@ -293,21 +263,10 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
     maxDistance,
     sortBy,
     limit,
-    liveLocation,
     filters: Object.keys(filters).length > 0 ? filters : null,
   };
 
   const profiles = await getAllProfiles(excludeUserId, options);
-  const profileSummary = (profiles || []).map(p => ({
-    name: p.name,
-    photos: p.photos?.length || 0,
-    dist: p.distance
-  }));
-  console.log(`[Discover API] Response size: ${profiles?.length || 0}. Profiles:`, JSON.stringify(profileSummary));
-  
-  // Safe logging for production
-  console.log(`[Discover] Result for ${excludeUserId}: Count ${profiles?.length}. Data: ${JSON.stringify(profileSummary)}`);
-  
   res.status(200).json({profiles});
 });
 
