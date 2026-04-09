@@ -51,7 +51,7 @@ export async function updateUser(userId, updates) {
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     {$set: safeUpdates},
-    {new: true, runValidators: true},
+    {returnDocument: 'after', runValidators: true},
   );
 
   return updatedUser ? toPlain(updatedUser) : null;

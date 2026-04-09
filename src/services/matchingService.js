@@ -304,26 +304,28 @@ export async function getMatchedProfiles(userId, options = {}) {
   }
 
   // Determine explicit radius (Convert KM to Meters)
-  // Standardize: If no maxDistance provided, use a reasonable default like 100km, 
-  // but NEVER undefined/5000km.
-  const radiusInMeters = (maxDistance || 100) * 1000;
+  const isGlobal = currentUserProfile.datingPreferences?.global === true;
+  const radiusInMeters = isGlobal ? null : (maxDistance || 100) * 1000;
 
-  pipeline.push({
-    $geoNear: {
-      near: currentUserProfile.location,
-      distanceField: 'dist.calculated',
-      maxDistance: radiusInMeters,
-      distanceMultiplier: 0.001, // Convert results to km
-      spherical: true,
-      query: {
-        userId: {$ne: userId},
-        isPaused: {$ne: true},
-        isHidden: {$ne: true},
-        // IMPORTANT: Ensure we only match profiles with valid coordinates
-        'location.coordinates': {$exists: true, $ne: [0, 0]},
-      },
+  const geoNearOptions = {
+    near: currentUserProfile.location,
+    distanceField: 'dist.calculated',
+    distanceMultiplier: 0.001, // Convert results to km
+    spherical: true,
+    query: {
+      userId: {$ne: userId},
+      isPaused: {$ne: true},
+      isHidden: {$ne: true},
+      // IMPORTANT: Ensure we only match profiles with valid coordinates
+      'location.coordinates': {$exists: true, $ne: [0, 0]},
     },
-  });
+  };
+
+  if (radiusInMeters) {
+    geoNearOptions.maxDistance = radiusInMeters;
+  }
+
+  pipeline.push({ $geoNear: geoNearOptions });
 
 
   // B. Gender Filter

@@ -139,7 +139,7 @@ const isValidLocation = coords => {
 profileSchema.index({location: '2dsphere'});
 
 // Pre-save hook for location synchronization and validation
-profileSchema.pre('save', function (next) {
+profileSchema.pre('save', async function () {
   // 1. Sync from basicInfo.locationDetails if present and changed
   const locDetails = this.basicInfo?.locationDetails;
   if (locDetails && locDetails.lat !== undefined && locDetails.lng !== undefined) {
@@ -165,8 +165,6 @@ profileSchema.pre('save', function (next) {
       }
     }
   }
-
-  next();
 });
 
 // Virtual for id

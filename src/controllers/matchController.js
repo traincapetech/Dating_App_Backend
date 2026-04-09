@@ -417,9 +417,23 @@ export const unmatch = async (req, res) => {
       return res.status(403).json({success: false, message: 'Access denied'});
     }
 
-    // Disable chat for this match (unmatch)
+    // Fully expire the match so both users appear in each other's
+    // "Previous Interactions" and can re-swipe each other (Bug fix)
     match.chatEnabled = false;
+    match.status = 'expired';
     await match.save();
+
+    // Delete likes between the two users so re-swiping is allowed
+    try {
+      await Like.deleteMany({
+        $or: [
+          {senderId: match.users[0], receiverId: match.users[1]},
+          {senderId: match.users[1], receiverId: match.users[0]},
+        ],
+      });
+    } catch (err) {
+      console.error('[Unmatch] Error deleting likes:', err);
+    }
 
     res.json({success: true, message: 'Match unmatched successfully'});
   } catch (error) {
@@ -441,8 +455,16 @@ export const getPreviousInteractions = async (req, res) => {
 
     // Fetch all matches for the user to determine current active state (Requirement #2: Prevent duplicates)
     const [expiredMatches, activeMatches] = await Promise.all([
-      Match.find({ users: userId, status: 'expired' }).sort({ lastMessageAt: -1, createdAt: -1 }),
-      Match.find({ users: userId, status: { $in: ['active', 'secured'] } })
+      // Include expired matches AND legacy unmatched records (chatEnabled: false, status: active)
+      // The legacy case existed before the unmatch fix that now correctly sets status: 'expired'
+      Match.find({
+        users: userId,
+        $or: [
+          { status: 'expired' },
+          { status: 'active', chatEnabled: false },
+        ],
+      }).sort({ lastMessageAt: -1, createdAt: -1 }),
+      Match.find({ users: userId, status: { $in: ['active', 'secured'] }, chatEnabled: { $ne: false } })
     ]);
 
     // Create a set of users who are ALREADY active matches

@@ -67,7 +67,7 @@ export async function updateProfile(userId, updates) {
   const updatedProfile = await Profile.findOneAndUpdate(
     {userId},
     {$set: safeUpdates},
-    {new: true, runValidators: true},
+    {returnDocument: 'after', runValidators: true},
   );
 
   if (!updatedProfile) return null;
