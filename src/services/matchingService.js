@@ -275,10 +275,9 @@ export function calculateCompatibilityScore(
 export async function getMatchedProfiles(userId, options = {}) {
   const {
     minScore = 0,
-    maxDistance = null,
+    maxDistance = null, // No default distance limit unless specified
     sortBy = 'score',
     limit = 50,
-    liveLocation = null,
   } = options;
 
   // 1. Get current user's profile to understand preferences
@@ -291,51 +290,48 @@ export async function getMatchedProfiles(userId, options = {}) {
   const pipeline = [];
 
   // A. Geo-Spatial Filter ($geoNear must be first)
-  // Prefer live GPS from request; fall back to what's stored in the profile
   const viewerCoords = currentUserProfile.location?.coordinates;
-  const hasStoredLocation =
-    viewerCoords && viewerCoords[0] !== 0 && viewerCoords[1] !== 0;
+  // Enforce valid location check (Single Source of Truth)
+  const hasViewerLocation =
+    viewerCoords && 
+    Array.isArray(viewerCoords) && 
+    viewerCoords.length === 2 && 
+    !(viewerCoords[0] === 0 && viewerCoords[1] === 0);
 
-  const locationForQuery =
-    liveLocation ||
-    (hasStoredLocation ? currentUserProfile.location : null);
-  
-  const isGlobal = currentUserProfile.datingPreferences?.global === true;
+  if (!hasViewerLocation) {
+    console.log(`[getMatchedProfiles] User ${userId} has no valid location. Blocking discovery to prevent global leak.`);
+    return []; // STRICT: No location = No profiles
+  }
 
-  if (locationForQuery && !isGlobal) {
-    pipeline.push({
-      $geoNear: {
-        near: locationForQuery,
-        distanceField: 'dist.calculated',
-        maxDistance: (maxDistance || 50) * 1000, 
-        distanceMultiplier: 0.001,                 
-        spherical: true,
-        query: {
-          userId: {$ne: userId},
-          isPaused: {$ne: true},
-          isHidden: {$ne: true},
-        }, // Exclude current user and paused/hidden users
-      },
-    });
-  } else {
-    // If no location or global mode is enabled, skip the distance restriction
-    if (isGlobal) {
-      console.log(`[getMatchedProfiles] User ${userId} has Global enabled. Skipping distance filter.`);
-    }
-    // Fallback: exclude self and paused/hidden users
-    pipeline.push({
-      $match: {
+  // Determine explicit radius (Convert KM to Meters)
+  // Standardize: If no maxDistance provided, use a reasonable default like 100km, 
+  // but NEVER undefined/5000km.
+  const radiusInMeters = (maxDistance || 100) * 1000;
+
+  pipeline.push({
+    $geoNear: {
+      near: currentUserProfile.location,
+      distanceField: 'dist.calculated',
+      maxDistance: radiusInMeters,
+      distanceMultiplier: 0.001, // Convert results to km
+      spherical: true,
+      query: {
         userId: {$ne: userId},
         isPaused: {$ne: true},
         isHidden: {$ne: true},
+        // IMPORTANT: Ensure we only match profiles with valid coordinates
+        'location.coordinates': {$exists: true, $ne: [0, 0]},
       },
-    });
-  }
+    },
+  });
+
 
   // B. Gender Filter
-  const userGender = currentUserProfile.basicInfo?.gender || 'Woman';
-  const userWhoToDate = currentUserProfile.datingPreferences?.whoToDate || ['Everyone'];
-  
+  const userGender = currentUserProfile.basicInfo?.gender;
+  const userWhoToDate = currentUserProfile.datingPreferences?.whoToDate || [
+    'Everyone',
+  ];
+
   const genderMap = {
     Man: 'Men',
     Woman: 'Women',
@@ -349,17 +345,17 @@ export async function getMatchedProfiles(userId, options = {}) {
 
   const genderQueries = [];
 
-  // 1. Target's Gender check (Who you want to date)
-  if (!userWhoToDate.includes('Everyone') && userWhoToDate.length > 0) {
+  // Who does user want to date?
+  if (!userWhoToDate.includes('Everyone')) {
     const preferredGenders = userWhoToDate.map(g => reverseGenderMap[g] || g);
     genderQueries.push({'basicInfo.gender': {$in: preferredGenders}});
   }
 
-  // 2. Reciprocal check (Who wants to date YOU)
-  // For 'Everyone' users, we loosened this to ensure you see people immediately
-  const myGenderMapped = genderMap[userGender] || 'Women';
-  if (!userWhoToDate.includes('Everyone')) {
-     genderQueries.push({
+  // Who wants to date the user?
+  // We need profiles where `datingPreferences.whoToDate` includes user's gender mapped (or Everyone)
+  const myGenderMapped = genderMap[userGender];
+  if (myGenderMapped) {
+    genderQueries.push({
       $or: [
         {'datingPreferences.whoToDate': 'Everyone'},
         {'datingPreferences.whoToDate': myGenderMapped},
@@ -369,30 +365,6 @@ export async function getMatchedProfiles(userId, options = {}) {
 
   if (genderQueries.length > 0) {
     pipeline.push({$match: {$and: genderQueries}});
-  }
-
-  // Execute Aggregation
-  let potentialMatches = [];
-  try {
-    potentialMatches = await Profile.aggregate(pipeline);
-  } catch (aggErr) {
-    console.error('[getMatchedProfiles] Aggregation Failed, trying simple match fallback:', aggErr.message);
-    const simpleFallback = pipeline.filter(stage => !stage.$geoNear);
-    try {
-      potentialMatches = await Profile.aggregate(simpleFallback);
-    } catch (fallbackErr) {
-      console.error('[getMatchedProfiles] Fatal fallback error:', fallbackErr.message);
-      return [];
-    }
-  }
-
-  // FALLBACK: If 0 results because of location/distance, search again GLOBALLY
-  if (potentialMatches.length === 0 && !isGlobal) {
-    const fallbackPipeline = pipeline.filter(stage => !stage.$geoNear);
-    if (fallbackPipeline.length < pipeline.length) {
-       console.log(`[getMatchedProfiles] No local matches. Retrying globally for user ${userId}...`);
-       potentialMatches = await Profile.aggregate(fallbackPipeline);
-    }
   }
 
   // C. Age Filter (if configured)
@@ -418,14 +390,7 @@ export async function getMatchedProfiles(userId, options = {}) {
   pipeline.push({$unwind: {path: '$user', preserveNullAndEmptyArrays: true}});
 
   // Execute Aggregation
-  potentialMatches = await Profile.aggregate(pipeline);
-  console.log(`[getMatchedProfiles] user ${userId}: Found ${potentialMatches.length} matches.`);
-  if (potentialMatches.length > 0) {
-    console.log(`[getMatchedProfiles] First match:`, {
-      gender: potentialMatches[0].basicInfo?.gender,
-      whoToDate: potentialMatches[0].datingPreferences?.whoToDate
-    });
-  }
+  const potentialMatches = await Profile.aggregate(pipeline);
 
   // 3. Post-process: Scoring and additional filtering (Age, etc.)
   const processedMatches = await Promise.all(
@@ -434,20 +399,15 @@ export async function getMatchedProfiles(userId, options = {}) {
       // `calculateCompatibilityScore` expects standard profile structure.
       // Aggregation result is POJO, which is fine.
 
-      let matchResult;
-      try {
-        const distance = profile.dist?.calculated || null;
-        matchResult = calculateCompatibilityScore(
-          currentUserProfile.toObject ? currentUserProfile.toObject() : currentUserProfile,
-          profile,
-          distance,
-        );
-      } catch (err) {
-        console.error(`[getMatchedProfiles] Error calculating score for ${profile.userId}:`, err.message);
-        matchResult = { score: 0, percentage: 0, details: {} };
-      }
+      const distance = profile.dist?.calculated || null;
 
-      const hasBoost = await hasActiveBoost(profile.userId).catch(() => false);
+      const matchResult = calculateCompatibilityScore(
+        currentUserProfile.toObject(),
+        profile,
+        distance,
+      );
+
+      const hasBoost = await hasActiveBoost(profile.userId);
 
       const profileName = `${profile.basicInfo?.firstName || ''} ${
         profile.basicInfo?.lastName || ''

@@ -167,7 +167,6 @@ export async function getProfile(userId, viewerId = null) {
     name: displayName,
     email: user?.email || '',
     isVerified: user?.isVerified || false,
-    onboardingStep: user?.onboardingStep || 'BASIC_INFO',
     showOnlineStatus: user?.showOnlineStatus !== false, // Defaults to true
     isActiveToday: !!isActiveToday,
     // Extract age from profile if available
@@ -210,18 +209,6 @@ export async function updateProfileData(userId, updates) {
           ...updates.basicInfo,
         }
       : existing?.basicInfo || {},
-    
-    // Sync GeoJSON location field if coordinates are provided in basicInfo.locationDetails
-    location: (updates.basicInfo?.locationDetails?.lng !== undefined && updates.basicInfo?.locationDetails?.lat !== undefined)
-      ? {
-          type: 'Point',
-          coordinates: [
-            parseFloat(updates.basicInfo.locationDetails.lng),
-            parseFloat(updates.basicInfo.locationDetails.lat)
-          ]
-        }
-      : (existing?.location || { type: 'Point', coordinates: [0, 0] }),
-
     // Deep merge datingPreferences
     datingPreferences: updates.datingPreferences
       ? {
@@ -307,8 +294,6 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     limit = null,
     filters = null,
   } = options;
-
-  console.log(`[getAllProfiles] Called for ${excludeUserId} with useMatching=${useMatching}, maxDistance=${maxDistance}`);
 
   const profiles = await getProfiles();
   const users = await getUsers();
@@ -429,8 +414,49 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     })
     .filter(profile => profile.photos.length > 0); // Only show profiles with photos
 
-  // Use matching service if matching is requested OR if a distance filter is specified
-  // This ensures that the distance-aware aggregation pipeline is used for geo-filtering
+  // Helper: apply advanced filters to any profile list
+  const applyAdvancedFilters = profileList => {
+    if (!filters) return profileList;
+    return profileList.filter(profile => {
+      // Education level filter
+      if (filters.educationLevel) {
+        const profileEducation = profile.personalDetails?.educationLevel;
+        if (!profileEducation || profileEducation !== filters.educationLevel) return false;
+      }
+      // Height filter
+      if (filters.minHeight || filters.maxHeight) {
+        const profileHeight = parseHeight(profile.personalDetails?.height);
+        if (profileHeight === null) return false;
+        if (filters.minHeight && profileHeight < filters.minHeight) return false;
+        if (filters.maxHeight && profileHeight > filters.maxHeight) return false;
+      }
+      // Lifestyle filters
+      if (filters.drink) {
+        const profileDrink = profile.lifestyle?.drink;
+        if (!profileDrink || profileDrink !== filters.drink) return false;
+      }
+      if (filters.smokeTobacco) {
+        const profileSmoke = profile.lifestyle?.smokeTobacco;
+        if (!profileSmoke || profileSmoke !== filters.smokeTobacco) return false;
+      }
+      if (filters.smokeWeed) {
+        const profileWeed = profile.lifestyle?.smokeWeed;
+        if (!profileWeed || profileWeed !== filters.smokeWeed) return false;
+      }
+      if (filters.religiousBeliefs) {
+        const profileReligion = profile.lifestyle?.religiousBeliefs;
+        if (!profileReligion || profileReligion !== filters.religiousBeliefs) return false;
+      }
+      if (filters.politicalBeliefs) {
+        const profilePolitics = profile.lifestyle?.politicalBeliefs;
+        if (!profilePolitics || profilePolitics !== filters.politicalBeliefs) return false;
+      }
+      return true;
+    });
+  };
+
+  // Use matching service if matching is requested OR if a distance filter is specified.
+  // Advanced filters are applied AFTER matching so they are not overwritten.
   if ((useMatching || maxDistance !== null) && excludeUserId) {
     try {
       const {getMatchedProfiles} = await import('./matchingService.js');
@@ -439,80 +465,25 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
         maxDistance,
         sortBy,
         limit,
-        liveLocation: options.liveLocation || null,
       });
 
-      // The matchedProfiles already have all the enriched data
-      enrichedProfiles = matchedProfiles;
+      // Apply advanced filters to matched results
+      enrichedProfiles = applyAdvancedFilters(matchedProfiles);
     } catch (error) {
       console.error('Error applying matching/distance algorithm:', error);
-      // Fall back to non-matched profiles if matching fails
+      // Fall back to base profiles with advanced filters applied
+      enrichedProfiles = applyAdvancedFilters(enrichedProfiles);
     }
+  } else {
+    // No matching — still apply advanced filters to the base list
+    enrichedProfiles = applyAdvancedFilters(enrichedProfiles);
   }
 
-  // Apply advanced filters (premium feature)
   if (filters) {
-    enrichedProfiles = enrichedProfiles.filter(profile => {
-      // Education level filter
-      if (filters.educationLevel) {
-        const profileEducation = profile.personalDetails?.educationLevel;
-        if (!profileEducation || profileEducation !== filters.educationLevel) {
-          return false;
-        }
-      }
-
-      // Height filter
-      if (filters.minHeight || filters.maxHeight) {
-        const profileHeight = parseHeight(profile.personalDetails?.height);
-        if (profileHeight === null) {
-          return false; // Strict: if filtering by height, exclude those with no height
-        }
-        if (filters.minHeight && profileHeight < filters.minHeight) {
-          return false;
-        }
-        if (filters.maxHeight && profileHeight > filters.maxHeight) {
-          return false;
-        }
-      }
-
-      // Lifestyle filters
-      if (filters.drink) {
-        const profileDrink = profile.lifestyle?.drink;
-        if (!profileDrink || profileDrink !== filters.drink) {
-          return false;
-        }
-      }
-
-      if (filters.smokeTobacco) {
-        const profileSmoke = profile.lifestyle?.smokeTobacco;
-        if (!profileSmoke || profileSmoke !== filters.smokeTobacco) {
-          return false;
-        }
-      }
-
-      if (filters.smokeWeed) {
-        const profileWeed = profile.lifestyle?.smokeWeed;
-        if (!profileWeed || profileWeed !== filters.smokeWeed) {
-          return false;
-        }
-      }
-
-      if (filters.religiousBeliefs) {
-        const profileReligion = profile.lifestyle?.religiousBeliefs;
-        if (!profileReligion || profileReligion !== filters.religiousBeliefs) {
-          return false;
-        }
-      }
-
-      if (filters.politicalBeliefs) {
-        const profilePolitics = profile.lifestyle?.politicalBeliefs;
-        if (!profilePolitics || profilePolitics !== filters.politicalBeliefs) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    console.log(
+      `[getAllProfiles] Advanced filters applied. Input: ${enrichedProfiles.length} profiles after filter.`,
+      JSON.stringify(filters),
+    );
   }
 
   return enrichedProfiles;

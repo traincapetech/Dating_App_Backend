@@ -76,14 +76,18 @@ const startServer = async () => {
         console.warn('SMTP password missing → OTP email disabled.');
       }
 
+      // Run Location Migration
+      try {
+        const {runLocationMigration} = await import('./scripts/locationMigration.js');
+        await runLocationMigration();
+      } catch (error) {
+        console.error('[Startup] Location migration failed:', error);
+      }
+
       // Setup subscription management cron jobs (if node-cron is available)
       try {
         const cronModule = await import('node-cron');
         const cron = cronModule.default;
-
-        // Initialize Notification Scheduler
-        const { scheduleNotifications } = await import('./jobs/notificationJob.js');
-        scheduleNotifications();
 
         // Setup subscription expiry cron (runs daily at midnight)
         cron.schedule('0 0 * * *', async () => {
