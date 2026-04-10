@@ -14,6 +14,8 @@ import {
   createPaymentOrder,
   verifyPayment,
   detectPaymentGateway,
+  processRefund,
+  handleGooglePlayRTDN,
 } from '../services/paymentService.js';
 import {setAutoRenewal} from '../services/subscriptionRenewalService.js';
 import {
@@ -21,6 +23,7 @@ import {
   updateUserPremiumStatus,
   handleRenewalFailure,
 } from '../services/subscriptionExpiryService.js';
+import emailService from '../services/emailNotificationService.js';
 
 // Get user's subscription status
 export const getSubscriptionStatusController = asyncHandler(
@@ -252,6 +255,20 @@ export const verifyPaymentAndCreateSubscriptionController = asyncHandler(
       // Update user's premium status using expiry service
       await updateUserPremiumStatus(userId);
 
+      // ── Send payment confirmation email (Upgrade/Extend) ───────────
+      try {
+        const user = await findUserById(userId);
+        if (user?.email) {
+          await emailService.sendSubscriptionEmail(
+            user.email,
+            planDetails.name,
+            newExpiry.toLocaleDateString()
+          );
+        }
+      } catch (e) {
+        console.error('[Email] Failed to send upgrade email:', e.message);
+      }
+
       return res.status(200).json({
         success: true,
         message: isUpgrade
@@ -282,6 +299,20 @@ export const verifyPaymentAndCreateSubscriptionController = asyncHandler(
 
     // Update user's premium status using expiry service
     await updateUserPremiumStatus(userId);
+
+    // ── Send payment confirmation email (New Subscription) ─────────
+    try {
+      const user = await findUserById(userId);
+      if (user?.email) {
+        await emailService.sendSubscriptionEmail(
+          user.email,
+          planDetails.name,
+          expiresAt.toLocaleDateString()
+        );
+      }
+    } catch (e) {
+      console.error('[Email] Failed to send purchase email:', e.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -412,6 +443,20 @@ export const cancelSubscriptionController = asyncHandler(async (req, res) => {
   // Use expiry service to handle cancellation properly
   const result = await handleSubscriptionCancellation(subscriptionId, reason);
 
+  // ── Send cancellation confirmation email ────────────────────────
+  try {
+    const user = await findUserById(userId);
+    if (user?.email) {
+      await emailService.sendCancellationEmail(
+        user.email,
+        subscription.planName || 'Premium',
+        new Date(result.expiresAt).toLocaleDateString()
+      );
+    }
+  } catch (e) {
+    console.error('[Email] Failed to send cancellation email:', e.message);
+  }
+
   res.status(200).json({
     success: true,
     message:
@@ -472,5 +517,118 @@ export const getAvailablePlansController = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     plans,
+  });
+});
+
+/**
+ * Refund a subscription.
+ * Policy: Full refund within 24 hours of purchase. No refund after 24 hours.
+ * Only applies to Stripe payments; in-app purchases must be handled via app stores.
+ */
+export const refundSubscriptionController = asyncHandler(async (req, res) => {
+  const {subscriptionId} = req.params;
+  const {userId, reason} = req.body;
+
+  if (!subscriptionId || !userId) {
+    return res.status(400).json({success: false, message: 'Subscription ID and User ID are required'});
+  }
+
+  const subscription = await findSubscriptionById(subscriptionId);
+  if (!subscription) {
+    return res.status(404).json({success: false, message: 'Subscription not found'});
+  }
+
+  if (subscription.userId !== userId) {
+    return res.status(403).json({success: false, message: 'Unauthorized to refund this subscription'});
+  }
+
+  if (subscription.status === 'refunded') {
+    return res.status(400).json({success: false, message: 'Subscription already refunded'});
+  }
+
+  // ── 24-hour refund policy ────────────────────────────────────────────────
+  const createdAt = new Date(subscription.createdAt);
+  const hoursElapsed = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+  if (hoursElapsed > 24) {
+    return res.status(400).json({
+      success: false,
+      message: 'Refund period has expired. Refunds are only available within 24 hours of purchase.',
+      hoursElapsed: Math.floor(hoursElapsed),
+    });
+  }
+
+  // ── Process refund ───────────────────────────────────────────────────────
+  const gateway = subscription.paymentMethod || 'stripe';
+  const paymentId = subscription.transactionId;
+
+  let refundResult = {success: false};
+  if (paymentId) {
+    try {
+      refundResult = await processRefund(gateway, paymentId, subscription.price, subscription.currency || 'USD');
+    } catch (refundError) {
+      console.error('[Refund] Payment processor error:', refundError.message);
+      return res.status(500).json({success: false, message: 'Refund processing failed. Please contact support.'});
+    }
+  }
+
+  // ── Mark subscription as refunded ────────────────────────────────────────
+  await updateSubscription(subscriptionId, {
+    status: 'refunded',
+    refundedAt: new Date().toISOString(),
+    refundReason: reason || 'User requested refund within 24h window',
+    refundId: refundResult.refundId,
+    autoRenew: false,
+  });
+
+  // Revoke premium immediately
+  await updateUserPremiumStatus(userId);
+
+  // ── Send refund confirmation email ───────────────────────────────────────
+  try {
+    const user = await findUserById(userId);
+    if (user?.email) {
+      await emailService.sendRefundEmail(
+        user.email,
+        subscription.planName || 'Premium',
+        subscription.price,
+        subscription.currency || 'USD',
+        refundResult.refundId
+      );
+    }
+  } catch (emailErr) {
+    console.error('[Refund] Failed to send refund email:', emailErr.message);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Refund processed successfully. Please allow 5–10 business days for it to appear.',
+    refundId: refundResult.refundId,
+  });
+});
+
+/**
+ * Google Play Real-Time Developer Notifications (RTDN) webhook.
+ * Google sends a Pub/Sub push message to this endpoint when a subscription event occurs.
+ * Must be registered in Google Play Console → Monetize → Subscriptions → Real-time notifications.
+ */
+export const googlePlayRTDNController = asyncHandler(async (req, res) => {
+  // Pub/Sub sends: { message: { data: '<base64>', messageId: '...' }, subscription: '...' }
+  const message = req.body?.message;
+
+  if (!message || !message.data) {
+    return res.status(400).json({success: false, message: 'Invalid Pub/Sub message'});
+  }
+
+  // Acknowledge immediately (Google will retry if we don't return 2xx within a few seconds)
+  res.status(200).json({success: true});
+
+  // Process asynchronously so we don't block the response
+  setImmediate(async () => {
+    try {
+      await handleGooglePlayRTDN(message);
+    } catch (err) {
+      console.error('[RTDN] Async processing error:', err.message);
+    }
   });
 });

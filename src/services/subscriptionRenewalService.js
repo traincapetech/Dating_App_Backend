@@ -104,6 +104,22 @@ async function attemptRenewal(subscription) {
     // Update user premium status using expiry service
     await updateUserPremiumStatus(subscription.userId);
 
+    // ── Send renewal confirmation email ──────────────────────────────
+    try {
+      const {findUserById} = await import('../models/userModel.js');
+      const emailService = await import('./emailNotificationService.js');
+      const user = await findUserById(subscription.userId);
+      if (user?.email) {
+        await emailService.default.sendSubscriptionEmail(
+          user.email,
+          planDetails.name,
+          newExpiresAt.toLocaleDateString()
+        );
+      }
+    } catch (e) {
+      console.error('[Renewal] Failed to send renewal email:', e.message);
+    }
+
     return {
       success: true,
       message: 'Subscription renewed successfully',

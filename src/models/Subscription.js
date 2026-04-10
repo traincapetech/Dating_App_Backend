@@ -84,6 +84,13 @@ export async function getAllUserSubscriptions(userId) {
   return subscriptions.filter(sub => sub.userId === userId);
 }
 
+export async function findSubscriptionByPurchaseToken(purchaseToken) {
+  if (!purchaseToken) return null;
+  const subscriptions = await getSubscriptions();
+  return subscriptions.find(sub => sub.purchaseToken === purchaseToken) || null;
+}
+
+
 // Check if user has active premium subscription
 export async function isUserPremium(userId) {
   const subscription = await findSubscriptionByUserId(userId);

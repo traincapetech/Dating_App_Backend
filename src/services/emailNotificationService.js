@@ -224,8 +224,112 @@ export async function sendLikeEmail(userEmail, likerName, likerPhoto, isVisible 
   });
 }
 
+/**
+ * Send subscription purchase confirmation email
+ */
+export async function sendSubscriptionEmail(userEmail, planName, expiryDate) {
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: Arial, sans-serif; color: #1F1F1F; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background: linear-gradient(135deg, #7C3AED 0%, #C084FC 100%); padding: 30px; text-align: center; border-radius: 20px 20px 0 0;">
+        <h1 style="color: white; margin: 0;">Welcome to Premium! ⭐</h1>
+      </div>
+      <div style="background: white; padding: 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <p>Your payment was successful and your account is now upgraded to <strong>${planName}</strong>.</p>
+        <div style="background: #F3F4F6; padding: 15px; border-radius: 10px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Active until:</strong> ${expiryDate}</p>
+        </div>
+        <p>Enjoy unlimited likes, advanced filters, and priority matching!</p>
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="https://pryvo.app" style="background: #7C3AED; color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold;">Return to App</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: userEmail,
+    subject: 'Welcome to Pryvo Premium!',
+    htmlContent,
+    textContent: `Welcome to Pryvo Premium! Your account is now upgraded to ${planName} until ${expiryDate}.`,
+  });
+}
+
+/**
+ * Send subscription cancellation email
+ */
+export async function sendCancellationEmail(userEmail, planName, expiryDate) {
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: Arial, sans-serif; color: #1F1F1F; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background: #374151; padding: 30px; text-align: center; border-radius: 20px 20px 0 0;">
+        <h1 style="color: white; margin: 0;">Subscription Cancelled</h1>
+      </div>
+      <div style="background: white; padding: 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <p>Your subscription to <strong>${planName}</strong> has been cancelled and auto-renewal is now off.</p>
+        <div style="background: #F3F4F6; padding: 15px; border-radius: 10px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Access continues until:</strong> ${expiryDate}</p>
+        </div>
+        <p>After this date, you will lose your premium benefits. We hope to see you back soon!</p>
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="https://pryvo.app" style="background: #374151; color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold;">Return to App</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: userEmail,
+    subject: `Pryvo - Subscription cancelled for ${planName}`,
+    htmlContent,
+    textContent: `Your subscription to ${planName} has been cancelled. You will retain access until ${expiryDate}.`,
+  });
+}
+
+/**
+ * Send refund confirmation email
+ */
+export async function sendRefundEmail(userEmail, planName, amount, currency, refundId) {
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: Arial, sans-serif; color: #1F1F1F; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 30px; text-align: center; border-radius: 20px 20px 0 0;">
+        <h1 style="color: white; margin: 0;">Refund Processed ✓</h1>
+      </div>
+      <div style="background: white; padding: 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <p>Your refund for <strong>${planName}</strong> has been processed.</p>
+        <div style="background: #F3F4F6; padding: 15px; border-radius: 10px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
+          <p style="margin: 5px 0 0; font-size: 13px; color: #6B7280;"><strong>Refund ID:</strong> ${refundId || 'N/A'}</p>
+        </div>
+        <p>The funds should appear on your statement within 5–10 business days.</p>
+        <p>If you have any questions, please contact our support team.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: userEmail,
+    subject: 'Your Pryvo refund has been processed',
+    htmlContent,
+    textContent: `Your refund of ${amount} ${currency} for ${planName} has been processed. Refund ID: ${refundId || 'N/A'}.`,
+  });
+}
+
 export default {
   sendMatchEmail,
   sendMessageEmail,
   sendLikeEmail,
+  sendSubscriptionEmail,
+  sendCancellationEmail,
+  sendRefundEmail,
 };

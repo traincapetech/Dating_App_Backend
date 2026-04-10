@@ -307,8 +307,11 @@ export async function getMatchedProfiles(userId, options = {}) {
   }
 
   // Determine explicit radius (Convert KM to Meters)
+  // Fix: If maxDistance is explicitly provided, it should override the 'Global' setting
   const isGlobal = currentUserProfile.datingPreferences?.global === true;
-  const radiusInMeters = isGlobal ? null : (maxDistance || 100) * 1000;
+  const radiusInMeters = (maxDistance && maxDistance > 0) 
+    ? maxDistance * 1000 
+    : (isGlobal ? null : (maxDistance || 100) * 1000);
 
   const geoNearOptions = {
     near: currentUserProfile.location,

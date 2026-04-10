@@ -8,6 +8,8 @@ import {
   getUserSubscriptionsController,
   verifyPremiumStatusController,
   getAvailablePlansController,
+  refundSubscriptionController,
+  googlePlayRTDNController,
 } from '../controllers/subscriptionController.js';
 import {setAutoRenewal} from '../services/subscriptionRenewalService.js';
 
@@ -37,6 +39,13 @@ router.post('/create', createSubscriptionController);
 // Cancel subscription
 router.post('/cancel/:subscriptionId', cancelSubscriptionController);
 
+// Refund subscription (within 24h policy)
+router.post('/refund/:subscriptionId', refundSubscriptionController);
+
+// Google Play Real-Time Developer Notifications (RTDN) webhook
+// Google sends Pub/Sub push messages here. Endpoint must be public.
+router.post('/webhooks/google-play', googlePlayRTDNController);
+
 // Enable/disable auto-renewal
 router.post('/auto-renew/:subscriptionId', async (req, res) => {
   try {
@@ -50,4 +59,3 @@ router.post('/auto-renew/:subscriptionId', async (req, res) => {
 });
 
 export default router;
-

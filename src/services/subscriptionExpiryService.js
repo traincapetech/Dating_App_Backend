@@ -3,8 +3,9 @@
  * Handles subscription expiration, cancellation, and premium status updates
  */
 
-import {getSubscriptions, updateSubscription, findSubscriptionByUserId} from '../models/Subscription.js';
+import {getSubscriptions, updateSubscription, findSubscriptionByUserId, findSubscriptionById} from '../models/Subscription.js';
 import {updateUser, findUserById} from '../models/userModel.js';
+import emailService from './emailNotificationService.js';
 
 /**
  * Check and expire subscriptions that have passed their expiry date
@@ -105,8 +106,24 @@ export async function handleSubscriptionCancellation(subscriptionId, reason) {
       autoRenew: false, // Disable auto-renewal
     });
 
-    // User keeps premium until expiresAt
-    // No need to update user status immediately
+    // ── Send cancellation confirmation email ──────────────────────────────
+    try {
+      const user = await findUserById(subscription.userId);
+      if (user?.email) {
+        const accessEndDate = new Date(subscription.expiresAt).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'long', day: 'numeric',
+        });
+
+        await emailService.sendCancellationEmail(
+          user.email,
+          subscription.planName || 'Premium',
+          accessEndDate
+        );
+        console.log(`[Cancellation] Email sent to ${user.email}`);
+      }
+    } catch (emailErr) {
+      console.error('[Cancellation] Failed to send cancellation email:', emailErr.message);
+    }
 
     return {
       success: true,
@@ -118,6 +135,7 @@ export async function handleSubscriptionCancellation(subscriptionId, reason) {
     throw error;
   }
 }
+
 
 /**
  * Update user's premium status based on active subscriptions
@@ -140,8 +158,8 @@ export async function updateUserPremiumStatus(userId) {
     // Check if subscription is still valid
     const expiresAt = new Date(subscription.expiresAt);
 
-    if (expiresAt < now || subscription.status !== 'active') {
-      // Subscription expired or not active - revoke premium
+    if (expiresAt < now || !['active', 'cancelled', 'payment_failed'].includes(subscription.status)) {
+      // Subscription expired or fully revoked - revoke premium
       await updateUser(userId, {
         isPremium: false,
         premiumExpiresAt: null,

@@ -47,7 +47,7 @@ async function getProfileInfo(userId) {
 
 // Configuration for premium features
 // Set to false to require premium for seeing who liked you
-const LIKES_VISIBLE_FREE = true; // Change to false when you want to monetize
+const LIKES_VISIBLE_FREE = false; // Change to false when you want to monetize
 
 // Daily like limit configuration
 const DAILY_LIKE_LIMIT = 8; // Free tier limit
@@ -89,16 +89,41 @@ async function getDailyLikeCount(userId, isPremium = false) {
 }
 
 // Helper to increment daily like count
-async function incrementDailyLikeCount(userId) {
+/**
+ * Atomically increments and checks the daily like count
+ * Returns the new count info and whether the limit was exceeded
+ */
+async function atomicIncrementAndCheckLimit(userId, isPremium) {
   const today = getTodayDateString();
+  const limit = isPremium ? PREMIUM_DAILY_LIKE_LIMIT : DAILY_LIKE_LIMIT;
 
+  // Atomic increment
   const dailyCount = await DailyLikeCount.findOneAndUpdate(
     {userId, date: today},
     {$inc: {count: 1}, lastResetAt: new Date()},
     {upsert: true, returnDocument: 'after'},
   );
 
-  return dailyCount.count;
+  const remaining = Math.max(0, limit - dailyCount.count);
+  
+  return {
+    count: dailyCount.count,
+    limit,
+    remaining,
+    limitExceeded: dailyCount.count > limit,
+  };
+}
+
+/**
+ * Decrements the daily like count (used for error recovery)
+ */
+async function decrementDailyLikeCount(userId) {
+  const today = getTodayDateString();
+  await DailyLikeCount.findOneAndUpdate(
+    {userId, date: today},
+    {$inc: {count: -1}},
+    {upsert: true},
+  );
 }
 
 export const likeUser = async (req, res) => {
@@ -115,14 +140,22 @@ export const likeUser = async (req, res) => {
       });
     }
 
-    // Check daily like limit
-    const dailyLikeInfo = await getDailyLikeCount(senderId, isPremium);
-    if (dailyLikeInfo.remaining <= 0) {
+    // 1. Atomic Limit Check (Prevent Race Conditions)
+    const dailyLikeInfo = await atomicIncrementAndCheckLimit(senderId, isPremium);
+    
+    if (dailyLikeInfo.limitExceeded) {
+      // Revert the increment since the like was blocked
+      await decrementDailyLikeCount(senderId);
+      
       return res.status(429).json({
         success: false,
-        message: 'Daily limit exceeded. Buy premium or try again tomorrow.',
+        message: 'Daily limit exceeded',
         limitReached: true,
-        dailyLikeInfo,
+        dailyLikeInfo: {
+          ...dailyLikeInfo,
+          count: dailyLikeInfo.limit, // Show they are exactly at the limit
+          remaining: 0
+        },
       });
     }
 
@@ -180,12 +213,8 @@ export const likeUser = async (req, res) => {
     // Save like
     await Like.create(likeData);
 
-    // Increment daily like count
-    const newCount = await incrementDailyLikeCount(senderId);
     const updatedDailyLikeInfo = {
       ...dailyLikeInfo,
-      count: newCount,
-      remaining: Math.max(0, dailyLikeInfo.limit - newCount),
     };
 
     // Check for mutual like
