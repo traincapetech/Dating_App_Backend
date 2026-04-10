@@ -1,0 +1,283 @@
+﻿Connecting to database...
+
+--- PROFILE AUDIT (Total: 37) ---
+
+User: Aman (ID: af597ecf-80b7-470a-b03e-67b16d806ad8)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [77.0930594,28.6058895]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'6", Drink: Prefer Not to say, Smoke: Prefer Not to say
+-------------------------------------------
+User: Unknown (ID: 6148dd56-6a54-4b98-80cb-1f83b7407894)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Saurav (ID: f6223e34-2e02-4b80-b382-a57198b86a45)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [-122.084,37.4219983]
+  Photos: 6
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'8", Edu: Postgrad, Drink: No, Smoke: No
+-------------------------------------------
+User: Unknown (ID: 5e54b7bf-26e1-4c2e-913a-a546e6557182)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Unknown (ID: 2fff81a0-eb2a-4652-8481-81babc8a4547)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [0,0]
+  Photos: 1
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Jordon (ID: 1a7c5922-5535-437e-93be-ad1b4654a2d7)
+  Gender: Man
+  Who to Date: ["Women"]
+  Location: [0,0]
+  Photos: 6
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Edu: Prefer not to say, Drink: No, Smoke: No
+-------------------------------------------
+User: Gaurav (ID: dda2b27e-b20c-4d5f-977b-2648daf44203)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'6", Edu: Prefer not to say, Drink: Prefer Not to say, Smoke: Prefer Not to say
+-------------------------------------------
+User: Nitin (ID: d9e6a167-efc5-4cd5-a15e-9f6a0016a79e)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [77.1939717,28.7477017]
+  Photos: 6
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'8", Edu: Undergrad, Drink: No, Smoke: No
+-------------------------------------------
+User: jordon (ID: f7f430ab-421b-4141-9378-fb6d028cd9fa)
+  Gender: Man
+  Who to Date: ["Women"]
+  Location: [0,0]
+  Photos: 2
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Edu: Prefer not to say, Drink: No, Smoke: No
+-------------------------------------------
+User: Divyam (ID: 62491706-50ee-46b2-9125-428f7f79bdf0)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Manish (ID: ba4578e6-b5cc-4e83-9528-bd46daf9d137)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [77.0819557,28.6074842]
+  Photos: 6
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Fine (ID: 9f220269-cd33-4f60-bc75-0a7a2c327cb4)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [77.0819303,28.6074876]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Edu: Prefer not to say, Drink: No, Smoke: No
+-------------------------------------------
+User: Unknown (ID: 527a5416-3f55-42a0-95d1-1d343d73367c)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Shruti (ID: bb3f6525-b383-4100-9e1a-0207d7b5b5f4)
+  Gender: Woman
+  Who to Date: ["Men"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'5", Edu: Undergrad, Drink: No, Smoke: No
+-------------------------------------------
+User: Eshita (ID: 3d429423-f97a-42b2-863a-4f7af6f390db)
+  Gender: Woman
+  Who to Date: ["Men"]
+  Location: [0,0]
+  Photos: 3
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Harsh (ID: b051dca5-e567-4c37-a493-966b600ca528)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'8", Edu: Undergrad, Drink: Yes, Smoke: Yes
+-------------------------------------------
+User: Worshimngam (ID: a09ccf73-3257-4700-afa0-9e4ae856bdcc)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Saurav (ID: c7500429-c7cb-468a-a1a7-ef3ce333a695)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [-122.084,37.4219983]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'7", Edu: Postgrad, Drink: No, Smoke: No
+-------------------------------------------
+User: Unknown (ID: 8405bf1c-483e-4ae0-b79a-182059e97fec)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: manan (ID: 7f02565a-2a06-4641-93ff-028db0decf91)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 6
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'6", Drink: Prefer Not to say, Smoke: Prefer Not to say
+-------------------------------------------
+User: kkjhkjhkj (ID: 3959c43a-e614-431e-a23a-593f39b5d3cb)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Mayur (ID: 559493e4-beb9-48c4-97f3-89d49e68f620)
+  Gender: Man
+  Who to Date: ["Women"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'11", Drink: Sometimes, Smoke: Prefer Not to say
+-------------------------------------------
+User: jordon_blake_ka_tau (ID: fe87e8ff-b92d-439a-b80b-ff18d91a06bc)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Drink: Yes, Smoke: Yes
+-------------------------------------------
+User: Jordon_blake_ka_tau (ID: 9bf67b8f-d95c-4d6f-a513-b3df01b1684b)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [77.172029,28.5553796]
+  Photos: 6
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Edu: High School, Drink: No, Smoke: No
+-------------------------------------------
+User: Unknown (ID: 1def6c8e-496e-45b2-b549-2654aff89a8b)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'1", Edu: Postgrad
+-------------------------------------------
+User: falna (ID: adcf4e05-a694-426d-b89d-64cff32b4fd1)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+  Advanced Info: Drink: Yes, Smoke: Yes
+-------------------------------------------
+User: Unknown (ID: 7cccc913-9ab8-416c-a3a7-9e5a6b16ecef)
+  Gender: NOT SET
+  Who to Date: ["Women"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'7", Edu: Postgrad, Drink: No, Smoke: No
+-------------------------------------------
+User: jordon (ID: c585fd3c-83fe-4f4c-ab2a-a450b445f74e)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: chacha (ID: 3ab2158d-b78f-43ac-bd06-66fd7275e7ed)
+  Gender: Man
+  Who to Date: ["Everyone"]
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'7", Edu: Postgrad, Drink: No, Smoke: No
+-------------------------------------------
+User: How (ID: ca64da09-11db-4235-a992-96860936e261)
+  Gender: Man
+  Who to Date: ["Women"]
+  Location: [0,0]
+  Photos: 5
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Rahul (ID: e70e4d8f-9bcb-4daa-b01a-fecc5e1f0fc7)
+  Gender: Man
+  Who to Date: ["Women"]
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Edu: High School, Drink: No, Smoke: Yes
+-------------------------------------------
+User: Jordan (ID: ca533298-0ed7-4ef0-8c90-dbde18660218)
+  Gender: Man
+  Who to Date: ["Men"]
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+  Advanced Info: Height: 5'10", Edu: High School, Drink: No, Smoke: No
+-------------------------------------------
+User: Captain (ID: cd91716e-d439-42cc-b436-c7f2944e6db7)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Horin (ID: 69f3c647-8c86-46eb-a9d5-9be52c3dc0d4)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: DL (ID: facbb6d0-e294-4bf9-a7c5-fb008054badc)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Jordo (ID: 1cffd218-e48d-4ed2-bd70-f08592e62da9)
+  Gender: Man
+  Who to Date: []
+  Location: [0,0]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------
+User: Unknown (ID: c2266491-b08f-4bf5-b21e-832ae571d961)
+  Gender: NOT SET
+  Who to Date: []
+  Location: [77.0820634,28.6074833]
+  Photos: 0
+  Paused/Hidden: NO / NO
+-------------------------------------------

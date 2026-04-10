@@ -118,7 +118,7 @@ export function calculateCompatibilityScore(
     'drink',
     'smokeTobacco',
     'smokeWeed',
-    'useDrugs',
+    'drugs',
     'politicalBeliefs',
     'religiousBeliefs',
   ];
@@ -255,7 +255,8 @@ export function calculateCompatibilityScore(
     }
   }
 
-  const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+  const percentage =
+    maxScore > 0 ? Math.min(Math.round((score / maxScore) * 100), 100) : 0;
 
   return {
     score,
@@ -293,13 +294,15 @@ export async function getMatchedProfiles(userId, options = {}) {
   const viewerCoords = currentUserProfile.location?.coordinates;
   // Enforce valid location check (Single Source of Truth)
   const hasViewerLocation =
-    viewerCoords && 
-    Array.isArray(viewerCoords) && 
-    viewerCoords.length === 2 && 
+    viewerCoords &&
+    Array.isArray(viewerCoords) &&
+    viewerCoords.length === 2 &&
     !(viewerCoords[0] === 0 && viewerCoords[1] === 0);
 
   if (!hasViewerLocation) {
-    console.log(`[getMatchedProfiles] User ${userId} has no valid location. Blocking discovery to prevent global leak.`);
+    console.log(
+      `[getMatchedProfiles] User ${userId} has no valid location. Blocking discovery to prevent global leak.`,
+    );
     return []; // STRICT: No location = No profiles
   }
 
@@ -325,8 +328,7 @@ export async function getMatchedProfiles(userId, options = {}) {
     geoNearOptions.maxDistance = radiusInMeters;
   }
 
-  pipeline.push({ $geoNear: geoNearOptions });
-
+  pipeline.push({$geoNear: geoNearOptions});
 
   // B. Gender Filter
   const userGender = currentUserProfile.basicInfo?.gender;

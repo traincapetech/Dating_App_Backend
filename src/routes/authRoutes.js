@@ -12,13 +12,13 @@ import {
 } from '../controllers/authController.js';
 import {deleteUserController} from '../controllers/profileController.js';
 import {authenticate} from '../middlewares/auth.js';
-import {authLimiter, passwordResetLimiter} from '../middlewares/rateLimiter.js';
+import {authLimiter, loginLimiter, passwordResetLimiter} from '../middlewares/rateLimiter.js';
 
 const router = Router();
 
 // Apply auth rate limiter to login/signup (10 attempts per 15 min)
 router.post('/signup', authLimiter, signUp);
-router.post('/login', authLimiter, signIn);
+router.post('/login', loginLimiter, signIn); // loginLimiter: 5 per 15 min per IP + per-account lock in authService
 router.post('/google', authLimiter, googleSignIn);
 router.post('/change-email', authenticate, updateEmail);
 router.post('/change-password', authenticate, updatePassword);

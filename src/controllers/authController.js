@@ -26,7 +26,23 @@ export const signUp = asyncHandler(async (req, res) => {
 
 export const signIn = asyncHandler(async (req, res) => {
   const parsed = signInSchema.parse(req.body);
-  const result = await authenticateUser(parsed);
+
+  // Extract real client IP (respects X-Forwarded-For from proxies/load balancers)
+  const ip =
+    (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+    req.socket?.remoteAddress ||
+    null;
+
+  // Extract device info from User-Agent
+  const device = req.headers['user-agent'] || 'Unknown Device';
+
+  const result = await authenticateUser({
+    email: parsed.email,
+    password: parsed.password,
+    ip,
+    device,
+  });
+
   res.status(200).json(result);
 });
 

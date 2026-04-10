@@ -107,46 +107,105 @@ export async function registerUser({fullName, email, phone, password}) {
   };
 }
 
-export async function authenticateUser({email, password}) {
+// ── Security constants ────────────────────────────────────────────────────────
+const MAX_FAILED_BEFORE_LOCK    = 5;  // Lock account after this many failures
+const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Core login with:
+ *  - Account lock enforcement
+ *  - Failed attempt tracking + auto-lock at 5
+ *  - Counter reset on success
+ *  - IP tracking + suspicious-activity logging
+ */
+export async function authenticateUser({ email, password, ip = null, device = null }) {
   const normalizedEmail = email.trim().toLowerCase();
+
+  // SECURITY:  We look up the user but never reveal whether the email
+  // exists.  All "bad credentials" paths return the same generic message.
   const user = await findUserByEmail(normalizedEmail);
-  if (!user) {
-    const error = new Error('Invalid email or password.');
-    error.status = 401;
+
+  // ── 1. ACCOUNT LOCK CHECK ─────────────────────────────────────────────────
+  if (user && user.lockUntil && new Date(user.lockUntil) > new Date()) {
+    const remainingMs  = new Date(user.lockUntil) - new Date();
+    const remainingMin = Math.ceil(remainingMs / 60000);
+    const error = new Error(
+      `Account temporarily locked. Try again after ${remainingMin} minute${remainingMin !== 1 ? 's' : ''}.`
+    );
+    error.status = 423; // 423 Locked
+    error.remainingMinutes = remainingMin;
+    console.warn(`[Auth] Locked account login attempt — email: ${normalizedEmail}, IP: ${ip}`);
     throw error;
   }
 
-  const passwordValid = user.password
-    ? await bcrypt.compare(password, user.password)
-    : false;
 
-  if (!passwordValid) {
-    if (!user.password && user.authProvider === 'google') {
+  // ── 3. CREDENTIAL VALIDATION ──────────────────────────────────────────────
+  const passwordValid =
+    user && user.password
+      ? await bcrypt.compare(password, user.password)
+      : false;
+
+  if (!user || !passwordValid) {
+    // Google-only account special case
+    if (user && !user.password && user.authProvider === 'google') {
       const error = new Error(
         'This account uses Google Sign-In. Please use the Google button to log in.',
       );
       error.status = 401;
       throw error;
     }
+
+    // ── 3a. INCREMENT FAILED ATTEMPTS ────────────────────────────────────────
+    if (user) {
+      const newCount = (user.failedAttempts || 0) + 1;
+      const updatePayload = { failedAttempts: newCount };
+
+      if (newCount >= MAX_FAILED_BEFORE_LOCK) {
+        updatePayload.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
+        console.warn(
+          `[Auth Security] Account LOCKED — email: ${normalizedEmail}, IP: ${ip}, attempts: ${newCount}`
+        );
+      } else {
+        console.warn(
+          `[Auth Security] Failed attempt ${newCount}/${MAX_FAILED_BEFORE_LOCK} — email: ${normalizedEmail}, IP: ${ip}`
+        );
+      }
+
+      // Fire-and-forget counter update (don't block response)
+      updateUser(user.id, updatePayload).catch(e =>
+        console.error('[Auth] Failed to update failed attempt counter:', e.message)
+      );
+    }
+
+    // Unknown email — same generic message to prevent enumeration
     const error = new Error('Invalid email or password.');
     error.status = 401;
     throw error;
   }
 
-  // Compute and stamp onboardingStep if missing (backward-compat for legacy users)
+  // ── 4. SUCCESS — reset counters ───────────────────────────────────────────
+  updateUser(user.id, {
+    failedAttempts: 0,
+    lockUntil: null,
+    lastLogin: new Date(),
+    lastLoginIp: ip,
+    lastLoginDevice: device,
+  }).catch(e => console.error('[Auth] Failed to reset security counters:', e.message));
+
+  // ── 5. ONBOARDING STEP (backward-compat) ─────────────────────────────────
   let onboardingStep = user.onboardingStep;
   if (!onboardingStep) {
     try {
       const {findProfileByUserId} = await import('../models/profileModel.js');
       const profile = await findProfileByUserId(user.id);
       onboardingStep = getOnboardingStep(user, profile);
-      // Persist it so future logins are fast (fire-and-forget, non-blocking)
       updateUser(user.id, {onboardingStep}).catch(e =>
         console.warn('[Auth] Failed to persist onboardingStep:', e.message),
       );
     } catch (e) {
       console.warn('[Auth] Could not compute onboardingStep:', e.message);
-      onboardingStep = 'BASIC_INFO'; // Safe fallback
+      onboardingStep = 'BASIC_INFO';
     }
   }
 
@@ -163,6 +222,8 @@ export async function authenticateUser({email, password}) {
     tokens,
   };
 }
+
+
 
 export async function changeEmail({userId, newEmail, password}) {
   const normalizedNewEmail = newEmail.trim().toLowerCase();

@@ -49,6 +49,18 @@ const userSchema = new mongoose.Schema(
     passwordResetToken: String,
     passwordResetExpires: Date,
     lastLogin: Date,
+    lastLoginIp: String,
+    lastLoginDevice: String,
+    // ── Login Security ─────────────────────────────────────────────
+    failedAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
+    // ──────────────────────────────────────────────────────────────
     lastActive: {
       type: Date,
       default: Date.now,

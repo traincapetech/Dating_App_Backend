@@ -33,6 +33,21 @@ export const authLimiter = rateLimit({
   skipSuccessfulRequests: false, // Count all requests
 });
 
+// Login-specific IP rate limiter — stricter than authLimiter
+// Works alongside the per-account failedAttempts lock in authService.
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'development' ? 100 : 5, // 5 per 15 min in prod
+  message: {
+    success: false,
+    message: 'Too many login attempts from this IP. Try again in 15 minutes.',
+    retryAfter: 15 * 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Only count failed attempts toward the IP limit
+});
+
 // OTP rate limiter - (20 attempts per 10 minutes in dev)
 export const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
@@ -102,6 +117,7 @@ export const uploadLimiter = rateLimit({
 export default {
   generalLimiter,
   authLimiter,
+  loginLimiter,
   otpLimiter,
   passwordResetLimiter,
   swipeLimiter,

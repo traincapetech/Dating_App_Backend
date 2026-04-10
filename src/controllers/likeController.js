@@ -50,7 +50,7 @@ async function getProfileInfo(userId) {
 const LIKES_VISIBLE_FREE = true; // Change to false when you want to monetize
 
 // Daily like limit configuration
-const DAILY_LIKE_LIMIT = 50; // Free tier limit
+const DAILY_LIKE_LIMIT = 8; // Free tier limit
 const PREMIUM_DAILY_LIKE_LIMIT = 999999; // Effectively unlimited for premium
 
 // Helper to get today's date string (YYYY-MM-DD)
@@ -120,7 +120,7 @@ export const likeUser = async (req, res) => {
     if (dailyLikeInfo.remaining <= 0) {
       return res.status(429).json({
         success: false,
-        message: `You've reached your daily like limit of ${dailyLikeInfo.limit}. Come back tomorrow!`,
+        message: 'Daily limit exceeded. Buy premium or try again tomorrow.',
         limitReached: true,
         dailyLikeInfo,
       });
