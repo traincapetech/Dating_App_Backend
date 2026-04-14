@@ -10,7 +10,6 @@ import {
   updateUser,
 } from '../models/userModel.js';
 import {sendEmailOTP} from './emailService.js';
-import {getOnboardingStep} from '../utils/onboardingUtils.js';
 
 function generateTokens(user) {
   const payload = {
@@ -88,7 +87,6 @@ export async function registerUser({fullName, email, phone, password}) {
     email: normalizedEmail,
     phone: sanitizedPhone,
     password: hashedPassword,
-    onboardingStep: 'BASIC_INFO', // New users always start here
     createdAt: new Date().toISOString(),
   };
 
@@ -101,7 +99,6 @@ export async function registerUser({fullName, email, phone, password}) {
       fullName: savedUser.fullName,
       email: savedUser.email,
       phone: savedUser.phone,
-      onboardingStep: 'BASIC_INFO',
     },
     tokens,
   };
@@ -193,22 +190,6 @@ export async function authenticateUser({ email, password, ip = null, device = nu
     lastLoginDevice: device,
   }).catch(e => console.error('[Auth] Failed to reset security counters:', e.message));
 
-  // ── 5. ONBOARDING STEP (backward-compat) ─────────────────────────────────
-  let onboardingStep = user.onboardingStep;
-  if (!onboardingStep) {
-    try {
-      const {findProfileByUserId} = await import('../models/profileModel.js');
-      const profile = await findProfileByUserId(user.id);
-      onboardingStep = getOnboardingStep(user, profile);
-      updateUser(user.id, {onboardingStep}).catch(e =>
-        console.warn('[Auth] Failed to persist onboardingStep:', e.message),
-      );
-    } catch (e) {
-      console.warn('[Auth] Could not compute onboardingStep:', e.message);
-      onboardingStep = 'BASIC_INFO';
-    }
-  }
-
   const tokens = generateTokens(user);
 
   return {
@@ -217,7 +198,6 @@ export async function authenticateUser({ email, password, ip = null, device = nu
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
-      onboardingStep,
     },
     tokens,
   };
@@ -479,29 +459,12 @@ export async function authenticateWithGoogle({idToken}) {
     isNewUser = !user.updatedAt || user.createdAt === user.updatedAt;
   }
 
-  // Compute / stamp onboardingStep for Google users too
-  let onboardingStep = user.onboardingStep;
-  if (!onboardingStep) {
-    try {
-      const {findProfileByUserId} = await import('../models/profileModel.js');
-      const profile = await findProfileByUserId(user.id);
-      onboardingStep = getOnboardingStep(user, profile);
-      updateUser(user.id, {onboardingStep}).catch(e =>
-        console.warn('[Auth/Google] Failed to persist onboardingStep:', e.message),
-      );
-    } catch (e) {
-      console.warn('[Auth/Google] Could not compute onboardingStep:', e.message);
-      onboardingStep = isNewUser ? 'BASIC_INFO' : 'COMPLETE';
-    }
-  }
-
   return {
     user: {
       id: user.id,
       fullName: user.fullName,
       email: user.email,
       phone: user.phone || '',
-      onboardingStep,
     },
     tokens,
     isNewUser,

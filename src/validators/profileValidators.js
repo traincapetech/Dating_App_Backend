@@ -1,9 +1,18 @@
+/**
+ * profileValidators.js
+ * ─────────────────────────────────────────────────────────────────────────────
+ * SINGLE unified Zod schema for all profile writes.
+ * Used by both the onboarding flow and profile editing via PATCH /profile.
+ * All fields are optional to support partial updates and skipped steps.
+ */
 import {z} from 'zod';
 
-export const basicInfoSchema = z.object({
+// ── Sub-schemas (reusable, all fields optional) ────────────────────────────
+
+const basicInfoSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
-  dob: z.string().optional(), // ISO date string YYYY-MM-DD
+  dob: z.string().optional(),
   email: z.string().email().optional(),
   notificationsEnabled: z.boolean().optional(),
   location: z.string().optional(),
@@ -13,13 +22,14 @@ export const basicInfoSchema = z.object({
       lng: z.number(),
       source: z.string().optional(),
       timestamp: z.number().optional(),
+      city: z.string().optional(),
     })
     .optional(),
   gender: z.enum(['Man', 'Woman', 'Non Binary']).optional(),
   showGenderOnProfile: z.boolean().optional(),
-});
+}).optional();
 
-export const datingPreferencesSchema = z.object({
+const datingPreferencesSchema = z.object({
   whoToDate: z
     .array(z.enum(['Men', 'Women', 'Nonbinary People', 'Everyone']))
     .optional(),
@@ -27,9 +37,9 @@ export const datingPreferencesSchema = z.object({
   relationshipType: z.enum(['Monogamy', 'Non-Monogamy']).optional(),
   showIntentionOnProfile: z.boolean().optional(),
   showRelationshipTypeOnProfile: z.boolean().optional(),
-});
+}).optional();
 
-export const personalDetailsSchema = z.object({
+const personalDetailsSchema = z.object({
   familyPlans: z.string().optional(),
   hasChildren: z.string().optional(),
   ethnicity: z.string().optional(),
@@ -39,9 +49,9 @@ export const personalDetailsSchema = z.object({
   jobTitle: z.string().optional(),
   school: z.string().optional(),
   educationLevel: z.string().optional(),
-});
+}).optional();
 
-export const lifestyleSchema = z.object({
+const lifestyleSchema = z.object({
   drink: z.string().optional(),
   smokeTobacco: z.string().optional(),
   smokeWeed: z.string().optional(),
@@ -49,48 +59,48 @@ export const lifestyleSchema = z.object({
   politicalBeliefs: z.string().optional(),
   religiousBeliefs: z.string().optional(),
   interests: z.array(z.string()).optional(),
-});
+  pets: z.array(z.string()).optional(),
+}).optional();
 
-export const profilePromptsSchema = z.object({
+const profilePromptsSchema = z.object({
   aboutMe: z
-    .object({
-      question: z.string().optional(),
-      answer: z.string().optional(),
-    })
+    .object({question: z.string().optional(), answer: z.string().optional()})
     .optional(),
   selfCare: z
-    .object({
-      question: z.string().optional(),
-      answer: z.string().optional(),
-    })
+    .object({question: z.string().optional(), answer: z.string().optional()})
     .optional(),
   gettingPersonal: z
-    .object({
-      question: z.string().optional(),
-      answer: z.string().optional(),
-    })
+    .object({question: z.string().optional(), answer: z.string().optional()})
     .optional(),
-});
+}).optional();
 
-export const mediaUploadSchema = z.object({
+const mediaSchema = z.object({
   media: z
     .array(
       z.object({
-        type: z.enum(['photo', 'video']),
+        type: z.enum(['photo', 'video', 'image']),
         url: z.string(),
         order: z.number(),
       }),
     )
     .optional(),
-});
+}).optional();
 
-export const updateProfileSchema = z.object({
-  basicInfo: basicInfoSchema.optional(),
-  datingPreferences: datingPreferencesSchema.optional(),
-  personalDetails: personalDetailsSchema.optional(),
-  lifestyle: lifestyleSchema.optional(),
-  profilePrompts: profilePromptsSchema.optional(),
-  media: mediaUploadSchema.optional(),
+// ── SINGLE unified patchProfileSchema ─────────────────────────────────────
+// This is the ONLY schema used across the entire application.
+// Onboarding screens send sub-objects (e.g., { basicInfo: { ... } }).
+// ProfileDetailsScreen sends the same structure, potentially multi-section.
+export const patchProfileSchema = z.object({
+  basicInfo: basicInfoSchema,
+  datingPreferences: datingPreferencesSchema,
+  personalDetails: personalDetailsSchema,
+  lifestyle: lifestyleSchema,
+  profilePrompts: profilePromptsSchema,
+  media: mediaSchema,
   isPaused: z.boolean().optional(),
   isHidden: z.boolean().optional(),
 });
+
+// ── Legacy exports kept as aliases to avoid breaking any utility imports ───
+// These are NOT used as separate endpoints anymore. Only patchProfileSchema is used.
+export const updateProfileSchema = patchProfileSchema;

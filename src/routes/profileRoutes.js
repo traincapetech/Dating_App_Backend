@@ -1,13 +1,13 @@
+/**
+ * profileRoutes.js
+ * ─────────────────────────────────────────────────────────────────────────────
+ * UNIFIED routing. All profile writes use PATCH /profile.
+ * Legacy per-section POST endpoints removed completely.
+ */
 import {Router} from 'express';
 import {
-  saveBasicInfoController,
-  saveDatingPreferencesController,
-  savePersonalDetailsController,
-  saveLifestyleController,
-  saveProfilePromptsController,
-  saveMediaController,
+  patchProfileController,
   getProfileController,
-  updateProfileController,
   getAllProfilesController,
   uploadImageController,
   uploadMiddleware,
@@ -23,46 +23,23 @@ import {authenticate} from '../middlewares/auth.js';
 
 const router = Router();
 
-// Apply sanitization to all profile update routes
-// Apply sanitization to all profile update routes
-router.post(
-  '/basic-info',
-  authenticate,
-  sanitizeInput,
-  saveBasicInfoController,
-);
-router.post(
-  '/dating-preferences',
-  authenticate,
-  sanitizeInput,
-  saveDatingPreferencesController,
-);
-router.post(
-  '/personal-details',
-  authenticate,
-  sanitizeInput,
-  savePersonalDetailsController,
-);
-router.post('/lifestyle', authenticate, sanitizeInput, saveLifestyleController);
-router.post(
-  '/profile-prompts',
-  authenticate,
-  sanitizeInput,
-  saveProfilePromptsController,
-);
-router.post('/media', authenticate, saveMediaController);
+// ── Single unified write endpoint for ALL profile updates ─────────────────
+router.patch('/', authenticate, sanitizeInput, patchProfileController);
+
+// ── Media ─────────────────────────────────────────────────────────────────
 router.post('/upload-image', authenticate, uploadMiddleware, uploadImageController);
 router.post('/delete-image', authenticate, deleteImageController);
+
+// ── Discovery & Reads ─────────────────────────────────────────────────────
 router.get('/discover', authenticate, getAllProfilesController);
 router.get('/:userId', authenticate, getProfileController);
 router.get('/:userId/interactions', authenticate, getProfileInteractionsController);
-router.put('/update', authenticate, sanitizeInput, updateProfileController);
-router.put(
-  '/settings/online-status',
-  authenticate,
-  updateOnlineStatusController,
-);
+
+// ── Settings & Status ─────────────────────────────────────────────────────
+router.put('/settings/online-status', authenticate, updateOnlineStatusController);
 router.post('/pause', authenticate, pauseProfileController);
+
+// ── Delete ────────────────────────────────────────────────────────────────
 router.delete('/:userId', authenticate, deleteProfileController);
 
 export default router;
