@@ -195,10 +195,9 @@ export const sendMessage = async (req, res) => {
       emitToUser(receiverId, 'receiveMessage', message);
 
       // 4. Check if receiver is online to update status to 'delivered'
+      // 4. Check if receiver is online to update status to 'delivered'
       const receiverOnline = isUserOnline(receiverId);
-      console.log(
-        `[Push Debug] Receiver ${receiverId} online: ${receiverOnline}`,
-      );
+      console.log(`[Push Debug] Receiver ${receiverId} online: ${receiverOnline}`);
 
       if (receiverOnline) {
         // Mark as delivered immediately
@@ -211,47 +210,49 @@ export const sendMessage = async (req, res) => {
           status: 'delivered',
           matchId, // Include matchId for easier client-side handling
         });
-      } else {
-        // Receiver is offline - send push notification
-        console.log(
-          `[Push Debug] Attempting push notification to ${receiverId}`,
-        );
-        try {
-          // Fetch sender name from User model (fullName)
-          const User = (await import('../models/User.js')).default;
-          const Profile = (await import('../models/Profile.js')).default;
-          
-          const sender = await User.findById(senderId).select('fullName');
-          const profile = await Profile.findOne({ userId: senderId }).select('media');
-          
-          const senderName = sender?.fullName || 'New Message';
-          // Extract first image URL from media array
-          const senderPhoto = profile?.media?.media?.find(m => m.type === 'image' || m.type === 'photo')?.url || '';
+      } 
+      
+      // ALWAYS SEND PUSH NOTIFICATION. 
+      // Explanation: Mobile OSes (Android/iOS) keep sockets alive for a while after backgrounding. 
+      // If we only send push when !receiverOnline, users who just closed the app will miss notifications.
+      console.log(
+        `[Push Debug] Attempting push notification to ${receiverId}`,
+      );
+      try {
+        // Fetch sender name from User model (fullName)
+        const User = (await import('../models/User.js')).default;
+        const Profile = (await import('../models/Profile.js')).default;
+        
+        const sender = await User.findById(senderId).select('fullName');
+        const profile = await Profile.findOne({ userId: senderId }).select('media');
+        
+        const senderName = sender?.fullName || 'New Message';
+        // Extract first image URL from media array
+        const senderPhoto = profile?.media?.media?.find(m => m.type === 'image' || m.type === 'photo')?.url || '';
 
-          const pushBody = text
-            ? text.length > 50
-              ? text.substring(0, 50) + '...'
-              : text
-            : 'Sent you a photo';
+        const pushBody = text
+          ? text.length > 50
+            ? text.substring(0, 50) + '...'
+            : text
+          : 'Sent you a photo';
 
-          const pushResult = await sendPushNotification(receiverId, {
-            title: senderName,
-            body: pushBody,
-            isDataOnly: true, // Data-only so background handler (backgroundHandler.js) renders the notification w/ Reply action via Notifee
-            data: {
-              type: 'chat_message',
-              chatId: matchId,
-              senderId: senderId,
-              senderName: senderName,
-              senderPhoto: senderPhoto,
-              messageText: pushBody,
-              timestamp: Date.now().toString(),
-            },
-          });
-          console.log('[Push Debug] Push result:', JSON.stringify(pushResult));
-        } catch (pushError) {
-          console.error('[Push Notification] Failed:', pushError.message);
-        }
+        const pushResult = await sendPushNotification(receiverId, {
+          title: senderName,
+          body: pushBody,
+          isDataOnly: true, // Data-only so background handler (backgroundHandler.js) renders the notification w/ Reply action via Notifee
+          data: {
+            type: 'chat_message',
+            chatId: matchId,
+            senderId: senderId,
+            senderName: senderName,
+            senderPhoto: senderPhoto,
+            messageText: pushBody,
+            timestamp: Date.now().toString(),
+          },
+        });
+        console.log('[Push Debug] Push result:', JSON.stringify(pushResult));
+      } catch (pushError) {
+        console.error('[Push Notification] Failed:', pushError.message);
       }
     }
 
