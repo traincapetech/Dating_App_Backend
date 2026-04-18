@@ -1,5 +1,5 @@
 import firebaseAdmin from '../config/firebase.js';
-import { findTokenByUserId, unregisterToken, getTokensByUserIds } from '../models/notificationTokenModel.js';
+import { findTokenByUserId, unregisterToken, getTokensByUserIds, registerToken } from '../models/notificationTokenModel.js';
 
 /**
  * Calculate seconds-to-live for a notification.
@@ -158,8 +158,23 @@ export async function sendPushNotification(userId, notification) {
   }
 
   try {
-    const tokenDoc = await findTokenByUserId(userId);
-    if (!tokenDoc?.deviceToken) {
+    // Primary: check the NotificationToken collection
+    let tokenDoc = await findTokenByUserId(userId);
+    let deviceToken = tokenDoc?.deviceToken;
+
+    // Fallback: if no NotificationToken record, try User.fcmToken directly
+    if (!deviceToken) {
+      const User = (await import('../models/User.js')).default;
+      const user = await User.findById(userId).select('fcmToken');
+      deviceToken = user?.fcmToken;
+      if (deviceToken) {
+        console.log(`[Push] Using fallback User.fcmToken for ${userId}`);
+        // Also backfill into NotificationToken so future lookups work correctly
+        await registerToken(userId, deviceToken, 'unknown');
+      }
+    }
+
+    if (!deviceToken) {
       console.log(`No FCM token found for user ${userId}`);
       return { success: false, reason: 'no_token' };
     }
@@ -173,7 +188,7 @@ export async function sendPushNotification(userId, notification) {
       }
     }
 
-    const message = buildMessage(tokenDoc.deviceToken, notification);
+    const message = buildMessage(deviceToken, notification);
     const response = await firebaseAdmin.messaging().send(message);
     console.log(`📬 Push sent to ${userId}:`, response);
 

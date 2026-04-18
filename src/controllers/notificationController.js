@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { sendNotification } from '../services/notificationService.js';
+import { registerToken } from '../models/notificationTokenModel.js';
 
 /**
  * Controller to save FCM token for a user
@@ -17,6 +18,7 @@ export const saveFcmToken = async (req, res) => {
   }
 
   try {
+    // Save to User model (for backward compatibility)
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { fcmToken: finalToken, lastActive: new Date() },
@@ -27,8 +29,13 @@ export const saveFcmToken = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // CRITICAL: Also save to NotificationToken collection — this is what
+    // pushService.js reads from when sending push notifications.
+    await registerToken(userId, finalToken, platform || 'unknown');
+
     res.json({ success: true, message: 'FCM token updated successfully' });
   } catch (error) {
+    console.error('[saveFcmToken] Error:', error);
     res.status(500).json({ success: false, message: 'Error updating FCM token' });
   }
 };
