@@ -76,32 +76,19 @@ function buildMessage(deviceToken, notification) {
   const serializedData = serializeData(data);
   const ttl = resolveTtlSeconds(type, data?.endTime);
 
-  // For timer/full_screen notifications we always force data-only delivery so the 
-  // background handler can render the view itself.
+  // Timer/live/fullscreen: force data-only on ALL platforms (background handler renders custom UI)
   const forceDataOnly = type === 'timer' || type === 'full_screen' || type === 'live' || isDataOnly;
+
+  // Chat messages: data-only on Android (so Notifee background handler shows reply button),
+  // but VISIBLE notification on iOS (OS delivers it while app is background/killed)
+  const androidDataOnly = forceDataOnly || type === 'chat_message';
+  const iosDataOnly     = forceDataOnly; // iOS always shows visible for chat
+
   const priority = isHighPriority || type === 'timer' || type === 'full_screen' ? 'high' : 'normal';
 
   const message = {
     token: deviceToken,
-    // Top-level data block – always present for background wake-up
-    data: {
-      ...serializedData,
-      title, // Include title and body so the frontend can display them 
-      body,  // even when it's a data-only message.
-      type, // Ensure type is present in data block for client-side routing
-    },
-  };
-
-  // ---- Visible notification (non-data-only flows) ----
-  if (!forceDataOnly) {
-    message.notification = { title, body };
-  }
-
-  // ---- Android config ----
-  message.android = {
-    priority,
-    ttl: ttl * 1000, // FCM expects milliseconds for android.ttl
-    // Include the data object explicitly at the android level for reliability
+    // Top-level data block — always present so background handlers receive payload
     data: {
       ...serializedData,
       title,
@@ -110,29 +97,47 @@ function buildMessage(deviceToken, notification) {
     },
   };
 
-  if (!forceDataOnly) {
+  // ---- Visible notification block (only for non-data-only platforms) ----
+  // We omit the top-level notification so we can control per-platform below.
+
+  // ---- Android config ----
+  message.android = {
+    priority: 'high',
+    ttl: ttl * 1000,
+    data: {
+      ...serializedData,
+      title,
+      body,
+      type,
+    },
+  };
+
+  if (!androidDataOnly) {
+    // Non-chat: show a regular system notification on Android too
     message.android.notification = {
-      channelId: type === 'timer' ? 'timer_priority' : 'messages_priority',
+      channelId: type === 'timer' ? 'timer_priority' : 'messages_priority_v2',
       priority: 'high',
       defaultSound: true,
       defaultVibrateTimings: true,
     };
   }
+  // For chat on Android we intentionally omit android.notification so the
+  // setBackgroundMessageHandler fires and Notifee renders the rich notification.
 
   // ---- APNs (iOS) config ----
   message.apns = {
     headers: {
-      'apns-priority': priority === 'high' ? '10' : '5', // 10 = immediate, 5 = low power
-      'apns-expiration': String(Math.floor(Date.now() / 1000) + ttl), // Seconds since epoch
+      'apns-priority': '10', // Always immediate for chat
+      'apns-push-type': iosDataOnly ? 'background' : 'alert',
+      'apns-expiration': String(Math.floor(Date.now() / 1000) + ttl),
     },
     payload: {
-      // Carry the data block here so iOS background/silent handlers receive it
       ...serializedData,
       title,
       body,
       type,
-      aps: forceDataOnly 
-        ? { 'content-available': 1 }  // Silent / background push
+      aps: iosDataOnly
+        ? { 'content-available': 1 }
         : {
             alert: { title, body },
             sound: 'default',
@@ -144,6 +149,7 @@ function buildMessage(deviceToken, notification) {
 
   return message;
 }
+
 
 /**
  * Send a push notification to a single user.
@@ -309,4 +315,134 @@ export async function broadcastPushNotification(notification, targetUserIds = nu
 export async function sendPushToMultiple(userIds, notification) {
   // Using broadcastPushNotification which is optimized for multiple tokens
   return broadcastPushNotification(notification, userIds);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BULK NOTIFICATION (scalable multicast – merges both token sources)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Send a push notification to multiple users efficiently using FCM multicast.
+ *
+ * Token resolution strategy (both sources merged + deduplicated):
+ *   1. notificationTokenModel  – primary, always checked first
+ *   2. User.fcmToken           – fallback for users who haven't refreshed yet
+ *
+ * @param {object} options
+ * @param {string}   options.title    - Notification title
+ * @param {string}   options.body     - Notification body
+ * @param {string[]} options.userIds  - Array of user IDs to notify
+ * @param {object}  [options.data]    - Optional extra key-value payload
+ * @param {string}  [options.type]    - Notification type (default: 'general')
+ * @returns {Promise<{ successCount: number, failureCount: number }>}
+ */
+export async function sendBulkNotifications({ title, body, userIds, data = {}, type = 'general' }) {
+  if (!firebaseAdmin) {
+    console.warn('[Bulk Push] Firebase not initialized – skipping');
+    return { successCount: 0, failureCount: 0 };
+  }
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    console.warn('[Bulk Push] No userIds provided');
+    return { successCount: 0, failureCount: 0 };
+  }
+
+  const notification = { title, body, type, data };
+
+  // ── 1. Collect tokens from notificationTokenModel ─────────────────────────
+  const tokenDocs = await getTokensByUserIds(userIds);
+
+  // Map userId → token from the primary collection
+  const tokenMap = new Map(); // token → userId  (inverted for dedup)
+  const userTokenMap = new Map(); // userId → token  (for cleanup)
+
+  for (const doc of tokenDocs) {
+    if (doc.deviceToken) {
+      tokenMap.set(doc.deviceToken, String(doc.userId));
+      userTokenMap.set(String(doc.userId), doc.deviceToken);
+    }
+  }
+
+  // ── 2. Fallback: fetch User.fcmToken for any userId not yet covered ────────
+  const coveredUserIds = new Set(userTokenMap.keys());
+  const missingUserIds = userIds.map(String).filter(id => !coveredUserIds.has(id));
+
+  if (missingUserIds.length > 0) {
+    try {
+      const User = (await import('../models/User.js')).default;
+      const fallbackUsers = await User.find(
+        { _id: { $in: missingUserIds } },
+        { _id: 1, fcmToken: 1 },
+      ).lean();
+
+      for (const user of fallbackUsers) {
+        const uid = String(user._id);
+        const tok = user.fcmToken;
+        if (tok && !tokenMap.has(tok)) {
+          tokenMap.set(tok, uid);
+          userTokenMap.set(uid, tok);
+          // Backfill into NotificationToken for next time
+          registerToken(uid, tok, 'unknown').catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('[Bulk Push] Fallback User.fcmToken fetch failed:', err.message);
+    }
+  }
+
+  // ── 3. Build final deduplicated token list ────────────────────────────────
+  // tokenMap keys are unique tokens; values are userIds for cleanup
+  const allTokens = [...tokenMap.keys()].filter(t => typeof t === 'string' && t.length > 10);
+
+  if (allTokens.length === 0) {
+    console.log('[Bulk Push] No valid tokens found for provided userIds');
+    return { successCount: 0, failureCount: 0 };
+  }
+
+  console.log(`[Bulk Push] Sending "${title}" → ${allTokens.length} devices (${userIds.length} users)`);
+
+  // ── 4. Send in batches of 500 (FCM hard limit per multicast call) ──────────
+  const BATCH_SIZE = 500;
+  let totalSuccess = 0;
+  let totalFailure = 0;
+
+  for (let i = 0; i < allTokens.length; i += BATCH_SIZE) {
+    const batchTokens = allTokens.slice(i, i + BATCH_SIZE);
+
+    // Build payload using the first token as template then swap to multicast
+    const sampleMsg = buildMessage(batchTokens[0], notification);
+    const { token: _drop, ...msgWithoutToken } = sampleMsg;
+    const multicastMsg = { ...msgWithoutToken, tokens: batchTokens };
+
+    try {
+      const batchResponse = await firebaseAdmin.messaging().sendEachForMulticast(multicastMsg);
+      totalSuccess += batchResponse.successCount;
+      totalFailure += batchResponse.failureCount;
+
+      // ── 5. Clean up invalid tokens ────────────────────────────────────────
+      for (let j = 0; j < batchResponse.responses.length; j++) {
+        const resp = batchResponse.responses[j];
+        if (!resp.success) {
+          const errCode = resp.error?.code;
+          if (
+            errCode === 'messaging/invalid-registration-token' ||
+            errCode === 'messaging/registration-token-not-registered'
+          ) {
+            const staleToken = batchTokens[j];
+            const ownerUserId = tokenMap.get(staleToken);
+            if (ownerUserId) {
+              unregisterToken(ownerUserId).catch(() => {});
+              console.log(`[Bulk Push] Removed stale token for user ${ownerUserId}`);
+            }
+          }
+        }
+      }
+    } catch (batchError) {
+      console.error(`[Bulk Push] Batch ${Math.floor(i / BATCH_SIZE) + 1} error:`, batchError.message);
+      totalFailure += batchTokens.length;
+    }
+  }
+
+  console.log(`[Bulk Push] ✅ ${totalSuccess} sent  ❌ ${totalFailure} failed  (total ${allTokens.length} tokens)`);
+  return { successCount: totalSuccess, failureCount: totalFailure };
 }
