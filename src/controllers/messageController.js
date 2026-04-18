@@ -239,7 +239,10 @@ export const sendMessage = async (req, res) => {
         const pushResult = await sendPushNotification(receiverId, {
           title: senderName,
           body: pushBody,
-          isDataOnly: true, // Data-only so background handler (backgroundHandler.js) renders the notification w/ Reply action via Notifee
+          // isDataOnly: false → sends a REAL notification block so Android OS delivers
+          // it even when the app is fully killed. Data block is still included for
+          // the background handler to use for Notifee rich notifications on Android.
+          isDataOnly: false,
           data: {
             type: 'chat_message',
             chatId: matchId,
