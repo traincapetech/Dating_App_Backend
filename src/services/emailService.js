@@ -37,6 +37,7 @@ async function sendViaBrevo(toEmail, subject, emailHtml, emailText) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    console.error('[Brevo Error Detail]:', JSON.stringify(errorData, null, 2));
     throw new Error(
       `Brevo failed: ${response.status} - ${
         errorData.message || 'Unknown error'
@@ -88,22 +89,35 @@ async function sendViaSMTP(toEmail, subject, emailHtml, emailText) {
  * Generic email sending function
  * Centralizes provider selection and error handling
  */
-export async function sendEmail({to, subject, html, text}) {
+export async function sendEmail({to, toEmail, subject, html, text}) {
+  const recipient = to || toEmail;
+  if (!recipient) {
+    throw new Error('No recipient email address provided to sendEmail');
+  }
+
   try {
     const provider = config.email.provider;
+    console.log(`[Email Service] Attempting to send email to ${recipient} using primary provider: ${provider}`);
 
     if (provider === 'brevo') {
-      return await sendViaBrevo(to, subject, html, text);
-    } else {
-      // Fallback to SMTP if configured
-      if (config.email.password || config.email.user) {
-        return await sendViaSMTP(to, subject, html, text);
+      try {
+        return await sendViaBrevo(recipient, subject, html, text);
+      } catch (brevoError) {
+        console.warn(`[Email Service] Brevo primary failed: ${brevoError.message}. Attempting SMTP fallback...`);
+        // Fallthrough to SMTP below
       }
-      throw new Error('No email provider configured correctly (Brevo or SMTP)');
     }
+
+    // SMTP Fallback (or primary if not Brevo)
+    if (config.email.password || config.email.user) {
+      console.log(`[Email Service] Using SMTP fallback (Host: ${config.email.host}) for ${recipient}`);
+      return await sendViaSMTP(recipient, subject, html, text);
+    }
+
+    throw new Error('No working email provider configured (both Brevo and SMTP failed or are unconfigured).');
   } catch (error) {
     console.error(
-      `[Email Service] Failed to send email to ${to}:`,
+      `[Email Service] Critical failure sending email to ${recipient}:`,
       error.message,
     );
     throw error;

@@ -3,7 +3,9 @@ import {
   saveFcmToken, 
   removeFcmToken,
   sendAdminNotification, 
-  getNotificationStats 
+  getNotificationStats,
+  getPreferences,
+  updatePreferences
 } from '../controllers/notificationController.js';
 import { requireAuth } from '../middlewares/auth.js';
 import { verifyAdminToken, requirePermission } from '../middlewares/adminAuth.js';
@@ -19,6 +21,12 @@ router.post('/register', requireAuth, saveFcmToken);
 
 // POST /api/notifications/unregister - Remove user FCM token
 router.post('/unregister', requireAuth, removeFcmToken);
+
+// GET /api/notifications/preferences/:userId - Get notification preferences
+router.get('/preferences/:userId', requireAuth, getPreferences);
+
+// PUT /api/notifications/preferences/:userId - Update notification preferences
+router.put('/preferences/:userId', requireAuth, updatePreferences);
 
 /**
  * Admin Routes

@@ -107,6 +107,61 @@ export const sendAdminNotification = async (req, res) => {
 };
 
 /**
+ * Fetch user notification preferences
+ * GET /api/notifications/preferences/:userId
+ */
+export const getPreferences = async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const user = await User.findById(userId).select('notificationSettings');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      preferences: user.notificationSettings || {
+        pushEnabled: true,
+        matches: true,
+        messages: true,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching preferences' });
+  }
+};
+
+/**
+ * Update user notification preferences
+ * PUT /api/notifications/preferences/:userId
+ */
+export const updatePreferences = async (req, res) => {
+  const userId = req.params.userId;
+  const preferences = req.body;
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { notificationSettings: preferences },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Preferences updated successfully',
+      preferences: user.notificationSettings,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating preferences' });
+  }
+};
+
+/**
  * Fetch notification analytics (Admin Only)
  * GET /api/notifications/stats
  */
