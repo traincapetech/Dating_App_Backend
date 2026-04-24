@@ -14,6 +14,7 @@ import {resolveDisplayName} from '../utils/nameUtils.js';
 import Like from '../models/Like.js';
 import Pass from '../models/Pass.js';
 import Match from '../models/Match.js';
+import Block from '../models/Block.js';
 import Message from '../models/Message.js';
 
 function computeAge(dob) {
@@ -205,15 +206,17 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
 
   let swipedUserIds = [];
   if (excludeUserId) {
-    const [likes, passes, matches] = await Promise.all([
+    const [likes, passes, matches, blocks] = await Promise.all([
       Like.find({senderId: excludeUserId}, 'receiverId'),
       Pass.find({userId: excludeUserId}, 'passedUserId'),
       Match.find({users: excludeUserId, status: {$ne: 'expired'}}, 'users'),
+      Block.find({blockerId: excludeUserId}, 'blockedId'),
     ]);
     swipedUserIds = [
       ...likes.map(l => l.receiverId),
       ...passes.map(p => p.passedUserId),
       ...matches.map(m => m.users.find(u => u !== excludeUserId)),
+      ...blocks.map(b => b.blockedId),
     ];
   }
 
@@ -231,6 +234,8 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
     .filter(profile => {
       if (excludeUserId && profile.userId === excludeUserId) return false;
       if (profile.isPaused || profile.isHidden) return false;
+      // Filter out users already swiped, matched, or blocked
+      if (swipedUserIds.includes(profile.userId)) return false;
       return true;
     })
     .map(profile => {
@@ -295,6 +300,7 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
         maxDistance,
         sortBy,
         limit,
+        excludeUserIds: swipedUserIds,
       });
       enrichedProfiles = applyAdvancedFilters(matchedProfiles);
     } catch (error) {
