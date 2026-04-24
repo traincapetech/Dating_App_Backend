@@ -279,6 +279,7 @@ export async function getMatchedProfiles(userId, options = {}) {
     maxDistance = null, // No default distance limit unless specified
     sortBy = 'score',
     limit = 50,
+    excludeUserIds = [],
   } = options;
 
   // 1. Get current user's profile to understand preferences
@@ -313,13 +314,15 @@ export async function getMatchedProfiles(userId, options = {}) {
     ? maxDistance * 1000 
     : (isGlobal ? null : (maxDistance || 100) * 1000);
 
+  const queryExclusions = [userId, ...excludeUserIds];
+
   const geoNearOptions = {
     near: currentUserProfile.location,
     distanceField: 'dist.calculated',
     distanceMultiplier: 0.001, // Convert results to km
     spherical: true,
     query: {
-      userId: {$ne: userId},
+      userId: {$nin: queryExclusions},
       isPaused: {$ne: true},
       isHidden: {$ne: true},
       // IMPORTANT: Ensure we only match profiles with valid coordinates

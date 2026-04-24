@@ -1,6 +1,8 @@
 import Block from '../models/Block.js';
 import Report from '../models/Report.js';
 import Match from '../models/Match.js';
+import Profile from '../models/Profile.js';
+import Pass from '../models/Pass.js';
 
 /**
  * Block a user
@@ -97,9 +99,13 @@ export const unblockUser = async (req, res) => {
       );
     }
 
+    // Also remove any existing Pass record so the unblocked user can
+    // reappear in the discovery feed on the next refresh.
+    await Pass.findOneAndDelete({ userId: blockerId, passedUserId: blockedId });
+
     res.json({
       success: true,
-      message: 'User unblocked successfully',
+      message: 'User unblocked successfully. They may appear in your discovery again.',
     });
 
   } catch (error) {
@@ -127,6 +133,17 @@ export const getBlockedUsers = async (req, res) => {
     }
 
     const blocks = await Block.find({ blockerId: userId });
+    const blockedUserIds = blocks.map(b => b.blockedId);
+
+    // Fetch profile data for blocked users
+    const profiles = await Profile.find({ userId: { $in: blockedUserIds } });
+    const profileMap = profiles.reduce((acc, p) => {
+      acc[p.userId] = {
+        name: `${p.basicInfo?.firstName || ''} ${p.basicInfo?.lastName || ''}`.trim() || 'Pryvo User',
+        photo: p.media?.media?.[0]?.url || p.photos?.[0] || null,
+      };
+      return acc;
+    }, {});
 
     res.json({
       success: true,
@@ -134,6 +151,8 @@ export const getBlockedUsers = async (req, res) => {
         blockedId: b.blockedId,
         blockedAt: b.createdAt,
         reason: b.reason,
+        name: profileMap[b.blockedId]?.name || 'Pryvo User',
+        photo: profileMap[b.blockedId]?.photo || null,
       })),
     });
 
