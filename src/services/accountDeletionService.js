@@ -7,9 +7,6 @@ import Block from '../models/Block.js';
 import Boost from '../models/Boost.js';
 import ProfileComment from '../models/ProfileComment.js';
 import DailyLikeCount from '../models/DailyLikeCount.js';
-import {deleteProfile, getProfile} from '../models/profileModel.js';
-import {deleteUser} from '../models/userModel.js';
-import NotificationToken from '../models/notificationTokenModel.js'; // This is a model or export?
 import {unregisterToken} from '../models/notificationTokenModel.js';
 import Profile from '../models/Profile.js';
 import User from '../models/User.js';

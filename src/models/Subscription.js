@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import {getPlanDetails as getPlanDetailsFromConfig} from '../config/subscriptionPlans.js';
 
 const subscriptionSchema = new mongoose.Schema(
   {
@@ -132,4 +133,8 @@ export async function isUserPremium(userId) {
   }
 
   return subscription.status === 'active' || subscription.status === 'cancelled';
+}
+
+export function getPlanDetails(planId) {
+  return getPlanDetailsFromConfig(planId);
 }
