@@ -16,4 +16,7 @@ const LikeSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+LikeSchema.index({ senderId: 1, receiverId: 1 });
+LikeSchema.index({ receiverId: 1, createdAt: -1 });
+
 export default mongoose.model('Like', LikeSchema);

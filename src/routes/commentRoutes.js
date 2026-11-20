@@ -8,29 +8,30 @@ import {
   getUnreadCommentCount,
   deleteComment,
 } from '../controllers/commentController.js';
-import { authenticate } from '../middlewares/auth.js';
+import { requireAuth } from '../middlewares/auth.js';
 
 const router = express.Router();
+router.use(requireAuth);
 
 // Send a comment/icebreaker to another user
-router.post('/', authenticate, sendComment);
+router.post('/', sendComment);
 
 // Get comments received by the user
-router.get('/received/:userId', authenticate, getReceivedComments);
+router.get('/received/:userId', getReceivedComments);
 
 // Get comments sent by the user
-router.get('/sent/:userId', authenticate, getSentComments);
+router.get('/sent/:userId', getSentComments);
 
 // Get unread comment count
-router.get('/unread-count/:userId', authenticate, getUnreadCommentCount);
+router.get('/unread-count/:userId', getUnreadCommentCount);
 
 // Respond to a comment (accept/reject)
-router.post('/:commentId/respond', authenticate, respondToComment);
+router.post('/:commentId/respond', respondToComment);
 
 // Mark comment as read
-router.put('/:commentId/read', authenticate, markCommentRead);
+router.put('/:commentId/read', markCommentRead);
 
 // Delete a pending comment
-router.delete('/:commentId', authenticate, deleteComment);
+router.delete('/:commentId', deleteComment);
 
 export default router;

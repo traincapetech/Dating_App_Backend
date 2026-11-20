@@ -1,12 +1,14 @@
 import { storage } from '../storage/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import Match from '../models/Match.js';
 
 /**
  * Upload media (image) for chat messages
  */
 export const uploadChatMedia = async (req, res) => {
   try {
-    const { image, userId, matchId } = req.body;
+    const { image, matchId } = req.body;
+    const userId = req.user.id;
 
     if (!image) {
       return res.status(400).json({
@@ -15,17 +17,28 @@ export const uploadChatMedia = async (req, res) => {
       });
     }
 
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'userId is required',
-      });
+    let safeMatchSegment = 'general';
+    if (matchId) {
+      if (!/^[0-9a-fA-F]{24}$/.test(String(matchId))) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid matchId format',
+        });
+      }
+      const match = await Match.findById(matchId);
+      if (!match || !match.users.includes(userId)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied for this match',
+        });
+      }
+      safeMatchSegment = String(matchId);
     }
 
     // Generate unique filename
     const fileId = uuidv4();
     const timestamp = Date.now();
-    const filename = `chat-media/${matchId || 'general'}/${userId}_${timestamp}_${fileId}.jpg`;
+    const filename = `chat-media/${safeMatchSegment}/${userId}_${timestamp}_${fileId}.jpg`;
 
     // Handle base64 image
     let imageData = image;
@@ -46,11 +59,10 @@ export const uploadChatMedia = async (req, res) => {
       });
     }
 
-    // Image moderation (basic check)
+    // Image moderation via Azure AI Content Safety
     const {moderateImage} = await import('../services/moderationService.js');
-    const moderationResult = await moderateImage(image);
+    const moderationResult = await moderateImage(buffer);
 
-    // If image is not safe, reject upload
     if (!moderationResult.isSafe) {
       return res.status(400).json({
         success: false,
@@ -66,7 +78,7 @@ export const uploadChatMedia = async (req, res) => {
       success: true,
       mediaUrl: result.url,
       mediaType: 'image',
-      moderationStatus: moderationResult.isSafe ? 'approved' : 'rejected',
+      moderationStatus: 'approved',
     });
 
   } catch (error) {
@@ -74,7 +86,6 @@ export const uploadChatMedia = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error uploading media',
-      error: error.message,
     });
   }
 };

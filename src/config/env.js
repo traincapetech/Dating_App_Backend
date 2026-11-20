@@ -8,16 +8,26 @@ const __dirname = path.dirname(__filename);
 // This ensures .env is loaded from the /server directory
 dotenv.config({path: path.join(__dirname, '../../.env')});
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-prod') {
+    throw new Error('FATAL: JWT_SECRET must be set to a strong secret in production.');
+  }
+  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === 'refresh-secret') {
+    throw new Error('FATAL: JWT_REFRESH_SECRET must be set to a strong secret in production.');
+  }
+}
+
 export const config = {
   port: process.env.PORT || 3000,
   mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/pryvo',
-  jwtSecret: process.env.JWT_SECRET || 'change-me-in-prod',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwtSecret: process.env.JWT_SECRET || 'dev-only-jwt-secret',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
   refreshSecret:
     process.env.JWT_REFRESH_SECRET ||
-    process.env.JWT_SECRET ||
-    'refresh-secret',
-  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    'dev-only-refresh-secret',
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   saltRounds: Number.parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10),
   storageDriver: process.env.STORAGE_DRIVER || 'local',
   r2: {

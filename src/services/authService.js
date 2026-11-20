@@ -10,17 +10,18 @@ import {
   updateUser,
 } from '../models/userModel.js';
 import {sendEmailOTP} from './emailService.js';
+import {hasVerifiedOTP, deleteOTP} from '../models/otpModel.js';
 
 function generateTokens(user) {
-  const payload = {
+  const basePayload = {
     sub: user.id || user._id,
     email: user.email,
     tokenVersion: user.tokenVersion || '0',
   };
-  const accessToken = jwt.sign(payload, config.jwtSecret, {
+  const accessToken = jwt.sign({...basePayload, type: 'access'}, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
   });
-  const refreshToken = jwt.sign(payload, config.refreshSecret, {
+  const refreshToken = jwt.sign({...basePayload, type: 'refresh'}, config.refreshSecret, {
     expiresIn: config.refreshExpiresIn,
   });
   return {accessToken, refreshToken};
@@ -36,6 +37,12 @@ export async function refreshAccessToken(refreshToken) {
     throw error;
   }
 
+  if (decoded.type && decoded.type !== 'refresh') {
+    const error = new Error('Invalid token type.');
+    error.status = 401;
+    throw error;
+  }
+
   const userId = decoded.sub || decoded.userId || decoded.id;
   const user = await findUserById(userId);
   if (!user) {
@@ -44,10 +51,10 @@ export async function refreshAccessToken(refreshToken) {
     throw error;
   }
 
-  // Check token version (in case of logout-all-devices)
+  // Strictly check token version (in case of logout-all-devices)
   if (
-    decoded.tokenVersion &&
-    user.tokenVersion &&
+    user.tokenVersion !== undefined &&
+    user.tokenVersion !== null &&
     decoded.tokenVersion !== user.tokenVersion
   ) {
     const error = new Error('Session has been invalidated. Please log in again.');
@@ -80,6 +87,14 @@ export async function registerUser({fullName, email, phone, password}) {
     throw error;
   }
 
+  // Enforce server-side OTP verification before creating an account
+  const otpVerified = await hasVerifiedOTP(normalizedEmail, 'email');
+  if (!otpVerified) {
+    const error = new Error('Please verify your email with the OTP code before signing up.');
+    error.status = 403;
+    throw error;
+  }
+
   const hashedPassword = await bcrypt.hash(password, config.saltRounds);
   const user = {
     id: randomUUID(),
@@ -87,10 +102,12 @@ export async function registerUser({fullName, email, phone, password}) {
     email: normalizedEmail,
     phone: sanitizedPhone,
     password: hashedPassword,
+    isVerified: true,
     createdAt: new Date().toISOString(),
   };
 
   const savedUser = await createUser(user);
+  await deleteOTP(normalizedEmail, 'email').catch(() => {});
   const tokens = generateTokens(savedUser);
 
   return {
@@ -245,6 +262,11 @@ export async function changePassword({userId, currentPassword, newPassword}) {
     error.status = 404;
     throw error;
   }
+  if (!user.password) {
+    const error = new Error('This account uses Google Sign-In and does not have a local password.');
+    error.status = 400;
+    throw error;
+  }
   const passwordValid = await bcrypt.compare(currentPassword, user.password);
   if (!passwordValid) {
     const error = new Error('Current password is incorrect.');
@@ -252,7 +274,10 @@ export async function changePassword({userId, currentPassword, newPassword}) {
     throw error;
   }
   const hashedPassword = await bcrypt.hash(newPassword, config.saltRounds);
-  await updateUser(userId, {password: hashedPassword});
+  await updateUser(userId, {
+    password: hashedPassword,
+    tokenVersion: String(Date.now()),
+  });
   return {
     success: true,
     message: 'Password updated successfully',
@@ -373,12 +398,15 @@ export async function resetPassword({email, code, newPassword}) {
     throw error;
   }
 
-  // Update password
+  // Update password, invalidate existing sessions, and clear lockout
   const hashedPassword = await bcrypt.hash(newPassword, config.saltRounds);
   await updateUser(user.id, {
     password: hashedPassword,
     passwordResetToken: null,
     passwordResetExpires: null,
+    tokenVersion: String(Date.now()),
+    failedAttempts: 0,
+    lockUntil: null,
   });
 
   return {
@@ -390,7 +418,7 @@ export async function resetPassword({email, code, newPassword}) {
 export async function authenticateWithGoogle({idToken}) {
   // Verify Google ID token
   const response = await fetch(
-    `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
   );
 
   if (!response.ok) {
@@ -400,6 +428,20 @@ export async function authenticateWithGoogle({idToken}) {
   }
 
   const googleUser = await response.json();
+  const expectedClientId =
+    process.env.GOOGLE_CLIENT_ID ||
+    '327819775040-7u678ovm7tucvrkjp167slqgqbr6829o.apps.googleusercontent.com';
+  if (googleUser.aud !== expectedClientId) {
+    const error = new Error('Google token audience mismatch.');
+    error.status = 401;
+    throw error;
+  }
+  if (googleUser.email_verified !== 'true' && googleUser.email_verified !== true) {
+    const error = new Error('Google email is not verified.');
+    error.status = 401;
+    throw error;
+  }
+
   const {sub: googleId, email, name, picture} = googleUser;
 
   if (!email) {

@@ -8,10 +8,15 @@ import {
   verifyWalletPayment,
 } from '../controllers/giftController.js';
 
+import {requireAuth} from '../middlewares/auth.js';
+
 const router = express.Router();
 
 // Get available gifts catalog
 router.get('/', getGifts);
+
+// Protected wallet & gift actions
+router.use(requireAuth);
 
 // Get user wallet and inventory
 router.get('/wallet/:userId', getWallet);

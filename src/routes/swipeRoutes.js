@@ -14,7 +14,10 @@ import {
   resetPasses,
 } from '../controllers/passController.js';
 
+import {requireAuth} from '../middlewares/auth.js';
+
 const router = express.Router();
+router.use(requireAuth);
 
 // Swipe actions
 router.post('/like', likeUser);

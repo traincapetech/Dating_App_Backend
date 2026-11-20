@@ -5,7 +5,10 @@ import {
   getPairStreak,
 } from './streak.controller.js';
 
+import {requireAuth} from '../../middlewares/auth.js';
+
 const router = express.Router();
+router.use(requireAuth);
 
 // GET /api/streak/leaderboard
 router.get('/leaderboard', getLeaderboard);

@@ -19,27 +19,27 @@ import {
   deleteImageController,
 } from '../controllers/profileController.js';
 import {sanitizeInput} from '../middlewares/sanitizer.js';
-import {authenticate} from '../middlewares/auth.js';
+import {requireAuth} from '../middlewares/auth.js';
 
 const router = Router();
 
 // ── Single unified write endpoint for ALL profile updates ─────────────────
-router.patch('/', authenticate, sanitizeInput, patchProfileController);
+router.patch('/', requireAuth, sanitizeInput, patchProfileController);
 
 // ── Media ─────────────────────────────────────────────────────────────────
-router.post('/upload-image', authenticate, uploadMiddleware, uploadImageController);
-router.post('/delete-image', authenticate, deleteImageController);
+router.post('/upload-image', requireAuth, uploadMiddleware, uploadImageController);
+router.post('/delete-image', requireAuth, deleteImageController);
 
 // ── Discovery & Reads ─────────────────────────────────────────────────────
-router.get('/discover', authenticate, getAllProfilesController);
-router.get('/:userId', authenticate, getProfileController);
-router.get('/:userId/interactions', authenticate, getProfileInteractionsController);
+router.get('/discover', requireAuth, getAllProfilesController);
+router.get('/:userId', requireAuth, getProfileController);
+router.get('/:userId/interactions', requireAuth, getProfileInteractionsController);
 
 // ── Settings & Status ─────────────────────────────────────────────────────
-router.put('/settings/online-status', authenticate, updateOnlineStatusController);
-router.post('/pause', authenticate, pauseProfileController);
+router.put('/settings/online-status', requireAuth, updateOnlineStatusController);
+router.post('/pause', requireAuth, pauseProfileController);
 
 // ── Delete ────────────────────────────────────────────────────────────────
-router.delete('/:userId', authenticate, deleteProfileController);
+router.delete('/:userId', requireAuth, deleteProfileController);
 
 export default router;

@@ -1,7 +1,6 @@
 import {Router} from 'express';
 import {
   getSubscriptionStatusController,
-  createSubscriptionController,
   createPaymentOrderController,
   verifyPaymentAndCreateSubscriptionController,
   cancelSubscriptionController,
@@ -12,49 +11,37 @@ import {
   googlePlayRTDNController,
 } from '../controllers/subscriptionController.js';
 import {setAutoRenewal} from '../services/subscriptionRenewalService.js';
+import {revenueCatWebhookController} from '../controllers/revenueCatController.js';
+import {requireAuth} from '../middlewares/auth.js';
 
 const router = Router();
 
-// Get available subscription plans
+// Public routes
 router.get('/plans', getAvailablePlansController);
+// Google Play Real-Time Developer Notifications (RTDN) webhook
+router.post('/webhooks/google-play', googlePlayRTDNController);
+// RevenueCat webhook (authenticated via Bearer REVENUECAT_WEBHOOK_AUTH)
+router.post('/webhooks/revenuecat', revenueCatWebhookController);
 
-// Get user's subscription status
+// Protected routes (require valid JWT)
+router.use(requireAuth);
+
 router.get('/status/:userId', getSubscriptionStatusController);
-
-// Verify premium status (for internal use)
 router.get('/verify/:userId', verifyPremiumStatusController);
-
-// Get all subscriptions for a user
 router.get('/user/:userId', getUserSubscriptionsController);
-
-// Create payment order
 router.post('/payment/order', createPaymentOrderController);
-
-// Verify payment and create subscription
 router.post('/payment/verify', verifyPaymentAndCreateSubscriptionController);
-
-// Create new subscription (for testing - bypasses payment)
-router.post('/create', createSubscriptionController);
-
-// Cancel subscription
 router.post('/cancel/:subscriptionId', cancelSubscriptionController);
-
-// Refund subscription (within 24h policy)
 router.post('/refund/:subscriptionId', refundSubscriptionController);
 
-// Google Play Real-Time Developer Notifications (RTDN) webhook
-// Google sends Pub/Sub push messages here. Endpoint must be public.
-router.post('/webhooks/google-play', googlePlayRTDNController);
-
-// Enable/disable auto-renewal
 router.post('/auto-renew/:subscriptionId', async (req, res) => {
   try {
     const {subscriptionId} = req.params;
     const {enabled} = req.body;
-    const result = await setAutoRenewal(subscriptionId, enabled);
+    const result = await setAutoRenewal(subscriptionId, enabled, req.user.id);
     res.json(result);
   } catch (error) {
-    res.status(500).json({success: false, message: error.message});
+    res.status(500).json({success: false, message: 'Failed to update auto-renewal'});
   }
 });
 

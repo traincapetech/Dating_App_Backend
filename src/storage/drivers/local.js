@@ -11,7 +11,11 @@ function resolvePath(relativePath) {
   if (!relativePath) {
     throw new Error('Local storage operations require a relative path.');
   }
-  return path.resolve(projectRoot, relativePath);
+  const resolved = path.resolve(projectRoot, relativePath);
+  if (resolved !== projectRoot && !resolved.startsWith(projectRoot + path.sep)) {
+    throw new Error('Invalid storage path: path traversal detected.');
+  }
+  return resolved;
 }
 
 async function ensureDirectory(targetPath) {

@@ -5,9 +5,10 @@ import {
   cancelDeletionController,
   immediateDeletionController,
 } from '../controllers/gdprController.js';
-import {authenticate} from '../middlewares/auth.js';
+import {requireAuth} from '../middlewares/auth.js';
 
 const router = Router();
+router.use(requireAuth);
 
 /**
  * GDPR Compliance Routes
@@ -15,17 +16,17 @@ const router = Router();
  */
 
 // Export user data (GDPR Right to Data Portability)
-router.get('/export', authenticate, exportDataController);
-router.get('/export/:userId', authenticate, exportDataController);
+router.get('/export', exportDataController);
+router.get('/export/:userId', exportDataController);
 
 // Request data deletion (GDPR Right to Erasure) - with grace period
-router.post('/delete-request', authenticate, requestDataDeletionController);
+router.post('/delete-request', requestDataDeletionController);
 
 // Cancel scheduled deletion
-router.post('/cancel-deletion', authenticate, cancelDeletionController);
+router.post('/cancel-deletion', cancelDeletionController);
 
 // Immediate deletion (admin only or after grace period)
-router.delete('/delete-immediate/:userId', authenticate, immediateDeletionController);
+router.delete('/delete-immediate/:userId', immediateDeletionController);
 
 export default router;
 

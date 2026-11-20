@@ -11,7 +11,7 @@ import {
   refreshTokens,
 } from '../controllers/authController.js';
 import {deleteUserController} from '../controllers/profileController.js';
-import {authenticate} from '../middlewares/auth.js';
+import {requireAuth} from '../middlewares/auth.js';
 import {authLimiter, loginLimiter, passwordResetLimiter} from '../middlewares/rateLimiter.js';
 
 const router = Router();
@@ -20,8 +20,8 @@ const router = Router();
 router.post('/signup', authLimiter, signUp);
 router.post('/login', loginLimiter, signIn); // loginLimiter: 5 per 15 min per IP + per-account lock in authService
 router.post('/google', authLimiter, googleSignIn);
-router.post('/change-email', authenticate, updateEmail);
-router.post('/change-password', authenticate, updatePassword);
+router.post('/change-email', requireAuth, updateEmail);
+router.post('/change-password', requireAuth, updatePassword);
 
 // Apply stricter rate limiter to password reset (3 attempts per hour)
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);
@@ -29,10 +29,10 @@ router.post('/reset-password', passwordResetLimiter, resetPasswordController);
 
 router.post(
   '/logout-all-devices',
-  authenticate,
+  requireAuth,
   logoutFromAllDevicesController,
 );
-router.delete('/user/:userId', authenticate, deleteUserController);
+router.delete('/user/:userId', requireAuth, deleteUserController);
 
 // Refresh access token using stored refresh token
 router.post('/refresh', authLimiter, refreshTokens);

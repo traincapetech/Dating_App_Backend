@@ -47,14 +47,14 @@ export const signIn = asyncHandler(async (req, res) => {
 });
 
 export const updateEmail = asyncHandler(async (req, res) => {
-  const parsed = changeEmailSchema.parse(req.body);
-  const result = await changeEmail(parsed);
+  const parsed = changeEmailSchema.parse({...req.body, userId: req.user.id});
+  const result = await changeEmail({...parsed, userId: req.user.id});
   res.status(200).json(result);
 });
 
 export const updatePassword = asyncHandler(async (req, res) => {
-  const parsed = changePasswordSchema.parse(req.body);
-  const result = await changePassword(parsed);
+  const parsed = changePasswordSchema.parse({...req.body, userId: req.user.id});
+  const result = await changePassword({...parsed, userId: req.user.id});
   res.status(200).json(result);
 });
 
@@ -82,9 +82,9 @@ export const resetPasswordController = asyncHandler(async (req, res) => {
 });
 
 export const logoutFromAllDevicesController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({error: 'User ID is required'});
+    return res.status(401).json({error: 'Authentication required'});
   }
 
   const {blacklistAllUserTokens} = await import('../models/tokenBlacklist.js');

@@ -83,6 +83,16 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     premiumExpiresAt: Date,
+    isPaused: {
+      type: Boolean,
+      default: false,
+    },
+    deletionScheduled: {
+      type: Boolean,
+      default: false,
+    },
+    deletionScheduledAt: Date,
+    deletionDate: Date,
     notificationSettings: {
       pushEnabled: { type: Boolean, default: true },
       matches: { type: Boolean, default: true },

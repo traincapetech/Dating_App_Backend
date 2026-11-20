@@ -5,9 +5,8 @@ import {findUserById, updateUser} from '../models/userModel.js';
 export const updateActivityStatus = async (req, res, next) => {
   if (req.user && req.user.id) {
     try {
-      // Background update of lastActive timestamp
       updateUser(req.user.id, {lastActive: new Date()}).catch(err => {
-        console.error('[Auth Middleware] Failed to update lastActive:', err);
+        console.error('[Auth Middleware] Failed to update lastActive:', err.message);
       });
     } catch (e) {
       // Ignore errors so we don't block requests
@@ -16,181 +15,118 @@ export const updateActivityStatus = async (req, res, next) => {
   next();
 };
 
+const extractToken = req => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  return req.headers.token || req.headers['x-access-token'] || null;
+};
+
+const verifyAndAttachUser = async (token, req, res) => {
+  const decoded = jwt.verify(token, config.jwtSecret);
+
+  // Reject refresh tokens used as access tokens
+  if (decoded.type === 'refresh') {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token type',
+    });
+    return false;
+  }
+
+  const userId = decoded.sub || decoded.userId || decoded.id;
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token format',
+    });
+    return false;
+  }
+
+  const user = await findUserById(userId);
+  if (!user) {
+    res.status(401).json({
+      success: false,
+      message: 'User no longer exists or account was deleted.',
+    });
+    return false;
+  }
+
+  // Strictly enforce tokenVersion match whenever user has a tokenVersion
+  if (
+    user.tokenVersion !== undefined &&
+    user.tokenVersion !== null &&
+    decoded.tokenVersion !== user.tokenVersion
+  ) {
+    res.status(401).json({
+      success: false,
+      message: 'Session has been invalidated. Please log in again.',
+    });
+    return false;
+  }
+
+  req.user = {
+    id: String(userId),
+    email: decoded.email || user.email,
+    role: user.role || 'user',
+  };
+  return true;
+};
+
+const handleAuthError = (error, res) => {
+  if (error.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid authentication token',
+    });
+  }
+  if (error.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication token expired',
+    });
+  }
+  return res.status(500).json({
+    success: false,
+    message: 'Authentication error',
+  });
+};
+
 /**
- * Middleware to verify user JWT token
- * Extracts user ID from token and attaches to req.user
- * SECURITY: Returns 401 for invalid/expired tokens
+ * Optional auth middleware — only for genuinely public endpoints that optionally
+ * personalize output when a valid token is present.
  */
 export const authenticate = async (req, res, next) => {
   try {
-    // Get token from Authorization header or token header
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.replace('Bearer ', '')
-      : req.headers.token || req.headers['x-access-token'];
-
-    console.log(
-      `[Auth Middleware] ${req.method} ${
-        req.path
-      } - Token present: ${!!token}, Auth header: ${
-        authHeader ? 'Bearer ...' + authHeader.slice(-10) : 'NONE'
-      }, token header: ${
-        req.headers.token ? '...' + req.headers.token.slice(-10) : 'NONE'
-      }`,
-    );
-
+    const token = extractToken(req);
     if (!token) {
-      // No token provided - allow request but req.user will be undefined
-      // Protected routes should use requireAuth instead
-      console.log('[Auth Middleware] No token found, proceeding without user');
       return next();
     }
-
-    // Verify token
-    const decoded = jwt.verify(token, config.jwtSecret);
-
-    // Extract user ID from token payload (sub field contains user ID)
-    const userId = decoded.sub || decoded.userId || decoded.id;
-
-    console.log(
-      `[Auth Middleware] Token decoded successfully. userId: ${userId}, email: ${decoded.email}`,
-    );
-
-    if (!userId) {
-      // Invalid token format - reject
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token format',
-      });
-    }
-
-    // SECURITY: Get user to check for token revocation (logout from all devices)
-    const user = await findUserById(userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User no longer exists',
-      });
-    }
-
-    // Check if token has been revoked (logout from all devices)
-    if (
-      decoded.tokenVersion &&
-      user.tokenVersion &&
-      decoded.tokenVersion !== user.tokenVersion
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: 'Session has been invalidated. Please log in again.',
-      });
-    }
-
-    // Attach user info to request
-    req.user = {
-      id: userId,
-      email: decoded.email,
-    };
-
-    // Update last active
-    updateActivityStatus(req, res, next);
+    const ok = await verifyAndAttachUser(token, req, res);
+    if (!ok) return;
+    return updateActivityStatus(req, res, next);
   } catch (error) {
-    console.error(
-      `[Auth Middleware] Error: ${error.name} - ${error.message} for ${req.method} ${req.path}`,
-    );
-    if (error.name === 'JsonWebTokenError') {
-      // Invalid token - reject
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid authentication token',
-      });
-    }
-    if (error.name === 'TokenExpiredError') {
-      // Token expired - reject
-      console.error('[Auth Middleware] Token expired at:', error.expiredAt);
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication token expired',
-      });
-    }
-    // Other errors
-    return res.status(500).json({
-      success: false,
-      message: 'Authentication error',
-    });
+    return handleAuthError(error, res);
   }
 };
 
 /**
- * Middleware that requires authentication (stricter version)
- * Returns 401 if no valid token is provided
+ * Strict authentication middleware — returns 401 if no valid access token is provided.
  */
 export const requireAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.replace('Bearer ', '')
-      : req.headers.token || req.headers['x-access-token'];
-
+    const token = extractToken(req);
     if (!token) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required',
       });
     }
-
-    const decoded = jwt.verify(token, config.jwtSecret);
-    const userId = decoded.sub || decoded.userId || decoded.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token',
-      });
-    }
-
-    // SECURITY: Get user to check for token revocation (logout from all devices)
-    const user = await findUserById(userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User no longer exists or account was deleted.',
-      });
-    }
-
-    // Check if token has been revoked (logout from all devcies)
-    if (
-      decoded.tokenVersion &&
-      user.tokenVersion &&
-      decoded.tokenVersion !== user.tokenVersion
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token has been revoked. Please log in again.',
-      });
-    }
-
-    req.user = {
-      id: userId,
-      email: decoded.email,
-    };
-
-    updateActivityStatus(req, res, next);
+    const ok = await verifyAndAttachUser(token, req, res);
+    if (!ok) return;
+    return updateActivityStatus(req, res, next);
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token',
-      });
-    }
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired',
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      message: 'Authentication error',
-    });
+    return handleAuthError(error, res);
   }
 };

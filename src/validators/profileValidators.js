@@ -9,10 +9,28 @@ import {z} from 'zod';
 
 // ── Sub-schemas (reusable, all fields optional) ────────────────────────────
 
+const isAtLeast18 = dobString => {
+  if (!dobString) return true;
+  const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age >= 18 && age <= 120;
+};
+
 const basicInfoSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
-  dob: z.string().optional(),
+  dob: z
+    .string()
+    .refine(isAtLeast18, {
+      message: 'You must be at least 18 years old to use Pryvo.',
+    })
+    .optional(),
   email: z.string().email().optional(),
   notificationsEnabled: z.boolean().optional(),
   location: z.string().optional(),

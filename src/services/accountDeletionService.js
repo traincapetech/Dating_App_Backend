@@ -13,6 +13,13 @@ import NotificationToken from '../models/notificationTokenModel.js'; // This is 
 import {unregisterToken} from '../models/notificationTokenModel.js';
 import Profile from '../models/Profile.js';
 import User from '../models/User.js';
+import Wallet from '../models/Wallet.js';
+import GiftTransaction from '../models/GiftTransaction.js';
+import Report from '../models/Report.js';
+import Notification from '../models/Notification.js';
+import PhotoInteraction from '../models/PhotoInteraction.js';
+import IcebreakerInteraction from '../models/IcebreakerInteraction.js';
+import Streak from '../modules/streak/streak.model.js';
 
 /**
  * Perform an industry-standard thorough deletion of all user data.
@@ -48,7 +55,7 @@ export async function performThoroughAccountDeletion(userId) {
       }
     }
 
-    // 4. Delete all interactions
+    // 4. Delete all interactions, wallet, gifts, streaks, reports & notifications
     await Promise.all([
       Like.deleteMany({$or: [{senderId: userId}, {receiverId: userId}]}),
       Pass.deleteMany({$or: [{userId: userId}, {passedUserId: userId}]}),
@@ -58,6 +65,13 @@ export async function performThoroughAccountDeletion(userId) {
       }),
       Boost.deleteMany({userId}),
       DailyLikeCount.deleteMany({userId}),
+      Wallet.deleteMany({userId}),
+      GiftTransaction.deleteMany({$or: [{senderId: userId}, {receiverId: userId}]}),
+      Report.deleteMany({$or: [{reporterId: userId}, {reportedUserId: userId}]}),
+      Notification.deleteMany({$or: [{userId}, {targetUserId: userId}]}),
+      PhotoInteraction.deleteMany({$or: [{userId}, {targetUserId: userId}]}),
+      IcebreakerInteraction.deleteMany({$or: [{userId}, {targetUserId: userId}]}),
+      Streak.deleteMany({users: userId}),
       unregisterToken(userId),
     ]);
 
@@ -72,20 +86,13 @@ export async function performThoroughAccountDeletion(userId) {
       Match.deleteMany({users: userId}),
     ]);
 
-    // 6. Delete Subscriptions (soft or hard delete?)
-    // Usually we keep payment records for accounting but hide them from the app
-    // For "industry level" deletion, we keep it as-is or anonymize
+    // 6. Delete Subscriptions from MongoDB
     try {
-      const {SUBSCRIPTIONS_PATH} = await import('../models/Subscription.js');
-      const subscriptions = await storage.readJson(
-        'data/subscriptions.json',
-        [],
-      );
-      const filteredSubs = subscriptions.filter(s => s.userId !== userId);
-      await storage.writeJson('data/subscriptions.json', filteredSubs);
+      const {default: SubscriptionModel} = await import('../models/Subscription.js');
+      await SubscriptionModel.deleteMany({userId});
     } catch (e) {
       console.warn(
-        '[AccountDeletion] Failed to cleanup subscriptions JSON',
+        '[AccountDeletion] Failed to cleanup subscriptions',
         e.message,
       );
     }

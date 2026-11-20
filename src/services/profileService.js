@@ -246,10 +246,23 @@ export async function getAllProfiles(excludeUserId = null, options = {}) {
         user?.showOnlineStatus &&
         user?.lastActive &&
         Date.now() - new Date(user.lastActive).getTime() < 24 * 60 * 60 * 1000;
+      const safeBasicInfo = profile.basicInfo
+        ? {
+            ...profile.basicInfo,
+            dob: undefined,
+            locationDetails: profile.basicInfo.locationDetails
+              ? {
+                  city: profile.basicInfo.locationDetails.city,
+                  state: profile.basicInfo.locationDetails.state,
+                  country: profile.basicInfo.locationDetails.country,
+                }
+              : undefined,
+          }
+        : undefined;
       return {
         ...profile,
+        basicInfo: safeBasicInfo,
         name: displayName,
-        email: user?.email || '',
         isActiveToday: !!isActiveToday,
         age: ageFromDob ?? profile.personalDetails?.age ?? profile.basicInfo?.age ?? null,
         photos: profile.media?.media?.map(m => m.url).filter(Boolean) || [],

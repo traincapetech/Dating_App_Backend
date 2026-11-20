@@ -1,13 +1,14 @@
 import express from 'express';
 import { getIcebreakerSuggestions, trackIcebreakerAction } from '../controllers/icebreakerController.js';
-import { authenticate } from '../middlewares/auth.js';
+import { requireAuth } from '../middlewares/auth.js';
 
 const router = express.Router();
+router.use(requireAuth);
 
 // GET /api/icebreaker?targetUserId=xxx&matchId=yyy&tone=flirty|funny
-router.get('/', authenticate, getIcebreakerSuggestions);
+router.get('/', getIcebreakerSuggestions);
 
 // POST /api/icebreaker/track-action
-router.post('/track-action', authenticate, trackIcebreakerAction);
+router.post('/track-action', trackIcebreakerAction);
 
 export default router;

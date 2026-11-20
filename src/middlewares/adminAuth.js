@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import {config} from '../config/env.js';
 import {findAdminById, hasPermission} from '../models/Admin.js';
 
 /**
@@ -15,7 +16,7 @@ export const verifyAdminToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change-me');
+    const decoded = jwt.verify(token, config.jwtSecret);
 
     // Verify admin exists and is active
     const admin = await findAdminById(decoded.adminId);

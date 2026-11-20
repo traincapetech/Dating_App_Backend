@@ -185,19 +185,10 @@ export async function sendEmailOTP(email) {
       expiresIn: 600,
     };
   } catch (error) {
-    console.error(
-      `[FALLBACK] Email service unavailable. OTP for ${email}: ${code}`,
-    );
-
-    return {
-      success: true,
-      message: 'OTP sent to your email',
-      expiresIn: 600,
-      ...(process.env.NODE_ENV !== 'production' && {
-        debugCode: code,
-        warning: 'Email service unavailable - OTP included for testing',
-      }),
-    };
+    console.error('[Email OTP] Delivery failed:', error.message);
+    const err = new Error('Unable to send verification email right now. Please try again shortly.');
+    err.status = 502;
+    throw err;
   }
 }
 

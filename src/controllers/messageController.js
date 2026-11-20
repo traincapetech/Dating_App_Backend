@@ -47,17 +47,12 @@ async function checkBlocked(userId1, userId2) {
 export const getMessages = async (req, res) => {
   try {
     const {matchId} = req.params;
-    const userId = req.headers['x-user-id'] || req.query.userId;
+    const userId = req.user.id;
 
     if (!matchId) {
       return res
         .status(400)
         .json({success: false, message: 'matchId is required'});
-    }
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
     }
 
     // Verify match access
@@ -79,7 +74,19 @@ export const getMessages = async (req, res) => {
         .json({success: false, message: 'Cannot view messages - user blocked'});
     }
 
-    const messages = await Message.find({matchId}).sort({timestamp: 1});
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
+    const query = {matchId};
+    if (req.query.before) {
+      const beforeDate = new Date(req.query.before);
+      if (!isNaN(beforeDate.getTime())) {
+        query.timestamp = {$lt: beforeDate};
+      }
+    }
+
+    const messagesDesc = await Message.find(query)
+      .sort({timestamp: -1})
+      .limit(limit);
+    const messages = messagesDesc.reverse();
 
     // Mark messages as delivered if they were sent to this user
     await Message.updateMany(
@@ -93,20 +100,20 @@ export const getMessages = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching messages',
-      error: error.message,
     });
   }
 };
 
 export const sendMessage = async (req, res) => {
   try {
-    const {matchId, senderId, receiverId, text, mediaUrl, mediaType} = req.body;
+    const {matchId, receiverId, text, mediaUrl, mediaType} = req.body;
+    const senderId = req.user.id;
 
     // Validate required fields
-    if (!matchId || !senderId || !receiverId) {
+    if (!matchId || !receiverId) {
       return res.status(400).json({
         success: false,
-        message: 'matchId, senderId, and receiverId are required',
+        message: 'matchId and receiverId are required',
       });
     }
 
@@ -273,12 +280,12 @@ export const sendMessage = async (req, res) => {
 export const markMessagesSeen = async (req, res) => {
   try {
     const {matchId} = req.params;
-    const {userId} = req.body;
+    const userId = req.user.id;
 
-    if (!matchId || !userId) {
+    if (!matchId) {
       return res
         .status(400)
-        .json({success: false, message: 'matchId and userId are required'});
+        .json({success: false, message: 'matchId is required'});
     }
 
     // Verify match access
@@ -329,7 +336,7 @@ export const markMessagesSeen = async (req, res) => {
 export const getLastMessages = async (req, res) => {
   try {
     const {matchIds} = req.body;
-    const userId = req.headers['x-user-id'] || req.query.userId;
+    const userId = req.user.id;
 
     if (!matchIds || !Array.isArray(matchIds)) {
       return res
@@ -337,13 +344,24 @@ export const getLastMessages = async (req, res) => {
         .json({success: false, message: 'matchIds array is required'});
     }
 
+    const validIds = matchIds.filter(id => typeof id === 'string' && isValidObjectId(id));
+    if (validIds.length === 0) {
+      return res.json({success: true, lastMessages: []});
+    }
+
+    // Only allow matches where the authenticated user is a participant
+    const allowedMatches = await Match.find({
+      _id: {$in: validIds},
+      users: userId,
+    }).select('_id');
+    const allowedMatchIds = allowedMatches.map(m => String(m._id));
+
     const lastMessages = await Promise.all(
-      matchIds.map(async matchId => {
+      allowedMatchIds.map(async matchId => {
         const message = await Message.findOne({matchId})
           .sort({timestamp: -1})
           .limit(1);
 
-        // Get unread count for this user
         const unreadCount = await Message.countDocuments({
           matchId,
           receiverId: userId,
@@ -360,7 +378,6 @@ export const getLastMessages = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching last messages',
-      error: error.message,
     });
   }
 };
@@ -368,7 +385,7 @@ export const getLastMessages = async (req, res) => {
 export const deleteMessage = async (req, res) => {
   try {
     const {messageId} = req.params;
-    const {userId} = req.body; // Or get from req.headers['x-user-id']
+    const userId = req.user.id;
 
     if (!messageId) {
       return res
@@ -382,10 +399,6 @@ export const deleteMessage = async (req, res) => {
         .status(404)
         .json({success: false, message: 'Message not found'});
     }
-
-    console.log(
-      `[Delete Message] Requesting User: ${userId}, Message Sender: ${message.senderId}`,
-    );
 
     // Only allow sender to delete
     if (message.senderId.toString() !== userId.toString()) {
@@ -403,7 +416,6 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting message',
-      error: error.message,
     });
   }
 };
@@ -411,12 +423,7 @@ export const deleteMessage = async (req, res) => {
 // Count unique conversations (matches) that have at least one unread message
 export const getUnreadConversationsCount = async (req, res) => {
   try {
-    const {userId} = req.params;
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
-    }
+    const userId = req.user.id;
 
     // Distinct matchIds where this user has at least one unseen message
     const matchIds = await Message.distinct('matchId', {
@@ -430,7 +437,6 @@ export const getUnreadConversationsCount = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error getting unread conversations count',
-      error: error.message,
     });
   }
 };

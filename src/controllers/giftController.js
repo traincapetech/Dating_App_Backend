@@ -46,16 +46,16 @@ export const getGifts = async (req, res) => {
 
 export const getWallet = async (req, res) => {
   try {
-    const {userId} = req.params;
+    const userId = req.user.id;
     let wallet = await Wallet.findOne({userId}).populate('inventory.giftId');
 
     if (!wallet) {
-      wallet = await Wallet.create({userId, coinsBalance: 100}); // Give 100 free coins for testing
+      wallet = await Wallet.create({userId, coinsBalance: 0});
     }
 
     res.json({success: true, wallet});
   } catch (error) {
-    res.status(500).json({success: false, message: error.message});
+    res.status(500).json({success: false, message: 'Failed to load wallet'});
   }
 };
 
@@ -63,9 +63,12 @@ export const sendGift = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const {matchId, senderId, receiverId, giftId} = req.body;
+    const {matchId, receiverId, giftId} = req.body;
+    const senderId = req.user.id;
 
-    if (!matchId || !senderId || !receiverId || !giftId) {
+    if (!matchId || !receiverId || !giftId) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(400)
         .json({success: false, message: 'All fields are required'});

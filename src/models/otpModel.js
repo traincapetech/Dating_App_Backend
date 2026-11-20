@@ -1,75 +1,93 @@
-import {storage} from '../storage/index.js';
+import mongoose from 'mongoose';
 
-const OTP_PATH = 'data/otps.json';
+const otpSchema = new mongoose.Schema({
+  email: {type: String, required: true, lowercase: true, trim: true},
+  type: {type: String, default: 'email'},
+  code: {type: String, required: true},
+  verified: {type: Boolean, default: false},
+  attempts: {type: Number, default: 0},
+  expiresAt: {type: Date, required: true},
+  createdAt: {type: Date, default: Date.now},
+});
 
-export async function getOTPs() {
-  return storage.readJson(OTP_PATH, []);
-}
+otpSchema.index({email: 1, type: 1}, {unique: true});
+// Auto-prune expired OTP documents
+otpSchema.index({expiresAt: 1}, {expireAfterSeconds: 600});
 
-export async function findOTPByEmail(email) {
-  const otps = await getOTPs();
-  return otps.find(otp => otp.email.toLowerCase() === email.toLowerCase());
+const Otp = mongoose.models.Otp || mongoose.model('Otp', otpSchema);
+
+const MAX_VERIFY_ATTEMPTS = 5;
+
+export async function findOTPByEmail(email, type = 'email') {
+  return Otp.findOne({email: email.trim().toLowerCase(), type}).lean();
 }
 
 export async function createOTP(email, code, type = 'email') {
-  const otps = await getOTPs();
-  const existingIndex = otps.findIndex(
-    otp => otp.email.toLowerCase() === email.toLowerCase() && otp.type === type,
-  );
+  const normalized = email.trim().toLowerCase();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  const otpData = {
-    email: email.toLowerCase(),
-    code,
-    type,
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
-    createdAt: new Date().toISOString(),
-    verified: false,
-  };
+  const doc = await Otp.findOneAndUpdate(
+    {email: normalized, type},
+    {
+      email: normalized,
+      type,
+      code,
+      verified: false,
+      attempts: 0,
+      expiresAt,
+      createdAt: new Date(),
+    },
+    {upsert: true, new: true, setDefaultsOnInsert: true},
+  ).lean();
 
-  if (existingIndex >= 0) {
-    otps[existingIndex] = otpData;
-  } else {
-    otps.push(otpData);
-  }
-
-  await storage.writeJson(OTP_PATH, otps);
-  return otpData;
+  return doc;
 }
 
 export async function verifyOTP(email, code, type = 'email') {
-  const otps = await getOTPs();
-  const otp = otps.find(
-    otp =>
-      otp.email.toLowerCase() === email.toLowerCase() &&
-      otp.code === code &&
-      otp.type === type &&
-      !otp.verified,
-  );
+  const normalized = email.trim().toLowerCase();
+  const otp = await Otp.findOne({email: normalized, type});
 
-  if (!otp) {
+  if (!otp || otp.verified) {
     return {valid: false, message: 'Invalid OTP code'};
   }
 
-  const expiresAt = new Date(otp.expiresAt);
-  if (expiresAt < new Date()) {
+  if (otp.expiresAt < new Date()) {
     return {valid: false, message: 'OTP has expired'};
   }
 
-  // Mark as verified
+  if (otp.attempts >= MAX_VERIFY_ATTEMPTS) {
+    return {
+      valid: false,
+      message: 'Too many failed attempts. Please request a new OTP.',
+    };
+  }
+
+  if (otp.code !== String(code).trim()) {
+    otp.attempts += 1;
+    await otp.save();
+    return {valid: false, message: 'Invalid OTP code'};
+  }
+
   otp.verified = true;
-  await storage.writeJson(OTP_PATH, otps);
+  // Extend short window (15 min) so user can complete signup form after verifying OTP
+  otp.expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await otp.save();
 
   return {valid: true, message: 'OTP verified successfully'};
 }
 
-export async function deleteOTP(email, type = 'email') {
-  const otps = await getOTPs();
-  const filtered = otps.filter(
-    otp =>
-      !(
-        otp.email.toLowerCase() === email.toLowerCase() && otp.type === type
-      ),
-  );
-  await storage.writeJson(OTP_PATH, filtered);
+export async function hasVerifiedOTP(email, type = 'email') {
+  const normalized = email.trim().toLowerCase();
+  const otp = await Otp.findOne({
+    email: normalized,
+    type,
+    verified: true,
+    expiresAt: {$gt: new Date()},
+  }).lean();
+  return Boolean(otp);
 }
 
+export async function deleteOTP(email, type = 'email') {
+  const normalized = email.trim().toLowerCase();
+  await Otp.deleteMany({email: normalized, type});
+}

@@ -97,16 +97,19 @@ export async function verifyPayment(gateway, orderId, paymentId, signature, addi
   }
 }
 
-async function verifyRazorpayPayment(orderId, paymentId, signature) {
-  // TODO: Add Razorpay HMAC signature check when integrated
-  return { success: true, verified: true, paymentId, orderId };
+async function verifyRazorpayPayment(_orderId, _paymentId, _signature) {
+  return {
+    success: false,
+    verified: false,
+    error: 'Razorpay verification is not configured',
+  };
 }
 
 async function verifyStripePayment(orderId, paymentId, signature, additionalData) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
-      console.warn('[Stripe] STRIPE_SECRET_KEY not set, using mock verification');
-      return { success: true, verified: true, paymentId, orderId };
+      console.error('[Stripe] STRIPE_SECRET_KEY not set — rejecting payment verification');
+      return { success: false, verified: false, error: 'Stripe is not configured on server' };
     }
 
     const stripe = (await import('stripe')).default;
@@ -149,20 +152,18 @@ async function verifyStripePayment(orderId, paymentId, signature, additionalData
  * Android: verifies via Google Play Developer API
  * iOS: accepted from client (Apple receipt server validation can be added)
  */
-async function verifyInAppPurchase(orderId, paymentId, signature, additionalData) {
+async function verifyInAppPurchase(orderId, paymentId, signature, additionalData = {}) {
   const { platform, purchaseToken, productId, packageName } = additionalData;
-
-  if (platform === 'ios') {
-    console.log('[IAP] iOS purchase — client-side verification accepted');
-    return { success: true, verified: true, paymentId, orderId, platform: 'ios' };
-  }
 
   if (platform === 'android') {
     return await verifyGooglePlayPurchase({ purchaseToken, productId, packageName, orderId, paymentId });
   }
 
-  console.warn('[IAP] Unknown platform, accepting without verification');
-  return { success: true, verified: true, paymentId, orderId, platform: 'unknown' };
+  return {
+    success: false,
+    verified: false,
+    error: `Unsupported or unverified IAP platform: ${platform || 'unknown'}`,
+  };
 }
 
 /**
@@ -172,8 +173,8 @@ async function verifyInAppPurchase(orderId, paymentId, signature, additionalData
 async function verifyGooglePlayPurchase({ purchaseToken, productId, packageName, orderId, paymentId }) {
   try {
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-      console.warn('[Google Play] GOOGLE_SERVICE_ACCOUNT_JSON not set — skipping verification in dev');
-      return { success: true, verified: true, paymentId, orderId, platform: 'android' };
+      console.error('[Google Play] GOOGLE_SERVICE_ACCOUNT_JSON not set — failing closed');
+      return { success: false, verified: false, error: 'Google Play billing verification is not configured on server' };
     }
 
     const pkg = packageName || process.env.GOOGLE_PLAY_PACKAGE_NAME;

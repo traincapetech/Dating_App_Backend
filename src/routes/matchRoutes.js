@@ -8,7 +8,10 @@ import {
   scheduleDate,
 } from '../controllers/matchController.js';
 
+import {requireAuth} from '../middlewares/auth.js';
+
 const router = express.Router();
+router.use(requireAuth);
 
 // Get all matches for a user
 router.get('/:userId', getUserMatches);

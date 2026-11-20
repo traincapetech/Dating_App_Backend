@@ -8,7 +8,10 @@ import {
   blockAndReport,
 } from '../controllers/blockController.js';
 
+import {requireAuth} from '../middlewares/auth.js';
+
 const router = express.Router();
+router.use(requireAuth);
 
 // Block a user
 router.post('/block', blockUser);

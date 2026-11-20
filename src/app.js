@@ -21,6 +21,7 @@ import newsletterRoutes from './routes/newsletterRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import streakRoutes from './modules/streak/streak.routes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import legalPagesRoutes from './routes/legalPagesRoutes.js';
 import {
   generalLimiter,
   swipeLimiter,
@@ -42,19 +43,21 @@ app.use(helmet());
 // Compress responses
 app.use(compression());
 
-// CORS Configuration - Allow specific origins or keep open for mobile app APIs but with security in mind
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : null;
+
 app.use(
   cors({
-    origin: '*', // For mobile apps, often '*' is used, but for web clients restrict this.
+    origin: allowedOrigins || (process.env.NODE_ENV === 'production' ? false : '*'),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'Authorization',
       'X-Requested-With',
       'Device-Id',
-      'x-user-id',
     ],
-    credentials: true,
+    credentials: Boolean(allowedOrigins),
   }),
 );
 
@@ -89,6 +92,7 @@ app.use('/api/photo-social', photoSocialRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/', legalPagesRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({status: 'ok'});

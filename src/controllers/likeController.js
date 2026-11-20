@@ -413,6 +413,13 @@ export const getLikesReceived = async (req, res) => {
     );
 
     const likesWithProfiles = visiblePendingLikes.map(like => {
+      if (!isPremium) {
+        return {
+          _id: like._id,
+          likedAt: like.createdAt,
+          isBlurred: true,
+        };
+      }
       const profile = profiles.find(p => p.userId === like.senderId);
       const user = users.find(u => u._id === like.senderId);
 

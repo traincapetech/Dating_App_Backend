@@ -4,12 +4,12 @@ import {
   getBoostStatusController,
   getBoostHistoryController,
 } from '../controllers/boostController.js';
-import {authenticate} from '../middlewares/auth.js';
+import {requireAuth} from '../middlewares/auth.js';
 
 const router = Router();
 
 // All boost routes require authentication
-router.use(authenticate);
+router.use(requireAuth);
 
 // Create boost
 router.post('/create', createBoostController);

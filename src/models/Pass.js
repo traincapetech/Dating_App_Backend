@@ -6,4 +6,6 @@ const PassSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+PassSchema.index({ userId: 1, passedUserId: 1 });
+
 export default mongoose.model('Pass', PassSchema);

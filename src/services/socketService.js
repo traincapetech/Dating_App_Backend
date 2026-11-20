@@ -1,4 +1,6 @@
 import {Server} from 'socket.io';
+import jwt from 'jsonwebtoken';
+import {config} from '../config/env.js';
 import Message from '../models/Message.js';
 import Match from '../models/Match.js';
 import Block from '../models/Block.js';
@@ -9,59 +11,101 @@ let io = null;
 // Store user socket mappings
 const userSockets = new Map(); // userId -> Set of socket ids
 const socketUsers = new Map(); // socketId -> userId
+const socketMessageTimestamps = new Map(); // socketId -> number[]
+
+function isRateLimited(socketId, maxPerMinute = 30) {
+  const now = Date.now();
+  const windowStart = now - 60_000;
+  const recent = (socketMessageTimestamps.get(socketId) || []).filter(t => t > windowStart);
+  if (recent.length >= maxPerMinute) {
+    socketMessageTimestamps.set(socketId, recent);
+    return true;
+  }
+  recent.push(now);
+  socketMessageTimestamps.set(socketId, recent);
+  return false;
+}
 
 export function initSocketServer(httpServer) {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : '*';
+
   io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],
   });
 
+  // Require valid JWT on Socket.IO handshake
+  io.use((socket, next) => {
+    try {
+      const authHeader = socket.handshake.headers?.authorization;
+      const token =
+        socket.handshake.auth?.token ||
+        (authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null);
+
+      if (!token) {
+        return next(new Error('Authentication required'));
+      }
+
+      const decoded = jwt.verify(token, config.jwtSecret);
+      if (decoded.type === 'refresh') {
+        return next(new Error('Invalid token type'));
+      }
+
+      const userId = decoded.sub || decoded.userId || decoded.id;
+      if (!userId) {
+        return next(new Error('Invalid token'));
+      }
+
+      socket.userId = String(userId);
+      return next();
+    } catch {
+      return next(new Error('Invalid or expired token'));
+    }
+  });
+
   io.on('connection', socket => {
-    console.log(`📱 Socket connected: ${socket.id}`);
+    const authUserId = socket.userId;
 
-    // Authenticate user and map socket
-    socket.on('authenticate', async ({userId}) => {
-      if (!userId) return;
-
-      const previouslyOnline = isUserOnline(userId);
-
-      // Store mapping
-      socketUsers.set(socket.id, userId);
-
-      if (!userSockets.has(userId)) {
-        userSockets.set(userId, new Set());
+    // Automatically register verified socket identity
+    const registerVerifiedUser = () => {
+      if (!authUserId) return;
+      const previouslyOnline = isUserOnline(authUserId);
+      socketUsers.set(socket.id, authUserId);
+      if (!userSockets.has(authUserId)) {
+        userSockets.set(authUserId, new Set());
       }
-      userSockets.get(userId).add(socket.id);
-
-      console.log(`👤 User ${userId} authenticated on socket ${socket.id}`);
-
-      // If user just came online (wasn't online before this socket), broadcast to matches
+      userSockets.get(authUserId).add(socket.id);
       if (!previouslyOnline) {
-        broadcastUserStatus(userId, 'online');
+        broadcastUserStatus(authUserId, 'online');
       }
+    };
+
+    registerVerifiedUser();
+
+    // Backward-compatible authenticate event — always ignores client-supplied userId
+    socket.on('authenticate', () => {
+      registerVerifiedUser();
     });
 
-    // Join a chat room (match-based)
-    socket.on('joinRoom', async ({matchId, userId}) => {
+    // Join a chat room (match-based) using verified socket.userId
+    socket.on('joinRoom', async ({matchId} = {}) => {
+      const userId = socket.userId;
       if (!matchId || !userId) return;
 
-      // Verify user belongs to match
       try {
-        // Validate matchId is a valid ObjectId
         if (!/^[0-9a-fA-F]{24}$/.test(matchId)) {
-          console.log(`⚠️ Invalid matchId format in joinRoom: ${matchId}`);
           return;
         }
 
         const match = await Match.findById(matchId);
         if (match && match.users.includes(userId)) {
           socket.join(matchId);
-          console.log(`🚪 Socket ${socket.id} joined room ${matchId}`);
 
-          // Emit current status of the other user to the person who just joined
           const otherUserId = match.users.find(u => u !== userId);
           if (otherUserId) {
             socket.emit('userStatusChanged', {
@@ -70,8 +114,6 @@ export function initSocketServer(httpServer) {
               matchId,
             });
           }
-        } else {
-          console.log(`⚠️ User ${userId} not authorized for room ${matchId}`);
         }
       } catch (error) {
         console.error('Error joining room:', error.message);
@@ -79,50 +121,66 @@ export function initSocketServer(httpServer) {
     });
 
     // Leave a chat room
-    socket.on('leaveRoom', ({matchId}) => {
+    socket.on('leaveRoom', ({matchId} = {}) => {
       if (matchId) {
         socket.leave(matchId);
-        console.log(`🚪 Socket ${socket.id} left room ${matchId}`);
       }
     });
 
     // ─── PHOTO SOCIAL ROOMS ───
-    socket.on('joinProfileSocial', ({targetUserId}) => {
+    socket.on('joinProfileSocial', ({targetUserId} = {}) => {
       if (!targetUserId) return;
-      const room = `profile_social:${targetUserId}`;
-      socket.join(room);
-      console.log(`📸 Socket ${socket.id} joined social room ${room}`);
+      socket.join(`profile_social:${targetUserId}`);
     });
 
-    socket.on('leaveProfileSocial', ({targetUserId}) => {
+    socket.on('leaveProfileSocial', ({targetUserId} = {}) => {
       if (!targetUserId) return;
-      const room = `profile_social:${targetUserId}`;
-      socket.leave(room);
-      console.log(`📸 Socket ${socket.id} left social room ${room}`);
+      socket.leave(`profile_social:${targetUserId}`);
     });
 
-    // Handle sending messages via socket
-    socket.on('sendMessage', async messageData => {
-      const {matchId, senderId, receiverId, text, mediaUrl, mediaType} =
-        messageData;
+    // Handle sending messages via socket (uses verified socket.userId)
+    socket.on('sendMessage', async (messageData = {}) => {
+      const senderId = socket.userId;
+      const {matchId, receiverId, text, mediaUrl, mediaType} = messageData;
 
       if (!matchId || !senderId || !receiverId) return;
+      if (!text && !mediaUrl) return;
+      if (typeof text === 'string' && text.length > 5000) {
+        socket.emit('error', {message: 'Message too long'});
+        return;
+      }
+      if (isRateLimited(socket.id)) {
+        socket.emit('error', {message: 'Too many messages. Please slow down.'});
+        return;
+      }
 
-      // Validate matchId is a valid ObjectId
       if (!/^[0-9a-fA-F]{24}$/.test(matchId)) {
         socket.emit('error', {message: 'Invalid match ID'});
         return;
       }
 
       try {
-        // Verify match access
+        if (text) {
+          const {detectChatAbuse} = await import('./moderationService.js');
+          const abuseCheck = detectChatAbuse(text);
+          if (abuseCheck.isAbusive) {
+            socket.emit('error', {
+              message: abuseCheck.message || 'Message blocked: Inappropriate content detected.',
+            });
+            return;
+          }
+        }
+
         const match = await Match.findById(matchId);
-        if (!match || !match.users.includes(senderId)) {
+        if (!match || !match.users.includes(senderId) || !match.users.includes(receiverId)) {
           socket.emit('error', {message: 'Access denied'});
           return;
         }
+        if (!match.chatEnabled) {
+          socket.emit('error', {message: 'Chat is disabled for this match'});
+          return;
+        }
 
-        // Check blocks
         const block = await Block.findOne({
           $or: [
             {blockerId: senderId, blockedId: receiverId},
@@ -135,7 +193,6 @@ export function initSocketServer(httpServer) {
           return;
         }
 
-        // Save message to database
         const message = await Message.create({
           matchId,
           senderId,
@@ -146,13 +203,12 @@ export function initSocketServer(httpServer) {
           status: 'sent',
         });
 
-        // Emit to room (both users if connected)
+        await Match.findByIdAndUpdate(matchId, {lastMessageAt: new Date()});
+
         io.to(matchId).emit('receiveMessage', message);
 
-        // Check if receiver is online
         const receiverSockets = userSockets.get(receiverId);
         if (receiverSockets && receiverSockets.size > 0) {
-          // Mark as delivered immediately if online
           message.status = 'delivered';
           await message.save();
 
@@ -162,7 +218,6 @@ export function initSocketServer(httpServer) {
             matchId,
           });
         } else {
-          // Send push notification if offline
           try {
             await sendPushNotification(receiverId, {
               title: 'New Message',
@@ -178,43 +233,40 @@ export function initSocketServer(httpServer) {
               },
             });
           } catch (pushError) {
-            console.error('Push notification error:', pushError);
+            console.error('Push notification error:', pushError.message);
           }
         }
       } catch (error) {
-        console.error('Error sending message via socket:', error);
+        console.error('Error sending message via socket:', error.message);
         socket.emit('error', {message: 'Failed to send message'});
       }
     });
 
-    // Handle typing indicator
-    socket.on('typing', async ({matchId, userId}) => {
-      if (!matchId || !userId) return;
-
-      // Broadcast to others in the room
-      socket.to(matchId).emit('typing', {matchId, userId});
+    // Handle typing indicator (verified socket.userId & joined room)
+    socket.on('typing', ({matchId} = {}) => {
+      if (!matchId || !socket.userId || !socket.rooms.has(matchId)) return;
+      socket.to(matchId).emit('typing', {matchId, userId: socket.userId});
     });
 
     // Handle stop typing
-    socket.on('stopTyping', async ({matchId, userId}) => {
-      if (!matchId || !userId) return;
-
-      socket.to(matchId).emit('stopTyping', {matchId, userId});
+    socket.on('stopTyping', ({matchId} = {}) => {
+      if (!matchId || !socket.userId || !socket.rooms.has(matchId)) return;
+      socket.to(matchId).emit('stopTyping', {matchId, userId: socket.userId});
     });
 
-    // Handle message seen
-    socket.on('messageSeen', async ({matchId, userId, messageIds}) => {
-      if (!matchId || !userId || !messageIds || !Array.isArray(messageIds))
+    // Handle message seen (verified socket.userId)
+    socket.on('messageSeen', async ({matchId, messageIds} = {}) => {
+      const userId = socket.userId;
+      if (!matchId || !userId || !Array.isArray(messageIds) || messageIds.length === 0)
         return;
 
-      // Validate matchId is a valid ObjectId
-      if (!/^[0-9a-fA-F]{24}$/.test(matchId)) return;
+      if (!/^[0-9a-fA-F]{24}$/.test(matchId) || !socket.rooms.has(matchId)) return;
 
       try {
-        // Update messages in database
         await Message.updateMany(
           {
             _id: {$in: messageIds},
+            matchId,
             receiverId: userId,
             status: {$ne: 'seen'},
           },
@@ -226,7 +278,6 @@ export function initSocketServer(httpServer) {
           },
         );
 
-        // Notify sender(s) in the room
         socket.to(matchId).emit('messagesSeen', {
           matchId,
           userId,
@@ -234,12 +285,13 @@ export function initSocketServer(httpServer) {
           seenAt: new Date(),
         });
       } catch (error) {
-        console.error('Error marking messages seen:', error);
+        console.error('Error marking messages seen:', error.message);
       }
     });
 
     // Handle disconnect
     socket.on('disconnect', () => {
+      socketMessageTimestamps.delete(socket.id);
       const userId = socketUsers.get(socket.id);
 
       if (userId) {

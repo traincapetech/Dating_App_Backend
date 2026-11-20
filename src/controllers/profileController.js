@@ -37,9 +37,9 @@ export const uploadMiddleware = multer({
 
 // ── SINGLE entry point for ALL profile writes (onboarding + editing) ──────
 export const patchProfileController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({error: 'User ID is required'});
+    return res.status(401).json({error: 'Authentication required'});
   }
 
   // Strip userId from body before validation
@@ -121,9 +121,9 @@ export const getAllProfilesController = asyncHandler(async (req, res) => {
 });
 
 export const uploadImageController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({error: 'User ID is required'});
+    return res.status(401).json({error: 'Authentication required'});
   }
 
   if (!req.file && !req.body.imageUri) {
@@ -150,7 +150,19 @@ export const uploadImageController = asyncHandler(async (req, res) => {
       return res.status(400).json({error: 'Image buffer is empty or invalid'});
     }
 
-    const fileExtension = fileName.split('.').pop().split('?')[0] || 'jpg';
+    // Moderate profile photo via Azure AI Content Safety
+    const {moderateImage} = await import('../services/moderationService.js');
+    const moderationResult = await moderateImage(imageBuffer);
+    if (!moderationResult.isSafe) {
+      return res.status(400).json({
+        error: 'Image does not meet community guidelines',
+        reason: moderationResult.categories,
+      });
+    }
+
+    const rawExt = (fileName.split('.').pop().split('?')[0] || 'jpg').toLowerCase();
+    const allowedExts = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+    const fileExtension = allowedExts.has(rawExt) ? rawExt : 'jpg';
     const filePath = `profiles/${userId}/images/${randomUUID()}.${fileExtension}`;
 
     await storage.writeFile(filePath, imageBuffer, {contentType});
@@ -172,7 +184,7 @@ export const uploadImageController = asyncHandler(async (req, res) => {
 });
 
 export const deleteImageController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   const {imageUrl} = req.body;
 
   if (!userId || !imageUrl) {
@@ -197,12 +209,12 @@ export const deleteImageController = asyncHandler(async (req, res) => {
       if (profilesIndex !== -1) filePath = filePath.substring(profilesIndex);
     }
 
-    if (filePath) {
-      await storage.deleteObject(filePath);
-      return res.status(200).json({success: true, message: 'Image deleted from storage'});
-    } else {
-      return res.status(400).json({error: 'Could not determine file path from URL'});
+    if (!filePath || filePath.includes('..') || !filePath.startsWith(`profiles/${userId}/`)) {
+      return res.status(403).json({error: 'Not authorized to delete this image'});
     }
+
+    await storage.deleteObject(filePath);
+    return res.status(200).json({success: true, message: 'Image deleted from storage'});
   } catch (error) {
     console.error('[Delete Image] Error:', error);
     res.status(500).json({error: 'Failed to delete image from storage'});
@@ -210,9 +222,9 @@ export const deleteImageController = asyncHandler(async (req, res) => {
 });
 
 export const pauseProfileController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({error: 'User ID is required'});
+    return res.status(401).json({error: 'Authentication required'});
   }
 
   const {isPaused} = req.body;
@@ -227,9 +239,9 @@ export const pauseProfileController = asyncHandler(async (req, res) => {
 });
 
 export const updateOnlineStatusController = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({error: 'User ID is required'});
+    return res.status(401).json({error: 'Authentication required'});
   }
 
   const {showOnlineStatus} = req.body;
@@ -308,9 +320,12 @@ export const deleteUserController = asyncHandler(async (req, res) => {
 });
 
 export const deleteProfileController = asyncHandler(async (req, res) => {
-  const userId = req.params.userId || req.body.userId;
+  const userId = req.params.userId || req.user?.id;
   if (!userId) {
     return res.status(400).json({error: 'User ID is required'});
+  }
+  if (req.user.id !== userId) {
+    return res.status(403).json({error: 'You are not authorized to delete this profile'});
   }
 
   const profile = await getProfile(userId);

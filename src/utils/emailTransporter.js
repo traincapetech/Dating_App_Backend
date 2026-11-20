@@ -57,9 +57,6 @@ export function getEmailTransporter() {
       pool: true,
       maxConnections: 1,
       maxMessages: 3,
-      tls: {
-        rejectUnauthorized: false,
-      },
     };
   }
 

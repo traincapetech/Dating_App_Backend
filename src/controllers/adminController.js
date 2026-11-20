@@ -1,6 +1,7 @@
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {verifyAdminPassword, createAdmin, getAdmins, updateAdmin, findAdminById} from '../models/Admin.js';
 import jwt from 'jsonwebtoken';
+import {config} from '../config/env.js';
 import {getSubscriptions, findSubscriptionById, updateSubscription, isUserPremium} from '../models/Subscription.js';
 import {getUsers, findUserById, updateUser, deleteUser} from '../models/userModel.js';
 import {processRefund} from '../services/paymentService.js';
@@ -30,8 +31,8 @@ export const adminLoginController = asyncHandler(async (req, res) => {
   // Generate JWT token
   const token = jwt.sign(
     {adminId: admin.id, email: admin.email, role: admin.role},
-    process.env.JWT_SECRET || 'change-me',
-    {expiresIn: process.env.JWT_EXPIRES_IN || '24h'}
+    config.jwtSecret,
+    {expiresIn: process.env.ADMIN_JWT_EXPIRES_IN || '24h'}
   );
 
   res.status(200).json({
@@ -50,11 +51,11 @@ export const adminLoginController = asyncHandler(async (req, res) => {
 
 // Admin Signup
 export const adminSignupController = asyncHandler(async (req, res) => {
-  const {email, password, name, role, signupKey} = req.body;
+  const {email, password, name, signupKey} = req.body;
 
-  // Security: Require a secret signup key to create admin accounts
-  const ADMIN_SIGNUP_KEY = process.env.ADMIN_SIGNUP_KEY || 'pryvo-admin-secret-2026';
-  if (signupKey !== ADMIN_SIGNUP_KEY) {
+  // Security: Require an explicitly configured secret signup key (no hardcoded default)
+  const ADMIN_SIGNUP_KEY = process.env.ADMIN_SIGNUP_KEY;
+  if (!ADMIN_SIGNUP_KEY || signupKey !== ADMIN_SIGNUP_KEY) {
     return res.status(403).json({
       success: false,
       message: 'Invalid signup key. Admin signup requires authorization.',
@@ -80,14 +81,14 @@ export const adminSignupController = asyncHandler(async (req, res) => {
       email,
       password,
       name,
-      role: role || 'admin', // Default to 'admin', not 'super_admin'
+      role: 'admin', // Never allow super_admin self-provisioning via public signup
     });
 
     // Generate JWT token
     const token = jwt.sign(
       {adminId: admin.id, email: admin.email, role: admin.role},
-      process.env.JWT_SECRET || 'change-me',
-      {expiresIn: process.env.JWT_EXPIRES_IN || '24h'}
+      config.jwtSecret,
+      {expiresIn: process.env.ADMIN_JWT_EXPIRES_IN || '24h'}
     );
 
     res.status(201).json({

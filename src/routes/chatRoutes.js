@@ -8,8 +8,10 @@ import {
   getUnreadConversationsCount,
 } from '../controllers/messageController.js';
 import {sanitizeInput} from '../middlewares/sanitizer.js';
+import {requireAuth} from '../middlewares/auth.js';
 
 const router = express.Router();
+router.use(requireAuth);
 
 // Get messages for a match (requires userId in headers or query)
 router.get('/:matchId', getMessages);

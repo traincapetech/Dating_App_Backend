@@ -1,116 +1,127 @@
-import {storage} from '../storage/index.js';
+import mongoose from 'mongoose';
 
-const SUBSCRIPTIONS_PATH = 'data/subscriptions.json';
+const subscriptionSchema = new mongoose.Schema(
+  {
+    id: {type: String, required: true, unique: true, index: true},
+    userId: {type: String, required: true, index: true},
+    planId: {type: String, required: true},
+    productId: {type: String},
+    status: {
+      type: String,
+      enum: ['active', 'cancelled', 'expired', 'refunded', 'payment_failed'],
+      default: 'active',
+      index: true,
+    },
+    paymentMethod: {type: String, default: 'in_app'},
+    paymentGateway: {type: String, default: 'revenuecat'},
+    transactionId: {type: String, sparse: true, index: true},
+    orderId: {type: String, sparse: true, index: true},
+    purchaseToken: {type: String, sparse: true, index: true},
+    currency: {type: String, default: 'USD'},
+    amount: {type: Number, default: 0},
+    autoRenew: {type: Boolean, default: true},
+    startedAt: {type: Date, default: Date.now},
+    expiresAt: {type: Date, required: true, index: true},
+    cancelledAt: {type: Date, default: null},
+    expiredAt: {type: Date, default: null},
+    refundedAt: {type: Date, default: null},
+    metadata: {type: mongoose.Schema.Types.Mixed, default: {}},
+  },
+  {
+    timestamps: true,
+  },
+);
+
+subscriptionSchema.index({userId: 1, updatedAt: -1});
+
+const SubscriptionModel =
+  mongoose.models.Subscription ||
+  mongoose.model('Subscription', subscriptionSchema);
+
+export default SubscriptionModel;
 
 export async function getSubscriptions() {
-  return storage.readJson(SUBSCRIPTIONS_PATH, []);
+  return SubscriptionModel.find({}).sort({updatedAt: -1}).lean();
 }
 
 export async function findSubscriptionByUserId(userId) {
   if (!userId) return null;
-  const subscriptions = await getSubscriptions();
   const searchId = String(userId);
-
-  console.log(
-    `[SubscriptionModel] Finding sub for ${searchId}. Total subs: ${subscriptions.length}`,
-  );
-
-  // Find active, cancelled, or payment_failed subscriptions (not expired/refunded)
-  // Sort by updatedAt desc to find the most recent one first
-  const userSubs = subscriptions
-    .filter(sub => String(sub.userId) === searchId)
-    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-
-  const activeSub = userSubs.find(
-    sub =>
-      sub.status === 'active' ||
-      sub.status === 'cancelled' ||
-      sub.status === 'payment_failed',
-  );
-
-  if (activeSub) {
-    console.log(
-      `[SubscriptionModel] Found active sub: ${activeSub.id}, status: ${activeSub.status}, plan: ${activeSub.planId}`,
-    );
-  } else {
-    console.log(`[SubscriptionModel] No active sub found for ${searchId}`);
-  }
-  return activeSub;
+  return SubscriptionModel.findOne({
+    userId: searchId,
+    status: {$in: ['active', 'cancelled', 'payment_failed']},
+  })
+    .sort({updatedAt: -1})
+    .lean();
 }
 
 export async function findSubscriptionById(subscriptionId) {
-  const subscriptions = await getSubscriptions();
-  return subscriptions.find(sub => sub.id === subscriptionId);
+  if (!subscriptionId) return null;
+  return SubscriptionModel.findOne({id: subscriptionId}).lean();
+}
+
+export async function findSubscriptionByTransactionId(transactionId) {
+  if (!transactionId) return null;
+  return SubscriptionModel.findOne({
+    $or: [{transactionId}, {orderId: transactionId}],
+  }).lean();
 }
 
 export async function createSubscription(subscription) {
-  const subscriptions = await getSubscriptions();
-  const newSubscription = {
-    id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  const id =
+    subscription.id ||
+    `sub_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  const doc = await SubscriptionModel.create({
     ...subscription,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  subscriptions.push(newSubscription);
-  await storage.writeJson(SUBSCRIPTIONS_PATH, subscriptions);
-  return newSubscription;
+    id,
+  });
+  return doc.toObject();
 }
 
 export async function updateSubscription(subscriptionId, updates) {
-  const subscriptions = await getSubscriptions();
-  const index = subscriptions.findIndex(sub => sub.id === subscriptionId);
-  if (index === -1) {
-    return null;
-  }
-  const updatedSubscription = {
-    ...subscriptions[index],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  subscriptions[index] = updatedSubscription;
-  await storage.writeJson(SUBSCRIPTIONS_PATH, subscriptions);
-  return updatedSubscription;
+  if (!subscriptionId) return null;
+  return SubscriptionModel.findOneAndUpdate(
+    {id: subscriptionId},
+    {$set: updates},
+    {new: true},
+  ).lean();
 }
 
 export async function cancelSubscription(subscriptionId) {
   return updateSubscription(subscriptionId, {
     status: 'cancelled',
-    cancelledAt: new Date().toISOString(),
+    autoRenew: false,
+    cancelledAt: new Date(),
   });
 }
 
 export async function getAllUserSubscriptions(userId) {
-  const subscriptions = await getSubscriptions();
-  return subscriptions.filter(sub => sub.userId === userId);
+  if (!userId) return [];
+  return SubscriptionModel.find({userId: String(userId)})
+    .sort({createdAt: -1})
+    .lean();
 }
 
 export async function findSubscriptionByPurchaseToken(purchaseToken) {
   if (!purchaseToken) return null;
-  const subscriptions = await getSubscriptions();
-  return subscriptions.find(sub => sub.purchaseToken === purchaseToken) || null;
+  return SubscriptionModel.findOne({purchaseToken}).lean();
 }
 
-
-// Check if user has active premium subscription
 export async function isUserPremium(userId) {
   const subscription = await findSubscriptionByUserId(userId);
   if (!subscription) {
     return false;
   }
 
-  // Check if subscription is still valid
   const now = new Date();
   const expiresAt = new Date(subscription.expiresAt);
 
-  // Check expiry date first (most important)
   if (expiresAt < now) {
-    // Subscription expired, update status and revoke premium
     await updateSubscription(subscription.id, {
       status: 'expired',
-      expiredAt: new Date().toISOString(),
+      expiredAt: now,
     });
 
-    // Update user premium status
     const {updateUser} = await import('./userModel.js');
     await updateUser(userId, {
       isPremium: false,
@@ -120,23 +131,5 @@ export async function isUserPremium(userId) {
     return false;
   }
 
-  // Status check: active or cancelled (cancelled keeps premium until expiry)
-  // payment_failed also keeps premium until expiry
-  if (
-    subscription.status === 'active' ||
-    subscription.status === 'cancelled' ||
-    subscription.status === 'payment_failed'
-  ) {
-    return true; // Premium granted until expiry
-  }
-
-  // Other statuses (expired, refunded) don't grant premium
-  return false;
-}
-
-import {getPlanDetails as getPlanDetailsFromConfig} from '../config/subscriptionPlans.js';
-
-// Get subscription plan details
-export function getPlanDetails(planId) {
-  return getPlanDetailsFromConfig(planId);
+  return subscription.status === 'active' || subscription.status === 'cancelled';
 }

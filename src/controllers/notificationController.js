@@ -119,6 +119,9 @@ export const sendAdminNotification = async (req, res) => {
  */
 export const getPreferences = async (req, res) => {
   const userId = req.params.userId;
+  if (req.user.id !== userId) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
 
   try {
     const user = await User.findById(userId).select('notificationSettings');
@@ -145,12 +148,22 @@ export const getPreferences = async (req, res) => {
  */
 export const updatePreferences = async (req, res) => {
   const userId = req.params.userId;
-  const preferences = req.body;
+  if (req.user.id !== userId) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+
+  const allowedKeys = ['pushEnabled', 'matches', 'messages', 'likes', 'streaks', 'marketing', 'emailNotifications', 'newMatches', 'newMessages', 'newLikes'];
+  const sanitized = {};
+  for (const key of allowedKeys) {
+    if (typeof req.body?.[key] === 'boolean') {
+      sanitized[key] = req.body[key];
+    }
+  }
 
   try {
     const user = await User.findByIdAndUpdate(
       userId,
-      { notificationSettings: preferences },
+      { notificationSettings: sanitized },
       { new: true, runValidators: true }
     );
 

@@ -18,4 +18,6 @@ const MatchSchema = new mongoose.Schema({
   lastMessageAt: {type: Date, default: Date.now},
 });
 
+MatchSchema.index({users: 1, status: 1, lastMessageAt: -1});
+
 export default mongoose.model('Match', MatchSchema);

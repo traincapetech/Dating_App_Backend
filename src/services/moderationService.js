@@ -186,14 +186,107 @@ export function detectFakeProfile(profile) {
   };
 }
 
-/* ---------------- IMAGE MODERATION ---------------- */
+/* ---------------- IMAGE MODERATION (Azure AI Content Safety) ---------------- */
 
-export async function moderateImage(imageUrl) {
-  // Placeholder (replace with real API later)
-  return {
-    isSafe: true,
-    provider: 'mock',
-  };
+/**
+ * Moderates an image via Azure AI Content Safety REST API.
+ * Accepts a Buffer, a base64 string (with or without data: prefix), or an https URL.
+ * Env vars:
+ *   - AZURE_CONTENT_SAFETY_ENDPOINT (e.g. https://<resource>.cognitiveservices.azure.com)
+ *   - AZURE_CONTENT_SAFETY_KEY
+ *   - AZURE_CONTENT_SAFETY_THRESHOLD (optional, default 4 on Azure's 0/2/4/6 scale)
+ */
+export async function moderateImage(imageInput) {
+  const endpoint = (process.env.AZURE_CONTENT_SAFETY_ENDPOINT || '').replace(/\/+$/, '');
+  const apiKey = process.env.AZURE_CONTENT_SAFETY_KEY || '';
+  const threshold = Number.parseInt(process.env.AZURE_CONTENT_SAFETY_THRESHOLD || '4', 10);
+
+  if (!endpoint || !apiKey) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[ImageModeration] Azure AI Content Safety credentials missing in production');
+      return {
+        isSafe: false,
+        provider: 'azure-content-safety',
+        categories: ['moderation_unavailable'],
+      };
+    }
+    console.warn('[ImageModeration] Azure AI Content Safety not configured — skipping in non-production');
+    return {isSafe: true, provider: 'azure-unconfigured-dev', categories: []};
+  }
+
+  try {
+    let base64Content = null;
+    if (Buffer.isBuffer(imageInput)) {
+      base64Content = imageInput.toString('base64');
+    } else if (typeof imageInput === 'string') {
+      if (imageInput.startsWith('http://') || imageInput.startsWith('https://')) {
+        const imgRes = await fetch(imageInput);
+        if (!imgRes.ok) {
+          throw new Error(`Failed to fetch image for moderation (${imgRes.status})`);
+        }
+        const arrBuf = await imgRes.arrayBuffer();
+        base64Content = Buffer.from(arrBuf).toString('base64');
+      } else {
+        base64Content = imageInput.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      }
+    }
+
+    if (!base64Content) {
+      return {isSafe: false, provider: 'azure-content-safety', categories: ['invalid_image']};
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let response;
+    try {
+      response = await fetch(
+        `${endpoint}/contentsafety/image:analyze?api-version=2024-09-01`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': apiKey,
+          },
+          body: JSON.stringify({
+            image: {content: base64Content},
+            categories: ['Hate', 'SelfHarm', 'Sexual', 'Violence'],
+            outputType: 'FourSeverityLevels',
+          }),
+          signal: controller.signal,
+        },
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Azure Content Safety HTTP ${response.status}: ${errText.slice(0, 120)}`);
+    }
+
+    const data = await response.json();
+    const results = Array.isArray(data.categoriesAnalysis) ? data.categoriesAnalysis : [];
+    const flagged = results
+      .filter(item => Number(item.severity || 0) >= threshold)
+      .map(item => `${item.category}:${item.severity}`);
+
+    return {
+      isSafe: flagged.length === 0,
+      provider: 'azure-content-safety',
+      categories: flagged,
+      scores: results,
+    };
+  } catch (error) {
+    console.error('[ImageModeration] Azure Content Safety error:', error.message);
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        isSafe: false,
+        provider: 'azure-content-safety',
+        categories: ['moderation_error'],
+      };
+    }
+    return {isSafe: true, provider: 'azure-error-dev', categories: []};
+  }
 }
 
 /* ---------------- AUTO REVIEW ---------------- */
