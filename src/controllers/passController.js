@@ -4,7 +4,11 @@ import {isUserPremium} from '../models/Subscription.js';
 
 export const passUser = async (req, res) => {
   try {
-    const {userId, passedUserId} = req.body;
+    const userId = req.user.id;
+    const {passedUserId} = req.body;
+    if (!passedUserId) {
+      return res.status(400).json({success: false, message: 'passedUserId is required'});
+    }
     await Pass.create({userId, passedUserId});
     res.json({success: true});
   } catch (error) {
@@ -18,14 +22,7 @@ export const passUser = async (req, res) => {
  */
 export const undoLastSwipe = async (req, res) => {
   try {
-    const {userId} = req.body;
-
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'userId is required',
-      });
-    }
+    const userId = req.user.id;
 
     // Check if user is premium
     const isPremium = await isUserPremium(userId);
@@ -99,12 +96,11 @@ export const undoLastSwipe = async (req, res) => {
  */
 export const getUndoStatus = async (req, res) => {
   try {
-    const {userId} = req.params;
-
-    if (!userId) {
-      return res.status(400).json({
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({
         success: false,
-        message: 'userId is required',
+        message: 'Forbidden',
       });
     }
 
@@ -171,12 +167,7 @@ export const getUndoStatus = async (req, res) => {
  */
 export const resetPasses = async (req, res) => {
   try {
-    const {userId} = req.body;
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
-    }
+    const userId = req.user.id;
     await Pass.deleteMany({userId});
     res.json({success: true, message: 'Passes reset successfully'});
   } catch (error) {

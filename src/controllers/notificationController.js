@@ -48,8 +48,12 @@ export const removeFcmToken = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Unset the fcmToken from the user
+    // Unset the fcmToken from both User and NotificationToken collection
     await User.findByIdAndUpdate(userId, { $unset: { fcmToken: 1 } });
+    try {
+      const NotificationToken = (await import('../models/NotificationToken.js')).default;
+      await NotificationToken.deleteMany({ userId });
+    } catch (_) {}
     res.json({ success: true, message: 'FCM token removed successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error removing FCM token' });
@@ -152,11 +156,27 @@ export const updatePreferences = async (req, res) => {
     return res.status(403).json({ success: false, message: 'Forbidden' });
   }
 
-  const allowedKeys = ['pushEnabled', 'matches', 'messages', 'likes', 'streaks', 'marketing', 'emailNotifications', 'newMatches', 'newMessages', 'newLikes'];
+  const allowedKeys = [
+    'pushEnabled',
+    'matches',
+    'messages',
+    'likes',
+    'streaks',
+    'marketing',
+    'emailNotifications',
+    'newMatches',
+    'newMessages',
+    'newLikes',
+    'profileViews',
+  ];
+  const source =
+    req.body?.preferences && typeof req.body.preferences === 'object'
+      ? req.body.preferences
+      : req.body || {};
   const sanitized = {};
   for (const key of allowedKeys) {
-    if (typeof req.body?.[key] === 'boolean') {
-      sanitized[key] = req.body[key];
+    if (typeof source[key] === 'boolean') {
+      sanitized[key] = source[key];
     }
   }
 

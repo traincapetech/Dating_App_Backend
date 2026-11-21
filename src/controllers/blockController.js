@@ -9,12 +9,13 @@ import Pass from '../models/Pass.js';
  */
 export const blockUser = async (req, res) => {
   try {
-    const { blockerId, blockedId, reason } = req.body;
+    const blockerId = req.user.id;
+    const { blockedId, reason } = req.body;
 
-    if (!blockerId || !blockedId) {
+    if (!blockedId) {
       return res.status(400).json({
         success: false,
-        message: 'blockerId and blockedId are required',
+        message: 'blockedId is required',
       });
     }
 
@@ -68,12 +69,13 @@ export const blockUser = async (req, res) => {
  */
 export const unblockUser = async (req, res) => {
   try {
-    const { blockerId, blockedId } = req.body;
+    const blockerId = req.user.id;
+    const { blockedId } = req.body;
 
-    if (!blockerId || !blockedId) {
+    if (!blockedId) {
       return res.status(400).json({
         success: false,
-        message: 'blockerId and blockedId are required',
+        message: 'blockedId is required',
       });
     }
 
@@ -123,12 +125,11 @@ export const unblockUser = async (req, res) => {
  */
 export const getBlockedUsers = async (req, res) => {
   try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({
         success: false,
-        message: 'userId is required',
+        message: 'Forbidden',
       });
     }
 
@@ -171,7 +172,14 @@ export const getBlockedUsers = async (req, res) => {
  */
 export const checkBlocked = async (req, res) => {
   try {
-    const { userId, otherUserId } = req.params;
+    const userId = req.user.id;
+    const { otherUserId } = req.params;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden',
+      });
+    }
 
     const block = await Block.findOne({
       $or: [
@@ -201,12 +209,13 @@ export const checkBlocked = async (req, res) => {
  */
 export const reportUser = async (req, res) => {
   try {
-    const { reporterId, reportedId, matchId, reason, description } = req.body;
+    const reporterId = req.user.id;
+    const { reportedId, matchId, reason, description } = req.body;
 
-    if (!reporterId || !reportedId || !reason) {
+    if (!reportedId || !reason) {
       return res.status(400).json({
         success: false,
-        message: 'reporterId, reportedId, and reason are required',
+        message: 'reportedId and reason are required',
       });
     }
 
@@ -255,12 +264,13 @@ export const reportUser = async (req, res) => {
  */
 export const blockAndReport = async (req, res) => {
   try {
-    const { blockerId, blockedId, matchId, reason, description } = req.body;
+    const blockerId = req.user.id;
+    const { blockedId, matchId, reason, description } = req.body;
 
-    if (!blockerId || !blockedId) {
+    if (!blockedId) {
       return res.status(400).json({
         success: false,
-        message: 'blockerId and blockedId are required',
+        message: 'blockedId is required',
       });
     }
 

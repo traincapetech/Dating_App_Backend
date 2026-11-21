@@ -12,11 +12,22 @@ import {requireAuth} from '../middlewares/auth.js';
 
 const router = express.Router();
 
+const requirePaymentsEnabled = (_req, res, next) => {
+  if (process.env.ENABLE_PAYMENTS !== 'true') {
+    return res.status(503).json({
+      success: false,
+      message: 'Wallet and gift purchases are disabled in this free release.',
+    });
+  }
+  return next();
+};
+
 // Get available gifts catalog
 router.get('/', getGifts);
 
-// Protected wallet & gift actions
+// Protected wallet & gift actions (disabled while ENABLE_PAYMENTS !== 'true')
 router.use(requireAuth);
+router.use(requirePaymentsEnabled);
 
 // Get user wallet and inventory
 router.get('/wallet/:userId', getWallet);
