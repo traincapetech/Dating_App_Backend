@@ -45,13 +45,10 @@ async function getProfileInfo(userId) {
   }
 }
 
-// Configuration for premium features
-// Set to false to require premium for seeing who liked you
-const LIKES_VISIBLE_FREE = false; // Change to false when you want to monetize
-
-// Daily like limit configuration
-const DAILY_LIKE_LIMIT = 8; // Free tier limit
-const PREMIUM_DAILY_LIKE_LIMIT = 999999; // Effectively unlimited for premium
+// Free launch mode: visible & unlimited until ENABLE_PAYMENTS=true
+const LIKES_VISIBLE_FREE = process.env.ENABLE_PAYMENTS !== 'true';
+const DAILY_LIKE_LIMIT = process.env.ENABLE_PAYMENTS !== 'true' ? 999999 : 8;
+const PREMIUM_DAILY_LIKE_LIMIT = 999999;
 
 // Helper to get today's date string (YYYY-MM-DD)
 function getTodayDateString() {

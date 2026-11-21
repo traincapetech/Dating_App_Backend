@@ -109,6 +109,11 @@ export async function findSubscriptionByPurchaseToken(purchaseToken) {
 }
 
 export async function isUserPremium(userId) {
+  // Free launch mode: unlock all features until ENABLE_PAYMENTS=true is explicitly set
+  if (process.env.ENABLE_PAYMENTS !== 'true') {
+    return true;
+  }
+
   const subscription = await findSubscriptionByUserId(userId);
   if (!subscription) {
     return false;
