@@ -89,35 +89,39 @@ const startServer = async () => {
         const cronModule = await import('node-cron');
         const cron = cronModule.default;
 
-        // Setup subscription expiry cron (runs daily at midnight)
-        cron.schedule('0 0 * * *', async () => {
-          console.log('[Cron] Running subscription expiry check...');
-          try {
-            const {default: runExpiryCron} = await import(
-              './scripts/subscriptionExpiryCron.js'
-            );
-            await runExpiryCron();
-          } catch (error) {
-            console.error('[Cron] Error in subscription expiry:', error);
-          }
-        });
-        console.log(
-          '✅ Subscription expiry cron scheduled (daily at midnight)',
-        );
+        if (process.env.ENABLE_PAYMENTS === 'true') {
+          // Setup subscription expiry cron (runs daily at midnight)
+          cron.schedule('0 0 * * *', async () => {
+            console.log('[Cron] Running subscription expiry check...');
+            try {
+              const {default: runExpiryCron} = await import(
+                './scripts/subscriptionExpiryCron.js'
+              );
+              await runExpiryCron();
+            } catch (error) {
+              console.error('[Cron] Error in subscription expiry:', error);
+            }
+          });
+          console.log(
+            '✅ Subscription expiry cron scheduled (daily at midnight)',
+          );
 
-        // Setup subscription renewal cron (runs daily at 1 AM)
-        cron.schedule('0 1 * * *', async () => {
-          console.log('[Cron] Running subscription renewal process...');
-          try {
-            const {processSubscriptionRenewals} = await import(
-              './services/subscriptionRenewalService.js'
-            );
-            await processSubscriptionRenewals();
-          } catch (error) {
-            console.error('[Cron] Error in subscription renewal:', error);
-          }
-        });
-        console.log('✅ Subscription renewal cron scheduled (daily at 1 AM)');
+          // Setup subscription renewal cron (runs daily at 1 AM)
+          cron.schedule('0 1 * * *', async () => {
+            console.log('[Cron] Running subscription renewal process...');
+            try {
+              const {processSubscriptionRenewals} = await import(
+                './services/subscriptionRenewalService.js'
+              );
+              await processSubscriptionRenewals();
+            } catch (error) {
+              console.error('[Cron] Error in subscription renewal:', error);
+            }
+          });
+          console.log('✅ Subscription renewal cron scheduled (daily at 1 AM)');
+        } else {
+          console.log('ℹ️ Subscription crons disabled (ENABLE_PAYMENTS !== true)');
+        }
 
         // Setup GDPR data deletion cron (runs daily at 2 AM)
         cron.schedule('0 2 * * *', async () => {

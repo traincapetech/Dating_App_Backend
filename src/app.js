@@ -43,13 +43,25 @@ app.use(helmet());
 // Compress responses
 app.use(compression());
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
+const defaultTrustedOrigins = [
+  'https://pryvo.traincapetech.in',
+  'https://www.pryvo.traincapetech.in',
+];
+const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : null;
+  : [];
+const allowedOrigins = Array.from(
+  new Set([...defaultTrustedOrigins, ...envAllowedOrigins]),
+);
 
 app.use(
   cors({
-    origin: allowedOrigins || (process.env.NODE_ENV === 'production' ? false : '*'),
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? allowedOrigins
+        : envAllowedOrigins.length > 0
+          ? allowedOrigins
+          : '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
@@ -57,7 +69,7 @@ app.use(
       'X-Requested-With',
       'Device-Id',
     ],
-    credentials: Boolean(allowedOrigins),
+    credentials: true,
   }),
 );
 

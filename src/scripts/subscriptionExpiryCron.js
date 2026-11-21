@@ -36,16 +36,18 @@ async function runExpiryCron() {
       }, null, 2));
     }
 
-    process.exit(0);
+    return {expiryResult, syncResult};
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Error in expiry cron:`, error);
-    process.exit(1);
+    throw error;
   }
 }
 
-// Run if called directly
+// Run if called directly as a standalone CLI script
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runExpiryCron();
+  runExpiryCron()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 }
 
 export default runExpiryCron;
