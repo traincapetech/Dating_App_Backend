@@ -70,6 +70,7 @@ export async function refreshAccessToken(refreshToken) {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone || '',
+      authProvider: user.authProvider || 'local',
     },
   };
 }
@@ -507,6 +508,7 @@ export async function authenticateWithGoogle({idToken}) {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone || '',
+      authProvider: user.authProvider || 'google',
     },
     tokens,
     isNewUser,

@@ -125,15 +125,22 @@ async function decrementDailyLikeCount(userId) {
 
 export const likeUser = async (req, res) => {
   try {
-    const {senderId, receiverId, likedContent} = req.body;
+    const senderId = req.user.id;
+    const {receiverId, likedContent} = req.body;
 
     // Check premium status from subscription model
     const isPremium = await isUserPremium(senderId);
 
-    if (!senderId || !receiverId) {
+    if (!receiverId) {
       return res.status(400).json({
         success: false,
-        message: 'senderId and receiverId are required',
+        message: 'receiverId is required',
+      });
+    }
+    if (senderId === receiverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot like yourself',
       });
     }
 
@@ -361,12 +368,9 @@ export const likeUser = async (req, res) => {
 // Get users who liked the current user
 export const getLikesReceived = async (req, res) => {
   try {
-    const {userId} = req.params;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({success: false, message: 'Forbidden'});
     }
 
     // Check premium status from subscription model
@@ -451,12 +455,9 @@ export const getLikesReceived = async (req, res) => {
 // Get count of users who liked the current user (for badge display)
 export const getLikesCount = async (req, res) => {
   try {
-    const {userId} = req.params;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({success: false, message: 'Forbidden'});
     }
 
     // Get all profile right-swipes where this user is the receiver
@@ -508,12 +509,9 @@ export const getLikesCount = async (req, res) => {
 // Get daily like count and remaining likes for a user
 export const getDailyLikeInfo = async (req, res) => {
   try {
-    const {userId} = req.params;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({success: false, message: 'Forbidden'});
     }
 
     // Check premium status from subscription model
@@ -536,14 +534,17 @@ export const getDailyLikeInfo = async (req, res) => {
 
 // Check if a viewer has liked a target user
 export const getLikedStatus = async (req, res) => {
-  console.log(`[LikeController] getLikedStatus - viewerId: ${req.params.viewerId}, targetId: ${req.params.targetId}`);
   try {
-    const { viewerId, targetId } = req.params;
+    const viewerId = req.user.id;
+    const { targetId } = req.params;
+    if (req.params.viewerId && req.params.viewerId !== viewerId) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
 
-    if (!viewerId || !targetId) {
+    if (!targetId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'viewerId and targetId are required' 
+        message: 'targetId is required' 
       });
     }
 
@@ -573,12 +574,13 @@ export const getLikedStatus = async (req, res) => {
 // Reject a match request (removes the incoming like)
 export const rejectLike = async (req, res) => {
   try {
-    const {userId, likerId} = req.body;
+    const userId = req.user.id;
+    const {likerId} = req.body;
 
-    if (!userId || !likerId) {
+    if (!likerId) {
       return res.status(400).json({
         success: false,
-        message: 'userId and likerId are required',
+        message: 'likerId is required',
       });
     }
 

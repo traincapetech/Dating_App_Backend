@@ -40,12 +40,19 @@ const PREMIUM_COMMENT_LIMIT = 100;
  */
 export const sendComment = async (req, res) => {
   try {
-    const {senderId, receiverId, comment, targetContent} = req.body;
+    const senderId = req.user.id;
+    const {receiverId, comment, targetContent} = req.body;
 
-    if (!senderId || !receiverId || !comment) {
+    if (!receiverId || !comment) {
       return res.status(400).json({
         success: false,
-        message: 'senderId, receiverId, and comment are required',
+        message: 'receiverId and comment are required',
+      });
+    }
+    if (senderId === receiverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot comment on your own profile',
       });
     }
 
@@ -162,13 +169,13 @@ export const sendComment = async (req, res) => {
  */
 export const getReceivedComments = async (req, res) => {
   try {
-    const {userId} = req.params;
+    const userId = req.user.id;
     const {status = 'pending'} = req.query;
 
-    if (!userId) {
-      return res.status(400).json({
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({
         success: false,
-        message: 'userId is required',
+        message: 'Forbidden',
       });
     }
 
@@ -222,12 +229,12 @@ export const getReceivedComments = async (req, res) => {
  */
 export const getSentComments = async (req, res) => {
   try {
-    const {userId} = req.params;
+    const userId = req.user.id;
 
-    if (!userId) {
-      return res.status(400).json({
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({
         success: false,
-        message: 'userId is required',
+        message: 'Forbidden',
       });
     }
 
@@ -257,12 +264,13 @@ export const getSentComments = async (req, res) => {
 export const respondToComment = async (req, res) => {
   try {
     const {commentId} = req.params;
-    const {userId, action} = req.body; // action: 'accept' or 'reject'
+    const userId = req.user.id;
+    const {action} = req.body; // action: 'accept' or 'reject'
 
-    if (!userId || !action) {
+    if (!action) {
       return res.status(400).json({
         success: false,
-        message: 'userId and action are required',
+        message: 'action is required',
       });
     }
 
@@ -351,7 +359,7 @@ export const respondToComment = async (req, res) => {
 export const markCommentRead = async (req, res) => {
   try {
     const {commentId} = req.params;
-    const {userId} = req.body;
+    const userId = req.user.id;
 
     const comment = await ProfileComment.findById(commentId);
 
@@ -391,12 +399,12 @@ export const markCommentRead = async (req, res) => {
  */
 export const getUnreadCommentCount = async (req, res) => {
   try {
-    const {userId} = req.params;
+    const userId = req.user.id;
 
-    if (!userId) {
-      return res.status(400).json({
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({
         success: false,
-        message: 'userId is required',
+        message: 'Forbidden',
       });
     }
 
@@ -438,7 +446,7 @@ export const getUnreadCommentCount = async (req, res) => {
 export const deleteComment = async (req, res) => {
   try {
     const {commentId} = req.params;
-    const {userId} = req.body;
+    const userId = req.user.id;
 
     const comment = await ProfileComment.findById(commentId);
 

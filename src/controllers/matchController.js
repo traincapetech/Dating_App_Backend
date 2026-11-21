@@ -107,12 +107,9 @@ async function syncMatchExpiration(match) {
 
 export const getUserMatches = async (req, res) => {
   try {
-    const {userId} = req.params;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({success: false, message: 'Forbidden'});
     }
 
     // Include all possible match states for evaluation/display
@@ -199,7 +196,7 @@ export const getUserMatches = async (req, res) => {
 export const getMatchById = async (req, res) => {
   try {
     const {matchId} = req.params;
-    const userId = req.headers['x-user-id'] || req.query.userId;
+    const userId = req.user.id;
 
     if (!matchId) {
       return res
@@ -221,8 +218,8 @@ export const getMatchById = async (req, res) => {
       // but the existing logic seems to handle it by saving and proceeding.
     }
 
-    // Verify user is part of this match
-    if (userId && !match.users.includes(userId)) {
+    // Strictly verify authenticated user is part of this match
+    if (!match.users.includes(userId)) {
       return res.status(403).json({success: false, message: 'Access denied'});
     }
 
@@ -274,7 +271,7 @@ export const scheduleDate = async (req, res) => {
   try {
     const {matchId} = req.params;
     const {date, description, type} = req.body; // type: 'video' or 'in-person'
-    const userId = req.body.userId; // From auth middleware usually, but taking from body if not attached yet
+    const userId = req.user.id;
 
     if (!matchId || !date) {
       return res
@@ -319,11 +316,32 @@ export const scheduleDate = async (req, res) => {
 export const createMatch = async (req, res) => {
   try {
     const {userA, userB} = req.body;
+    const actingUserId = req.user.id;
 
     if (!userA || !userB) {
       return res
         .status(400)
         .json({success: false, message: 'Both userA and userB are required'});
+    }
+
+    if (userA !== actingUserId && userB !== actingUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: cannot create a match for other users',
+      });
+    }
+
+    // Require an existing mutual like (or at least the other user has liked actingUserId)
+    const otherUserId = userA === actingUserId ? userB : userA;
+    const incomingLike = await Like.findOne({
+      senderId: otherUserId,
+      receiverId: actingUserId,
+    });
+    if (!incomingLike) {
+      return res.status(403).json({
+        success: false,
+        message: 'Mutual interest is required to create a match',
+      });
     }
 
     // Check if match already exists
@@ -398,12 +416,12 @@ export const createMatch = async (req, res) => {
 export const unmatch = async (req, res) => {
   try {
     const {matchId} = req.params;
-    const {userId} = req.body;
+    const userId = req.user.id;
 
-    if (!matchId || !userId) {
+    if (!matchId) {
       return res
         .status(400)
-        .json({success: false, message: 'matchId and userId are required'});
+        .json({success: false, message: 'matchId is required'});
     }
 
     const match = await Match.findById(matchId);
@@ -445,12 +463,9 @@ export const unmatch = async (req, res) => {
 // NEW: Get expired matches for "Previous Interactions" section
 export const getPreviousInteractions = async (req, res) => {
   try {
-    const {userId} = req.params;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, message: 'userId is required'});
+    const userId = req.user.id;
+    if (req.params.userId && req.params.userId !== userId) {
+      return res.status(403).json({success: false, message: 'Forbidden'});
     }
 
     // Fetch all matches for the user to determine current active state (Requirement #2: Prevent duplicates)
