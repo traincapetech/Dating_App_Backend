@@ -46,6 +46,27 @@ export const patchProfileController = asyncHandler(async (req, res) => {
   const {userId: _removed, ...body} = req.body;
 
   const parsed = patchProfileSchema.parse(body);
+
+  // Moderate user-generated profile text (bio & prompts)
+  const textsToCheck = [
+    parsed?.basicInfo?.bio,
+    parsed?.profilePrompts?.aboutMe?.answer,
+    parsed?.profilePrompts?.selfCare?.answer,
+    parsed?.profilePrompts?.gettingPersonal?.answer,
+  ].filter(t => typeof t === 'string' && t.trim().length > 0);
+
+  if (textsToCheck.length > 0) {
+    const {moderateText} = await import('../services/moderationService.js');
+    for (const text of textsToCheck) {
+      const check = moderateText(text);
+      if (check?.isAbusive) {
+        return res.status(400).json({
+          error: 'Profile text violates our community safety guidelines. Please revise and try again.',
+        });
+      }
+    }
+  }
+
   const profile = await updateProfileData(userId, parsed);
 
   res.status(200).json({profile});

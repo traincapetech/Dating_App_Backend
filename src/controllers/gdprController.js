@@ -5,6 +5,7 @@ import {
   cancelScheduledDeletion,
 } from '../services/gdprService.js';
 import {deleteUserController} from './profileController.js';
+import {findUserById} from '../models/userModel.js';
 
 /**
  * GDPR Controller - Handles GDPR compliance requests
@@ -111,7 +112,4 @@ export const immediateDeletionController = asyncHandler(async (req, res) => {
   // Use existing deleteUserController logic
   await deleteUserController(req, res);
 });
-
-// Import required function
-import {findUserById} from '../models/userModel.js';
 

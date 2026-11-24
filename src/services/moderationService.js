@@ -186,32 +186,137 @@ export function detectFakeProfile(profile) {
   };
 }
 
-/* ---------------- IMAGE MODERATION (Azure AI Content Safety) ---------------- */
+/* ---------------- IMAGE MODERATION (Azure AI Content Safety OR Sightengine) ---------------- */
 
 /**
- * Moderates an image via Azure AI Content Safety REST API.
+ * Helper to normalize Buffer / base64 / URL into a Buffer for Sightengine multipart upload.
+ */
+async function toImageBuffer(imageInput) {
+  if (Buffer.isBuffer(imageInput)) return imageInput;
+  if (typeof imageInput === 'string') {
+    if (imageInput.startsWith('http://') || imageInput.startsWith('https://')) {
+      const res = await fetch(imageInput);
+      if (!res.ok) throw new Error(`Failed to fetch image (${res.status})`);
+      return Buffer.from(await res.arrayBuffer());
+    }
+    const cleaned = imageInput.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    return Buffer.from(cleaned, 'base64');
+  }
+  return null;
+}
+
+/**
+ * Sightengine image moderation (free tier: 2,000 ops/mo, no credit card required).
+ * Env vars: SIGHTENGINE_API_USER, SIGHTENGINE_API_SECRET
+ */
+async function moderateImageWithSightengine(imageInput, apiUser, apiSecret) {
+  const threshold = Number.parseFloat(process.env.SIGHTENGINE_THRESHOLD || '0.65');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    let response;
+    if (typeof imageInput === 'string' && (imageInput.startsWith('http://') || imageInput.startsWith('https://'))) {
+      const params = new URLSearchParams({
+        models: 'nudity-2.1,wad,offensive,gore-2.0',
+        api_user: apiUser,
+        api_secret: apiSecret,
+        url: imageInput,
+      });
+      response = await fetch(`https://api.sightengine.com/1.0/check.json?${params.toString()}`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+    } else {
+      const buffer = await toImageBuffer(imageInput);
+      if (!buffer || buffer.length === 0) {
+        return {isSafe: false, provider: 'sightengine', categories: ['invalid_image']};
+      }
+      const formData = new FormData();
+      formData.append('models', 'nudity-2.1,wad,offensive,gore-2.0');
+      formData.append('api_user', apiUser);
+      formData.append('api_secret', apiSecret);
+      formData.append('media', new Blob([buffer], {type: 'image/jpeg'}), 'upload.jpg');
+      response = await fetch('https://api.sightengine.com/1.0/check.json', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+    }
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Sightengine HTTP ${response.status}: ${errText.slice(0, 120)}`);
+    }
+
+    const data = await response.json();
+    if (data.status !== 'success') {
+      throw new Error(data.error?.message || 'Sightengine returned failure status');
+    }
+
+    const flagged = [];
+    const nudity = data.nudity || {};
+    const explicitScore = Math.max(
+      Number(nudity.sexual_activity || 0),
+      Number(nudity.sexual_display || 0),
+      Number(nudity.erotica || 0),
+      Number(nudity.very_suggestive || 0),
+    );
+    if (explicitScore >= threshold) flagged.push(`Sexual:${explicitScore.toFixed(2)}`);
+    if (Number(data.weapon || 0) >= threshold) flagged.push(`Weapon:${Number(data.weapon).toFixed(2)}`);
+    if (Number(data.gore?.prob || 0) >= threshold) flagged.push(`Gore:${Number(data.gore.prob).toFixed(2)}`);
+    if (Number(data.offensive?.prob || 0) >= threshold) flagged.push(`Offensive:${Number(data.offensive.prob).toFixed(2)}`);
+
+    return {
+      isSafe: flagged.length === 0,
+      provider: 'sightengine',
+      categories: flagged,
+      scores: {explicitScore, weapon: data.weapon, gore: data.gore?.prob, offensive: data.offensive?.prob},
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Moderates an image via Azure AI Content Safety OR Sightengine (whichever credentials are configured).
  * Accepts a Buffer, a base64 string (with or without data: prefix), or an https URL.
  * Env vars:
- *   - AZURE_CONTENT_SAFETY_ENDPOINT (e.g. https://<resource>.cognitiveservices.azure.com)
- *   - AZURE_CONTENT_SAFETY_KEY
- *   - AZURE_CONTENT_SAFETY_THRESHOLD (optional, default 4 on Azure's 0/2/4/6 scale)
+ *   - Azure:       AZURE_CONTENT_SAFETY_ENDPOINT, AZURE_CONTENT_SAFETY_KEY, AZURE_CONTENT_SAFETY_THRESHOLD (default 4)
+ *   - Sightengine: SIGHTENGINE_API_USER, SIGHTENGINE_API_SECRET, SIGHTENGINE_THRESHOLD (default 0.65)
  */
 export async function moderateImage(imageInput) {
   const endpoint = (process.env.AZURE_CONTENT_SAFETY_ENDPOINT || '').replace(/\/+$/, '');
   const apiKey = process.env.AZURE_CONTENT_SAFETY_KEY || '';
   const threshold = Number.parseInt(process.env.AZURE_CONTENT_SAFETY_THRESHOLD || '4', 10);
 
+  const sightUser = process.env.SIGHTENGINE_API_USER || '';
+  const sightSecret = process.env.SIGHTENGINE_API_SECRET || '';
+
+  // Prefer Sightengine when Azure is not configured (no credit card needed on Sightengine free tier)
+  if ((!endpoint || !apiKey) && sightUser && sightSecret) {
+    try {
+      return await moderateImageWithSightengine(imageInput, sightUser, sightSecret);
+    } catch (error) {
+      console.error('[ImageModeration] Sightengine error:', error.message);
+      if (process.env.NODE_ENV === 'production') {
+        return {isSafe: false, provider: 'sightengine', categories: ['moderation_error']};
+      }
+      return {isSafe: true, provider: 'sightengine-error-dev', categories: []};
+    }
+  }
+
   if (!endpoint || !apiKey) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('[ImageModeration] Azure AI Content Safety credentials missing in production');
+      console.error('[ImageModeration] Neither Azure Content Safety nor Sightengine credentials are set in production');
       return {
         isSafe: false,
-        provider: 'azure-content-safety',
+        provider: 'unconfigured',
         categories: ['moderation_unavailable'],
       };
     }
-    console.warn('[ImageModeration] Azure AI Content Safety not configured — skipping in non-production');
-    return {isSafe: true, provider: 'azure-unconfigured-dev', categories: []};
+    console.warn('[ImageModeration] Image moderation not configured — skipping in non-production');
+    return {isSafe: true, provider: 'unconfigured-dev', categories: []};
   }
 
   try {
@@ -289,6 +394,8 @@ export async function moderateImage(imageInput) {
   }
 }
 
+export const moderateText = detectChatAbuse;
+
 /* ---------------- AUTO REVIEW ---------------- */
 
 export async function autoReviewProfile(profile) {
@@ -307,6 +414,7 @@ export async function autoReviewProfile(profile) {
 
 export default {
   detectChatAbuse,
+  moderateText,
   detectFakeProfile,
   moderateImage,
   autoReviewProfile,

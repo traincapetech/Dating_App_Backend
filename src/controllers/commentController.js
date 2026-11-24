@@ -63,6 +63,15 @@ export const sendComment = async (req, res) => {
       });
     }
 
+    const {moderateText} = await import('../services/moderationService.js');
+    const modCheck = moderateText(comment);
+    if (modCheck?.isAbusive) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment violates our community safety guidelines.',
+      });
+    }
+
     // Check if user is premium
     const isPremium = await isUserPremium(senderId);
     const dailyLimit = isPremium ? PREMIUM_COMMENT_LIMIT : DAILY_COMMENT_LIMIT;

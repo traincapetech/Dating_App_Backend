@@ -64,7 +64,7 @@ export async function performThoroughAccountDeletion(userId) {
       DailyLikeCount.deleteMany({userId}),
       Wallet.deleteMany({userId}),
       GiftTransaction.deleteMany({$or: [{senderId: userId}, {receiverId: userId}]}),
-      Report.deleteMany({$or: [{reporterId: userId}, {reportedUserId: userId}]}),
+      Report.deleteMany({$or: [{reporterId: userId}, {reportedId: userId}, {reportedUserId: userId}]}),
       Notification.deleteMany({$or: [{userId}, {targetUserId: userId}]}),
       PhotoInteraction.deleteMany({$or: [{userId}, {targetUserId: userId}]}),
       IcebreakerInteraction.deleteMany({$or: [{userId}, {targetUserId: userId}]}),

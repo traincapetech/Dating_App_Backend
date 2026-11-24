@@ -82,6 +82,21 @@ export async function updateProfileData(userId, updates) {
 }
 
 export async function getProfile(userId, viewerId = null) {
+  const isSelf = !viewerId || viewerId === userId;
+
+  // Prevent blocked users from viewing each other's profiles via direct API call
+  if (!isSelf) {
+    const blocked = await Block.findOne({
+      $or: [
+        {blockerId: viewerId, blockedId: userId},
+        {blockerId: userId, blockedId: viewerId},
+      ],
+    }).lean();
+    if (blocked) {
+      return null;
+    }
+  }
+
   const profile = await findProfileByUserId(userId);
   const users = await getUsers();
   const user = users.find(u => (u._id || u.id) === userId);
@@ -107,7 +122,7 @@ export async function getProfile(userId, viewerId = null) {
     return {
       ...skeletonProfile,
       name: user.fullName || 'User',
-      email: user.email || '',
+      ...(isSelf ? {email: user.email || ''} : {}),
       isVerified: user.isVerified || false,
       showOnlineStatus: user.showOnlineStatus !== false,
       isActiveToday: true,
@@ -147,10 +162,26 @@ export async function getProfile(userId, viewerId = null) {
     user?.lastActive &&
     Date.now() - new Date(user.lastActive).getTime() < 24 * 60 * 60 * 1000;
 
+  // Strip private PII (email, DOB, exact GPS coordinates) when another user views this profile
+  let safeProfile = profile;
+  if (!isSelf) {
+    const {
+      dob: _dob,
+      email: _email,
+      locationDetails: _locDetails,
+      ...publicBasicInfo
+    } = profile.basicInfo || {};
+    const {location: _geoLocation, ...restProfile} = profile;
+    safeProfile = {
+      ...restProfile,
+      basicInfo: publicBasicInfo,
+    };
+  }
+
   return {
-    ...profile,
+    ...safeProfile,
     name: displayName,
-    email: user?.email || '',
+    ...(isSelf ? {email: user?.email || ''} : {}),
     isVerified: user?.isVerified || false,
     showOnlineStatus: user?.showOnlineStatus !== false,
     isActiveToday: !!isActiveToday,
