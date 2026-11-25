@@ -26,12 +26,14 @@ export const blockUser = async (req, res) => {
       });
     }
 
-    // Check if already blocked
+    // Check if already blocked — return idempotent success so retries never fail
     const existingBlock = await Block.findOne({ blockerId, blockedId });
     if (existingBlock) {
-      return res.status(400).json({
-        success: false,
-        message: 'User is already blocked',
+      return res.json({
+        success: true,
+        alreadyBlocked: true,
+        message: 'User blocked successfully',
+        block: existingBlock,
       });
     }
 
@@ -274,14 +276,18 @@ export const blockAndReport = async (req, res) => {
       });
     }
 
-    // Create block (if not exists)
-    const existingBlock = await Block.findOne({ blockerId, blockedId });
+    // Create block (idempotent — safe against double-taps / race conditions)
+    let existingBlock = await Block.findOne({ blockerId, blockedId });
     if (!existingBlock) {
-      await Block.create({
-        blockerId,
-        blockedId,
-        reason: reason || null,
-      });
+      try {
+        existingBlock = await Block.create({
+          blockerId,
+          blockedId,
+          reason: reason || null,
+        });
+      } catch (dupErr) {
+        if (dupErr?.code !== 11000) throw dupErr;
+      }
 
       // Disable chat
       await Match.updateMany(
@@ -290,14 +296,17 @@ export const blockAndReport = async (req, res) => {
       );
     }
 
-    // Create report if reason provided
+    // Create report if reason provided (normalize spacing & fallback to 'other' so blocking never fails)
     let reportId = null;
     if (reason) {
+      const validReasons = ['harassment', 'spam', 'inappropriate_content', 'fake_profile', 'underage', 'other'];
+      const normalized = String(reason).trim().toLowerCase().replace(/\s+/g, '_');
+      const safeReason = validReasons.includes(normalized) ? normalized : 'other';
       const report = await Report.create({
         reporterId: blockerId,
         reportedId: blockedId,
         matchId: matchId || null,
-        reason,
+        reason: safeReason,
         description: description || null,
       });
       reportId = report._id;
