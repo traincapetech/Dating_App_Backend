@@ -164,15 +164,60 @@ export async function sendPushNotification(userId, notification) {
   }
 
   try {
+    // Check user notification preferences before sending push
+    const User = (await import('../models/User.js')).default;
+    const userRecord = await User.findById(userId)
+      .select('fcmToken notificationSettings')
+      .lean();
+    const prefs = userRecord?.notificationSettings;
+    if (prefs) {
+      if (prefs.pushEnabled === false) {
+        return { success: false, reason: 'preferences_disabled' };
+      }
+      const effectiveType = String(
+        notification?.data?.type || notification?.type || ''
+      ).toLowerCase();
+      if (
+        (effectiveType === 'match' || effectiveType === 'new_match') &&
+        (prefs.newMatches === false ||
+          (prefs.newMatches === undefined && prefs.matches === false))
+      ) {
+        return { success: false, reason: 'preferences_disabled' };
+      }
+      if (
+        (effectiveType === 'chat_message' ||
+          effectiveType === 'message' ||
+          effectiveType === 'new_message') &&
+        (prefs.newMessages === false ||
+          (prefs.newMessages === undefined && prefs.messages === false))
+      ) {
+        return { success: false, reason: 'preferences_disabled' };
+      }
+      if (
+        (effectiveType === 'like' ||
+          effectiveType === 'new_like' ||
+          effectiveType === 'photo_like' ||
+          effectiveType === 'comment') &&
+        (prefs.newLikes === false ||
+          (prefs.newLikes === undefined && prefs.likes === false))
+      ) {
+        return { success: false, reason: 'preferences_disabled' };
+      }
+      if (
+        (effectiveType === 'profile_view' || effectiveType === 'view') &&
+        prefs.profileViews === false
+      ) {
+        return { success: false, reason: 'preferences_disabled' };
+      }
+    }
+
     // Primary: check the NotificationToken collection
     let tokenDoc = await findTokenByUserId(userId);
     let deviceToken = tokenDoc?.deviceToken;
 
     // Fallback: if no NotificationToken record, try User.fcmToken directly
     if (!deviceToken) {
-      const User = (await import('../models/User.js')).default;
-      const user = await User.findById(userId).select('fcmToken');
-      deviceToken = user?.fcmToken;
+      deviceToken = userRecord?.fcmToken;
       if (deviceToken) {
         console.log(`[Push] Using fallback User.fcmToken for ${userId}`);
         // Also backfill into NotificationToken so future lookups work correctly

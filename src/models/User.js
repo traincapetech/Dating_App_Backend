@@ -95,8 +95,17 @@ const userSchema = new mongoose.Schema(
     deletionDate: Date,
     notificationSettings: {
       pushEnabled: { type: Boolean, default: true },
+      newMatches: { type: Boolean, default: true },
+      newMessages: { type: Boolean, default: true },
+      newLikes: { type: Boolean, default: true },
+      profileViews: { type: Boolean, default: false },
+      superLikes: { type: Boolean, default: true },
       matches: { type: Boolean, default: true },
       messages: { type: Boolean, default: true },
+      likes: { type: Boolean, default: true },
+      streaks: { type: Boolean, default: true },
+      marketing: { type: Boolean, default: false },
+      emailNotifications: { type: Boolean, default: true },
     },
   },
   {

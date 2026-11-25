@@ -117,6 +117,44 @@ export const sendAdminNotification = async (req, res) => {
   }
 };
 
+const normalizeNotificationSettings = (raw = {}) => {
+  const src = raw && typeof raw.toObject === 'function' ? raw.toObject() : raw || {};
+  const newMatches =
+    typeof src.newMatches === 'boolean'
+      ? src.newMatches
+      : typeof src.matches === 'boolean'
+        ? src.matches
+        : true;
+  const newMessages =
+    typeof src.newMessages === 'boolean'
+      ? src.newMessages
+      : typeof src.messages === 'boolean'
+        ? src.messages
+        : true;
+  const newLikes =
+    typeof src.newLikes === 'boolean'
+      ? src.newLikes
+      : typeof src.likes === 'boolean'
+        ? src.likes
+        : true;
+
+  return {
+    pushEnabled: typeof src.pushEnabled === 'boolean' ? src.pushEnabled : true,
+    newMatches,
+    newMessages,
+    newLikes,
+    profileViews: typeof src.profileViews === 'boolean' ? src.profileViews : false,
+    superLikes: typeof src.superLikes === 'boolean' ? src.superLikes : true,
+    matches: newMatches,
+    messages: newMessages,
+    likes: newLikes,
+    streaks: typeof src.streaks === 'boolean' ? src.streaks : true,
+    marketing: typeof src.marketing === 'boolean' ? src.marketing : false,
+    emailNotifications:
+      typeof src.emailNotifications === 'boolean' ? src.emailNotifications : true,
+  };
+};
+
 /**
  * Fetch user notification preferences
  * GET /api/notifications/preferences/:userId
@@ -135,11 +173,7 @@ export const getPreferences = async (req, res) => {
 
     res.json({
       success: true,
-      preferences: user.notificationSettings || {
-        pushEnabled: true,
-        matches: true,
-        messages: true,
-      },
+      preferences: normalizeNotificationSettings(user.notificationSettings),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching preferences' });
@@ -168,22 +202,52 @@ export const updatePreferences = async (req, res) => {
     'newMessages',
     'newLikes',
     'profileViews',
+    'superLikes',
   ];
   const source =
     req.body?.preferences && typeof req.body.preferences === 'object'
       ? req.body.preferences
       : req.body || {};
-  const sanitized = {};
+  const updates = {};
   for (const key of allowedKeys) {
     if (typeof source[key] === 'boolean') {
-      sanitized[key] = source[key];
+      updates[key] = source[key];
     }
   }
 
+  // Keep modern and legacy preference keys synchronized
+  if (typeof updates.newMatches === 'boolean' && typeof updates.matches !== 'boolean') {
+    updates.matches = updates.newMatches;
+  } else if (typeof updates.matches === 'boolean' && typeof updates.newMatches !== 'boolean') {
+    updates.newMatches = updates.matches;
+  }
+
+  if (typeof updates.newMessages === 'boolean' && typeof updates.messages !== 'boolean') {
+    updates.messages = updates.newMessages;
+  } else if (typeof updates.messages === 'boolean' && typeof updates.newMessages !== 'boolean') {
+    updates.newMessages = updates.messages;
+  }
+
+  if (typeof updates.newLikes === 'boolean' && typeof updates.likes !== 'boolean') {
+    updates.likes = updates.newLikes;
+  } else if (typeof updates.likes === 'boolean' && typeof updates.newLikes !== 'boolean') {
+    updates.newLikes = updates.likes;
+  }
+
   try {
+    const existingUser = await User.findById(userId).select('notificationSettings');
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const mergedSettings = normalizeNotificationSettings({
+      ...normalizeNotificationSettings(existingUser.notificationSettings),
+      ...updates,
+    });
+
     const user = await User.findByIdAndUpdate(
       userId,
-      { notificationSettings: sanitized },
+      { $set: { notificationSettings: mergedSettings } },
       { new: true, runValidators: true }
     );
 
@@ -194,7 +258,7 @@ export const updatePreferences = async (req, res) => {
     res.json({
       success: true,
       message: 'Preferences updated successfully',
-      preferences: user.notificationSettings,
+      preferences: normalizeNotificationSettings(user.notificationSettings),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error updating preferences' });
