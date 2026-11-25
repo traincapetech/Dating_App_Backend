@@ -31,17 +31,20 @@ const basicInfoSchema = z.object({
       message: 'You must be at least 18 years old to use Pryvo.',
     })
     .optional(),
-  email: z.string().email().optional(),
-  notificationsEnabled: z.boolean().optional(),
-  location: z.string().optional(),
+  email: z.string().email().or(z.literal('')).optional(),
+  notificationsEnabled: z.boolean().nullable().optional(),
+  location: z.string().nullable().optional(),
   locationDetails: z
     .object({
       lat: z.number(),
       lng: z.number(),
+      accuracy: z.number().optional(),
+      description: z.string().optional(),
       source: z.string().optional(),
       timestamp: z.number().optional(),
       city: z.string().optional(),
     })
+    .nullable()
     .optional(),
   gender: z.enum(['Man', 'Woman', 'Non Binary']).optional(),
   showGenderOnProfile: z.boolean().optional(),

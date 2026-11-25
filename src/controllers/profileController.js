@@ -47,6 +47,22 @@ export const patchProfileController = asyncHandler(async (req, res) => {
 
   const parsed = patchProfileSchema.parse(body);
 
+  // Strip null/empty optional fields when user skips onboarding steps (e.g. location/notifications)
+  if (parsed?.basicInfo) {
+    if (parsed.basicInfo.locationDetails == null) {
+      delete parsed.basicInfo.locationDetails;
+    }
+    if (parsed.basicInfo.notificationsEnabled == null) {
+      delete parsed.basicInfo.notificationsEnabled;
+    }
+    if (parsed.basicInfo.location == null) {
+      delete parsed.basicInfo.location;
+    }
+    if (parsed.basicInfo.email === '') {
+      delete parsed.basicInfo.email;
+    }
+  }
+
   // Moderate user-generated profile text (bio & prompts)
   const textsToCheck = [
     parsed?.basicInfo?.bio,
